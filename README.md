@@ -6,6 +6,9 @@ A futuristic single‑page web app to browse image galleries for Fringe Twitter 
 - Node.js 18+ and npm
 
 ### Install & Run (development)
+
+NOTE: `package.json` in the root directory is a dummy file to workaround a bug in Windows npm that needs a package.json in the root directory.
+
 1. Install dependencies:
    
    ```bash
