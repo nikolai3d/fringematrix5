@@ -31,7 +31,7 @@ echo "[remote] Reloading with pm2"
 if pm2 list | grep -q "${APP_NAME}"; then
   pm2 reload "${APP_NAME}"
 else
-  pm2 start server/server.js --name "${APP_NAME}"
+  pm2 start app/server/server.js --name "${APP_NAME}"
   pm2 save
 fi
 

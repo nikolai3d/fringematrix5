@@ -1,9 +1,45 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 
 async function fetchJSON(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch ${url}`);
+  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!res.ok) {
+    let body = '';
+    try { body = await res.text(); } catch {}
+    throw new Error(`Failed to fetch ${url} (status ${res.status}). ${body?.slice(0, 200) || ''}`);
+  }
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    let body = '';
+    try { body = await res.text(); } catch {}
+    throw new Error(`Expected JSON from ${url} but got '${contentType}'. Body starts: ${body.slice(0, 80)}`);
+  }
   return res.json();
+}
+
+function ordinalize(dayNumber) {
+  const n = Number(dayNumber);
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1: return `${n}st`;
+    case 2: return `${n}nd`;
+    case 3: return `${n}rd`;
+    default: return `${n}th`;
+  }
+}
+
+function formatDeployedAtPacific(ptString) {
+  if (!ptString || typeof ptString !== 'string') return ptString;
+  const m = ptString.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2}) (P[SD]T)$/);
+  if (!m) return ptString;
+  const [, yyyy, mm, dd, HH, MM, SS, tz] = m;
+  const monthNames = [
+    'January','February','March','April','May','June',
+    'July','August','September','October','November','December',
+  ];
+  const monthName = monthNames[Number(mm) - 1] || mm;
+  const day = ordinalize(Number(dd));
+  return `${monthName} ${day}, ${yyyy}, ${HH}:${MM}:${SS} ${tz}`;
 }
 
 export default function App() {
@@ -13,6 +49,8 @@ export default function App() {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isBuildInfoOpen, setIsBuildInfoOpen] = useState(false);
+  const [buildInfo, setBuildInfo] = useState(null);
 
   const activeCampaign = useMemo(
     () => campaigns.find((c) => c.id === activeCampaignId) || null,
@@ -47,6 +85,18 @@ export default function App() {
 
   const toggleSidebar = useCallback(() => setIsSidebarOpen((v) => !v), []);
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
+  const toggleBuildInfo = useCallback(async () => {
+    setIsBuildInfoOpen((v) => !v);
+    if (!buildInfo) {
+      try {
+        const data = await fetchJSON('/api/build-info');
+        setBuildInfo(data);
+      } catch (e) {
+        console.error(e);
+        setBuildInfo({ repoUrl: null, commitHash: null, deployedAt: null });
+      }
+    }
+  }, [buildInfo]);
 
   useEffect(() => {
     let isMounted = true;
@@ -177,6 +227,53 @@ export default function App() {
           ))}
         </section>
       </main>
+
+      {/* Build info button */}
+      <button
+        className="build-info-button"
+        aria-label="Build information"
+        onClick={toggleBuildInfo}
+      >
+        ⓘ
+      </button>
+
+      {/* Build info popover */}
+      {isBuildInfoOpen && (
+        <div className="build-info-popover" role="dialog" aria-modal={false}>
+          <div className="build-info-header">
+            <span>Build Info</span>
+            <button
+              className="build-info-close"
+              aria-label="Close build info"
+              onClick={() => setIsBuildInfoOpen(false)}
+            >
+              ✕
+            </button>
+          </div>
+          <div className="build-info-body">
+            <div className="row">
+              <span className="label">Repo</span>
+              {buildInfo?.repoUrl ? (
+                <a href={buildInfo.repoUrl} target="_blank" rel="noreferrer noopener">{buildInfo.repoUrl}</a>
+              ) : (
+                <span className="value">N/A</span>
+              )}
+            </div>
+            <div className="row">
+              <span className="label">Commit</span>
+              {buildInfo?.commitHash ? (
+                <span className="value monospace" title={buildInfo.commitHash}>{buildInfo.commitHash}</span>
+              ) : (
+                <span className="value">N/A</span>
+              )}
+            </div>
+            <div className="row">
+              <span className="label">Deployed</span>
+              <span className="value">{buildInfo?.deployedAt ? formatDeployedAtPacific(buildInfo.deployedAt) : 'N/A'}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <footer className="navbar" id="bottom-navbar">
         <div className="navbar-inner">
