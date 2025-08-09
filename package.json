@@ -1,29 +1,5 @@
 {
-  "name": "fringematrix5",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Fringe Matrix Gallery - futuristic SPA to browse campaign image galleries",
-  "main": "server.js",
-  "type": "commonjs",
-  "scripts": {
-    "start": "node server.js",
-    "server": "node server.js",
-    "dev": "concurrently -n server,client -c blue,green \"npm run server\" \"npm run client:dev\"",
-    "client:dev": "npm run dev --prefix client",
-    "client:build": "npm run build --prefix client",
-    "client:preview": "npm run preview --prefix client",
-    "build": "npm run client:build"
-  },
-  "dependencies": {
-    "express": "^4.19.2",
-    "js-yaml": "^4.1.0"
-  },
-  "devDependencies": {
-    "concurrently": "^8.2.2"
-  },
-  "engines": {
-    "node": ">=18"
+    "name": "root",
+    "version": "1.0.0",
+    "private": true
   }
-}
-
-

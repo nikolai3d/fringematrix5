@@ -18,18 +18,20 @@ tar -xzf "${REMOTE_DIR}/${ARCHIVE_NAME}"
 echo "[remote] Cleaning up archive"
 rm -f "${REMOTE_DIR}/${ARCHIVE_NAME}"
 
-echo "[remote] Installing production dependencies"
+echo "[remote] Installing production dependencies for backend"
+cd server
 if [[ -f package-lock.json ]]; then
   npm ci --omit=dev
 else
   npm install --omit=dev
 fi
+cd ..
 
 echo "[remote] Reloading with pm2"
 if pm2 list | grep -q "${APP_NAME}"; then
   pm2 reload "${APP_NAME}"
 else
-  pm2 start server.js --name "${APP_NAME}"
+  pm2 start server/server.js --name "${APP_NAME}"
   pm2 save
 fi
 

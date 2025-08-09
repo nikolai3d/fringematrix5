@@ -1,0 +1,22 @@
+{
+  "name": "fringematrix-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fringe Matrix Gallery backend (Express)",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "server": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "js-yaml": "^4.1.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
+
+
