@@ -46,30 +46,19 @@ Write-Host "Uploading $archiveName to ${User}@${HostName}:${RemoteDir}" -Foregro
 ssh @sshArgs "${User}@${HostName}" "mkdir -p '${RemoteDir}/app'" | Out-Null
 scp @scpArgs $archivePath "${User}@${HostName}:${RemoteDir}/" | Out-Null
 
-Write-Host "Deploying remotely..." -ForegroundColor Cyan
-$remoteCmd = @"
-set -euo pipefail
-mkdir -p "$RemoteDir/app"
-cd "$RemoteDir/app"
-tar -xzf "$RemoteDir/$archiveName"
-rm -f "$RemoteDir/$archiveName"
-if [ -f package-lock.json ]; then
-  npm ci --omit=dev
-else
-  npm install --omit=dev
-fi
-if pm2 list | grep -q "$AppName"; then
-  pm2 reload "$AppName"
-else
-  pm2 start server.js --name "$AppName"
-  pm2 save
-fi
-"@
+Write-Host "Uploading remote deploy script..." -ForegroundColor Cyan
+# Ensure LF endings for the shell script before upload
+$remoteShLocal = Join-Path $PSScriptRoot 'deploy_remote.sh'
+if (-not (Test-Path $remoteShLocal)) { throw "deploy_remote.sh not found at $remoteShLocal" }
+$remoteShTemp = Join-Path $env:TEMP "deploy_remote.sh"
+$remoteShContent = (Get-Content -Raw -Encoding UTF8 $remoteShLocal) -replace "`r", ""
+[System.IO.File]::WriteAllText($remoteShTemp, $remoteShContent, [System.Text.UTF8Encoding]::new($false))
 
-# Normalize newlines and escape for safe remote execution
-$remoteCmd = $remoteCmd -replace "`r", ""
-# Send the script via STDIN to avoid quoting issues
-$remoteCmd | ssh @sshArgs "${User}@${HostName}" "bash -s -e"
+scp @scpArgs $remoteShTemp "${User}@${HostName}:${RemoteDir}/deploy_remote.sh" | Out-Null
+ssh @sshArgs "${User}@${HostName}" "chmod +x '${RemoteDir}/deploy_remote.sh'" | Out-Null
+
+Write-Host "Deploying remotely..." -ForegroundColor Cyan
+ssh @sshArgs "${User}@${HostName}" "'${RemoteDir}/deploy_remote.sh' '$RemoteDir' '$archiveName' '$AppName'"
 
 Write-Host "Done. App should be running on port 3000 behind Nginx if configured." -ForegroundColor Green
 
