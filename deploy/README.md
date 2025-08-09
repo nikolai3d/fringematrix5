@@ -1,6 +1,6 @@
 ## Deploying to a DigitalOcean Droplet
 
-This folder contains everything you need to deploy the app to a regular Ubuntu Droplet without using GitHub deploys. You will upload only the runtime bits (server, built client, data, and images) from your local machine over SSH.
+This folder contains everything you need to deploy the app to a regular Ubuntu Droplet without using GitHub deploys. You will upload only the runtime bits (backend in `server/`, built client, data, and images) from your local machine over SSH.
 
 ### What you get here
 - `deploy.ps1`: PowerShell script you run on your Windows PC to build locally and deploy over SSH/SCP.
@@ -46,11 +46,11 @@ pwsh -File .\deploy\deploy.ps1 -HostName <DROPLET_IP_OR_HOSTNAME> -User deploy -
 ```
 
 What it does:
-- Installs dependencies locally, builds the client (`client/dist`)
-- Bundles only the runtime bits: `server.js`, `package.json`, `package-lock.json`, `data/`, `avatars/`, `client/dist/`
+- Builds the client (`client/dist`)
+- Bundles only the runtime bits: `server/` (backend), `data/`, `avatars/`, `client/dist/`
 - Uploads the bundle via `scp`
-- Installs production deps on the server (`npm ci --omit=dev`)
-- Starts or reloads the app with PM2 as `fringematrix`
+- Installs production deps for the backend on the server (`npm ci --omit=dev` inside `server/`)
+- Starts or reloads the app with PM2 as `fringematrix` (runs `server/server.js`)
 
 Visit the app:
 - If using IP only: `http://YOUR_DROPLET_IP`

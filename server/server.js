@@ -6,11 +6,12 @@ const yaml = require('js-yaml');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const ROOT_DIR = __dirname;
-const DATA_DIR = path.join(ROOT_DIR, 'data');
-const AVATARS_DIR = path.join(ROOT_DIR, 'avatars');
-const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
-const CLIENT_DIST_DIR = path.join(ROOT_DIR, 'client', 'dist');
+// Project root is one level up from this file (which lives in server/)
+const PROJECT_ROOT = path.join(__dirname, '..');
+const DATA_DIR = path.join(PROJECT_ROOT, 'data');
+const AVATARS_DIR = path.join(PROJECT_ROOT, 'avatars');
+const PUBLIC_DIR = path.join(PROJECT_ROOT, 'public');
+const CLIENT_DIST_DIR = path.join(PROJECT_ROOT, 'client', 'dist');
 const HAS_CLIENT_BUILD = fs.existsSync(path.join(CLIENT_DIST_DIR, 'index.html'));
 
 function loadCampaigns() {
@@ -128,7 +129,7 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Fringe Matrix gallery running on http://localhost:${PORT}`);
+  console.log(`Fringe Matrix backend running on http://localhost:${PORT}`);
 });
 
 

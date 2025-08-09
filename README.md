@@ -9,14 +9,20 @@ A futuristic single‑page web app to browse image galleries for Fringe Twitter 
 1. Install dependencies:
    
    ```bash
-   npm install
+   npm --prefix server install
    npm --prefix client install
    ```
 
-2. Start dev servers (API at 3000, React at 5173):
+2. Start the backend (API at 3000):
    
    ```bash
-   npm run dev
+   npm --prefix server start
+   ```
+
+3. Start the frontend dev server (Vite at 5173):
+   
+   ```bash
+   npm --prefix client run dev
    ```
 
 3. Open the app:
@@ -43,7 +49,7 @@ Supported image extensions: `.png .jpg .jpeg .gif .webp .avif .bmp .svg`.
 1. Build React app:
    
    ```bash
-   npm run build
+   npm --prefix client run build
    ```
 
    This generates the `client/dist/` directory (it is not checked into git).
@@ -51,7 +57,7 @@ Supported image extensions: `.png .jpg .jpeg .gif .webp .avif .bmp .svg`.
 2. Start server (serves `client/dist` if present):
    
    ```bash
-   npm start
+   npm --prefix server start
    ```
 
 3. Open the app:
@@ -62,7 +68,7 @@ Supported image extensions: `.png .jpg .jpeg .gif .webp .avif .bmp .svg`.
    - If `client/dist` is missing, the server falls back to serving static files from `public/`. In that case, the React app itself will not be available unless you build it.
 
 ### Project structure
-- `server.js`: Express server, API endpoints, static hosting
+- `server/`: Express backend (npm module `fringematrix-backend`)
 - `client/`: React app (Vite)
 - `data/campaigns.yaml`: Campaign list and metadata
 - `avatars/`: Image roots (ignored by git by default)

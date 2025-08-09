@@ -19,19 +19,25 @@ function New-TempDir {
   return $dir
 }
 
-Write-Host "Building locally..." -ForegroundColor Cyan
-npm ci
-npm --prefix client ci
-npm run build
+Write-Host "Building client locally..." -ForegroundColor Cyan
+npm --prefix client install
+npm --prefix client run build
 
 $temp = New-TempDir
 Write-Host "Staging runtime files in $temp" -ForegroundColor Cyan
 
-Copy-Item server.js $temp/
-Copy-Item package.json $temp/
-Copy-Item package-lock.json $temp/ -ErrorAction SilentlyContinue
+# Backend (server/)
+Copy-Item server -Destination (Join-Path $temp "server") -Recurse
+# Drop local node_modules from the staged backend to reduce archive size
+if (Test-Path (Join-Path $temp "server/node_modules")) {
+  Remove-Item (Join-Path $temp "server/node_modules") -Recurse -Force
+}
+
+# Data and assets
 Copy-Item data -Destination (Join-Path $temp "data") -Recurse
 if (Test-Path avatars) { Copy-Item avatars -Destination (Join-Path $temp "avatars") -Recurse }
+
+# Built client assets
 New-Item (Join-Path $temp "client") -ItemType Directory | Out-Null
 Copy-Item client\dist -Destination (Join-Path $temp "client\dist") -Recurse
 
