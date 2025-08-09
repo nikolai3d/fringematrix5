@@ -22,6 +22,8 @@ A futuristic single‑page web app to browse image galleries for Fringe Twitter 
 3. Open the app:
    - Visit `http://localhost:5173`
 
+   Note: In development the React app is served by Vite on port 5173. No `client/dist` is created during dev; that folder only exists after a production build.
+
 ### How it works
 - The server reads campaign metadata from `data/campaigns.yaml`.
 - Each campaign has an `icon_path` that points inside the `avatars/` directory.
@@ -44,6 +46,8 @@ Supported image extensions: `.png .jpg .jpeg .gif .webp .avif .bmp .svg`.
    npm run build
    ```
 
+   This generates the `client/dist/` directory (it is not checked into git).
+
 2. Start server (serves `client/dist` if present):
    
    ```bash
@@ -52,6 +56,10 @@ Supported image extensions: `.png .jpg .jpeg .gif .webp .avif .bmp .svg`.
 
 3. Open the app:
    - Visit `http://localhost:3000`
+
+   Notes:
+   - For production usage, run the build step first so `client/dist` exists. The Express server will then serve the built SPA from that folder.
+   - If `client/dist` is missing, the server falls back to serving static files from `public/`. In that case, the React app itself will not be available unless you build it.
 
 ### Project structure
 - `server.js`: Express server, API endpoints, static hosting
