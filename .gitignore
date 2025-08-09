@@ -1,0 +1,28 @@
+############################
+# Node / general
+############################
+node_modules/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+.DS_Store
+Thumbs.db
+
+.env
+.env.*
+
+# Builds / coverage (not used now, but safe to ignore)
+dist/
+build/
+coverage/
+.nyc_output/
+
+############################
+# App data
+############################
+# User-provided images; keep out of git by default
+avatars/**
+
