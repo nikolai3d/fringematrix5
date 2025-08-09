@@ -13,6 +13,7 @@ const AVATARS_DIR = path.join(PROJECT_ROOT, 'avatars');
 const PUBLIC_DIR = path.join(PROJECT_ROOT, 'public');
 const CLIENT_DIST_DIR = path.join(PROJECT_ROOT, 'client', 'dist');
 const HAS_CLIENT_BUILD = fs.existsSync(path.join(CLIENT_DIST_DIR, 'index.html'));
+const BUILD_INFO_PATH = path.join(PROJECT_ROOT, 'build-info.json');
 
 function loadCampaigns() {
   const yamlPath = path.join(DATA_DIR, 'campaigns.yaml');
@@ -68,17 +69,11 @@ function isImageFile(filePath) {
   return ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.bmp', '.svg'].includes(ext);
 }
 
-// Static assets
+// Static assets (avatars) — keep separate from SPA assets
 app.use('/avatars', express.static(AVATARS_DIR, {
   fallthrough: true,
   maxAge: '7d',
 }));
-
-if (HAS_CLIENT_BUILD) {
-  app.use(express.static(CLIENT_DIST_DIR, { maxAge: '1d' }));
-} else {
-  app.use(express.static(PUBLIC_DIR, { maxAge: '1d' }));
-}
 
 // API endpoints
 app.get('/api/campaigns', (req, res) => {
@@ -118,6 +113,42 @@ app.get('/api/campaigns/:id/images', (req, res) => {
     res.status(500).json({ error: 'Failed to list images' });
   }
 });
+
+// Build info endpoint
+app.get('/api/build-info', (req, res) => {
+  try {
+    if (fs.existsSync(BUILD_INFO_PATH)) {
+      const raw = fs.readFileSync(BUILD_INFO_PATH, 'utf8');
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch (_) {
+        data = {};
+      }
+      return res.json({
+        repoUrl: data.repoUrl || null,
+        commitHash: data.commitHash || null,
+        deployedAt: data.deployedAt || null,
+      });
+    }
+    return res.json({ repoUrl: null, commitHash: null, deployedAt: null });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load build info' });
+  }
+});
+
+// Ensure unknown /api/* paths return JSON (not SPA HTML)
+app.all('/api/*', (req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
+// Serve SPA assets AFTER API routes so /api/* never falls through to HTML
+if (HAS_CLIENT_BUILD) {
+  app.use(express.static(CLIENT_DIST_DIR, { maxAge: '1d' }));
+} else {
+  app.use(express.static(PUBLIC_DIR, { maxAge: '1d' }));
+}
 
 // SPA fallback
 app.get('*', (req, res) => {

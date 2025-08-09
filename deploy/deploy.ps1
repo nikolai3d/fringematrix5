@@ -41,6 +41,32 @@ if (Test-Path avatars) { Copy-Item avatars -Destination (Join-Path $temp "avatar
 New-Item (Join-Path $temp "client") -ItemType Directory | Out-Null
 Copy-Item client\dist -Destination (Join-Path $temp "client\dist") -Recurse
 
+$repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
+Push-Location $repoRoot
+try {
+  $repoUrl = (git remote get-url origin 2>$null).Trim()
+} catch { $repoUrl = $null }
+try {
+  $commitHash = (git rev-parse HEAD 2>$null).Trim()
+} catch { $commitHash = $null }
+Pop-Location
+
+# Deployment timestamp in Pacific Time, 24h format with PST/PDT
+$tzId = 'Pacific Standard Time'
+$tz = [System.TimeZoneInfo]::FindSystemTimeZoneById($tzId)
+$nowUtc = [DateTime]::UtcNow
+$nowPt = [System.TimeZoneInfo]::ConvertTimeFromUtc($nowUtc, $tz)
+$abbr = if ($tz.IsDaylightSavingTime($nowPt)) { 'PDT' } else { 'PST' }
+$deployedAt = $nowPt.ToString('yyyy-MM-dd HH:mm:ss') + " $abbr"
+
+$buildInfo = [ordered]@{
+  repoUrl    = $repoUrl
+  commitHash = $commitHash
+  deployedAt = $deployedAt
+}
+$buildInfoPath = Join-Path $temp 'build-info.json'
+($buildInfo | ConvertTo-Json -Depth 3) | Out-File -FilePath $buildInfoPath -Encoding utf8
+
 $archiveName = "release-" + (Get-Date -Format "yyyyMMddHHmmss") + ".tar.gz"
 $archivePath = Join-Path $env:TEMP $archiveName
 
