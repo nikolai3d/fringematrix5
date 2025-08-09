@@ -121,14 +121,14 @@ export default function App() {
 
       <button
         className={`sidebar-toggle${isSidebarOpen ? ' open' : ''}`}
-        aria-label="Toggle campaign list"
+        aria-label={isSidebarOpen ? 'Close campaign list' : 'Open campaign list'}
         onClick={toggleSidebar}
       >
-        ☰
+        {isSidebarOpen ? '✕' : '☰'}
       </button>
 
       <aside className={`sidebar${isSidebarOpen ? ' open' : ''}`} aria-hidden={!isSidebarOpen}>
-        <div className="sidebar-header">Campaigns</div>
+        <div className="sidebar-header">All Campaigns</div>
         <div className="sidebar-list">
           {campaigns.map((c) => (
             <button

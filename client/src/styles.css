@@ -151,7 +151,7 @@ footer.navbar {
   padding: 8px 10px;
   cursor: pointer;
 }
-.sidebar-toggle.open { border-color: var(--accent); }
+.sidebar-toggle.open { border-color: var(--accent); left: calc(min(78vw, 320px) + 16px); }
 
 .sidebar {
   position: fixed;
