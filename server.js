@@ -10,6 +10,8 @@ const ROOT_DIR = __dirname;
 const DATA_DIR = path.join(ROOT_DIR, 'data');
 const AVATARS_DIR = path.join(ROOT_DIR, 'avatars');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
+const CLIENT_DIST_DIR = path.join(ROOT_DIR, 'client', 'dist');
+const HAS_CLIENT_BUILD = fs.existsSync(path.join(CLIENT_DIST_DIR, 'index.html'));
 
 function loadCampaigns() {
   const yamlPath = path.join(DATA_DIR, 'campaigns.yaml');
@@ -70,7 +72,12 @@ app.use('/avatars', express.static(AVATARS_DIR, {
   fallthrough: true,
   maxAge: '7d',
 }));
-app.use(express.static(PUBLIC_DIR, { maxAge: '1d' }));
+
+if (HAS_CLIENT_BUILD) {
+  app.use(express.static(CLIENT_DIST_DIR, { maxAge: '1d' }));
+} else {
+  app.use(express.static(PUBLIC_DIR, { maxAge: '1d' }));
+}
 
 // API endpoints
 app.get('/api/campaigns', (req, res) => {
@@ -113,7 +120,11 @@ app.get('/api/campaigns/:id/images', (req, res) => {
 
 // SPA fallback
 app.get('*', (req, res) => {
-  res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
+  if (HAS_CLIENT_BUILD) {
+    res.sendFile(path.join(CLIENT_DIST_DIR, 'index.html'));
+  } else {
+    res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
+  }
 });
 
 app.listen(PORT, () => {
