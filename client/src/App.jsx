@@ -12,6 +12,7 @@ export default function App() {
   const [images, setImages] = useState([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const activeCampaign = useMemo(
     () => campaigns.find((c) => c.id === activeCampaignId) || null,
@@ -24,6 +25,28 @@ export default function App() {
     const data = await fetchJSON(`/api/campaigns/${id}/images`);
     setImages(data.images || []);
   }, []);
+
+  const activeIndex = useMemo(() => {
+    if (!activeCampaignId) return -1;
+    return campaigns.findIndex((c) => c.id === activeCampaignId);
+  }, [campaigns, activeCampaignId]);
+
+  const goToNextCampaign = useCallback(() => {
+    if (!campaigns.length) return;
+    const nextIdx = activeIndex < 0 ? 0 : (activeIndex + 1) % campaigns.length;
+    const next = campaigns[nextIdx];
+    if (next) selectCampaign(next.id);
+  }, [campaigns, activeIndex, selectCampaign]);
+
+  const goToPrevCampaign = useCallback(() => {
+    if (!campaigns.length) return;
+    const prevIdx = activeIndex < 0 ? campaigns.length - 1 : (activeIndex - 1 + campaigns.length) % campaigns.length;
+    const prev = campaigns[prevIdx];
+    if (prev) selectCampaign(prev.id);
+  }, [campaigns, activeIndex, selectCampaign]);
+
+  const toggleSidebar = useCallback(() => setIsSidebarOpen((v) => !v), []);
+  const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
 
   useEffect(() => {
     let isMounted = true;
@@ -87,16 +110,38 @@ export default function App() {
   return (
     <div id="app">
       <header className="navbar" id="top-navbar">
-        {campaigns.map((c) => (
-          <button
-            key={c.id}
-            className={`pill${c.id === activeCampaignId ? ' active' : ''}`}
-            onClick={() => selectCampaign(c.id)}
-          >
-            #{c.hashtag}
-          </button>
-        ))}
+        <div className="navbar-inner">
+          <button className="nav-arrow" aria-label="Previous campaign" onClick={goToPrevCampaign}>◀</button>
+          <div className="current-campaign" title={activeCampaign ? `#${activeCampaign.hashtag}` : ''}>
+            {activeCampaign ? `#${activeCampaign.hashtag}` : ''}
+          </div>
+          <button className="nav-arrow" aria-label="Next campaign" onClick={goToNextCampaign}>▶</button>
+        </div>
       </header>
+
+      <button
+        className={`sidebar-toggle${isSidebarOpen ? ' open' : ''}`}
+        aria-label="Toggle campaign list"
+        onClick={toggleSidebar}
+      >
+        ☰
+      </button>
+
+      <aside className={`sidebar${isSidebarOpen ? ' open' : ''}`} aria-hidden={!isSidebarOpen}>
+        <div className="sidebar-header">Campaigns</div>
+        <div className="sidebar-list">
+          {campaigns.map((c) => (
+            <button
+              key={c.id}
+              className={`sidebar-item${c.id === activeCampaignId ? ' active' : ''}`}
+              onClick={async () => { await selectCampaign(c.id); closeSidebar(); }}
+            >
+              #{c.hashtag}
+            </button>
+          ))}
+        </div>
+      </aside>
+      {isSidebarOpen && <div className="sidebar-overlay" onClick={closeSidebar} aria-hidden={true}></div>}
 
       <main className="content">
         <section id="campaign-info" className="campaign-info">
@@ -134,15 +179,13 @@ export default function App() {
       </main>
 
       <footer className="navbar" id="bottom-navbar">
-        {campaigns.map((c) => (
-          <button
-            key={c.id}
-            className={`pill${c.id === activeCampaignId ? ' active' : ''}`}
-            onClick={() => selectCampaign(c.id)}
-          >
-            #{c.hashtag}
-          </button>
-        ))}
+        <div className="navbar-inner">
+          <button className="nav-arrow" aria-label="Previous campaign" onClick={goToPrevCampaign}>◀</button>
+          <div className="current-campaign" title={activeCampaign ? `#${activeCampaign.hashtag}` : ''}>
+            {activeCampaign ? `#${activeCampaign.hashtag}` : ''}
+          </div>
+          <button className="nav-arrow" aria-label="Next campaign" onClick={goToNextCampaign}>▶</button>
+        </div>
       </footer>
 
       {isLightboxOpen && (
