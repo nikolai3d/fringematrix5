@@ -26,3 +26,4 @@ coverage/
 # User-provided images; keep out of git by default
 avatars/**
 
+deploy/ip_address.md
