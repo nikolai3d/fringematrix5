@@ -27,3 +27,6 @@ coverage/
 avatars/**
 
 deploy/ip_address.md
+build-info.json
+
+server/junit.xml
