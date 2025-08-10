@@ -42,6 +42,46 @@ function formatDeployedAtPacific(ptString) {
   return `${monthName} ${day}, ${yyyy}, ${HH}:${MM}:${SS} ${tz}`;
 }
 
+// Convert various git remote URL formats into a clean HTTPS URL suitable for display/clicking
+function gitRemoteToHttps(remote) {
+  if (!remote || typeof remote !== 'string') return '';
+  const trimmed = remote.trim();
+
+  // Handle scp-like syntax: git@host:owner/repo.git
+  const scpLikeMatch = trimmed.match(/^[\w.-]+@([^:]+):(.+)$/);
+  if (scpLikeMatch) {
+    const host = scpLikeMatch[1];
+    let path = scpLikeMatch[2];
+    if (path.endsWith('.git')) path = path.slice(0, -4);
+    return `https://${host}/${path}`;
+  }
+
+  // Normalize common protocols to https
+  let candidate = trimmed.replace(/^git\+/, '');
+  candidate = candidate.replace(/^git:\/\//, 'https://');
+  candidate = candidate.replace(/^ssh:\/\//, 'https://');
+  candidate = candidate.replace(/^http:\/\//, 'https://');
+
+  try {
+    const u = new URL(candidate);
+    let path = u.pathname || '';
+    if (path.startsWith('/')) path = path.slice(1);
+    if (path.endsWith('.git')) path = path.slice(0, -4);
+    if (!u.hostname || !path) return '';
+    return `https://${u.hostname}/${path}`;
+  } catch {
+    // As a last resort, if it looks like host/path(.git)
+    const bare = candidate.replace(/^\/*/, '');
+    const m = bare.match(/^([^/]+)\/(.+)$/);
+    if (m) {
+      let path = m[2];
+      if (path.endsWith('.git')) path = path.slice(0, -4);
+      return `https://${m[1]}/${path}`;
+    }
+  }
+  return '';
+}
+
 export default function App() {
   const [campaigns, setCampaigns] = useState([]);
   const [activeCampaignId, setActiveCampaignId] = useState(null);
@@ -51,6 +91,11 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isBuildInfoOpen, setIsBuildInfoOpen] = useState(false);
   const [buildInfo, setBuildInfo] = useState(null);
+
+  const repoHref = useMemo(
+    () => gitRemoteToHttps(buildInfo?.repoUrl || ''),
+    [buildInfo?.repoUrl]
+  );
 
   const activeCampaign = useMemo(
     () => campaigns.find((c) => c.id === activeCampaignId) || null,
@@ -253,8 +298,8 @@ export default function App() {
           <div className="build-info-body">
             <div className="row">
               <span className="label">Repo</span>
-              {buildInfo?.repoUrl ? (
-                <a href={buildInfo.repoUrl} target="_blank" rel="noreferrer noopener">{buildInfo.repoUrl}</a>
+              {repoHref ? (
+                <a href={repoHref} target="_blank" rel="noreferrer noopener">{repoHref}</a>
               ) : (
                 <span className="value">N/A</span>
               )}
