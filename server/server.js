@@ -14,6 +14,7 @@ const PUBLIC_DIR = path.join(PROJECT_ROOT, 'public');
 const CLIENT_DIST_DIR = path.join(PROJECT_ROOT, 'client', 'dist');
 const HAS_CLIENT_BUILD = fs.existsSync(path.join(CLIENT_DIST_DIR, 'index.html'));
 const BUILD_INFO_PATH = path.join(PROJECT_ROOT, 'build-info.json');
+const IS_DEV = process.env.NODE_ENV !== 'production';
 
 function loadCampaigns() {
   const yamlPath = path.join(DATA_DIR, 'campaigns.yaml');
@@ -68,6 +69,25 @@ function isImageFile(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   return ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.bmp', '.svg'].includes(ext);
 }
+
+// Ensure a dev build-info.json exists locally for debugging locally
+function ensureDevBuildInfo() {
+  try {
+    const shouldCreateDevInfo = (!fs.existsSync(BUILD_INFO_PATH)) && (IS_DEV || !HAS_CLIENT_BUILD);
+    if (shouldCreateDevInfo) {
+      const devInfo = {
+        repoUrl: null,
+        commitHash: 'DEV-LOCAL',
+        deployedAt: new Date().toISOString(),
+      };
+      fs.writeFileSync(BUILD_INFO_PATH, JSON.stringify(devInfo, null, 2), 'utf8');
+    }
+  } catch (err) {
+    console.warn('Could not create dev build-info.json:', err.message);
+  }
+}
+
+ensureDevBuildInfo();
 
 // Static assets (avatars) — keep separate from SPA assets
 app.use('/avatars', express.static(AVATARS_DIR, {
@@ -130,6 +150,9 @@ app.get('/api/build-info', (req, res) => {
         commitHash: data.commitHash || null,
         deployedAt: data.deployedAt || null,
       });
+    }
+    if (IS_DEV || !HAS_CLIENT_BUILD) {
+      return res.json({ repoUrl: null, commitHash: 'DEV-LOCAL', deployedAt: new Date().toISOString() });
     }
     return res.json({ repoUrl: null, commitHash: null, deployedAt: null });
   } catch (err) {
