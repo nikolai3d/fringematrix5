@@ -50,4 +50,29 @@ jobs:
           path: server/coverage
           if-no-files-found: ignore
 
+  client-test:
+    name: Frontend Client Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run frontend tests (CI)
+        run: npm run test:ci
+        env:
+          CI: true
+
 

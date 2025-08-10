@@ -14,6 +14,10 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
   },
+  test: {
+    environment: 'node',
+    include: ['test/**/*.test.{js,jsx,ts,tsx}'],
+  },
 });
 
 

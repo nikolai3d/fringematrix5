@@ -2,107 +2,87 @@
 
 A futuristic single‑page web app to browse image galleries for Fringe Twitter campaigns.
 
-### Prerequisites
-- Node.js 18+ and npm
-
-### Tests
-
-- Test stack: Jest + Supertest
-- Tests live in `server/test/`
-- CI-friendly via `npm --prefix server run test:ci`
-
-Run tests locally:
+### Setup
+- Prerequisites: Node.js 18+ and npm
+- Install dependencies:
 
 ```bash
-# Install backend dependencies
 npm --prefix server install
-
-# Run the test suite
-npm --prefix server test
+npm --prefix client install
 ```
 
-In CI or to generate JUnit output:
+Note: The root `package.json` is a placeholder to work around Windows npm behavior.
+
+### Build and Run (dev)
+1) Start the backend (API at 3000):
 
 ```bash
+npm --prefix server start
+```
+
+2) Start the frontend dev server (Vite at 5173):
+
+```bash
+npm --prefix client run dev
+```
+
+3) Open the app at `http://localhost:5173`.
+
+Notes:
+- In development the React app is served by Vite on port 5173. No `client/dist` is created during dev; that folder only exists after a production build.
+
+### Test
+Server (backend):
+
+- Stack: Jest + Supertest
+- Location: `server/test/`
+
+```bash
+# Install (once)
+npm --prefix server install
+
+# Run locally
+npm --prefix server test
+
+# CI / single run with JUnit
 npm --prefix server run test:ci
 ```
 
-Notes:
-- The Express app in `server/server.js` exports the app instance for tests; it only starts listening when executed directly.
-- Tests do not mutate files on disk; they read fixtures from `data/` and static assets from `avatars/`.
+Client (frontend):
 
-### Install & Run (development)
+- Stack: Vitest
+- Location: `client/test/`
 
-NOTE: `package.json` in the root directory is a dummy file to workaround a bug in Windows npm that needs a package.json in the root directory.
+```bash
+# Install (once)
+npm --prefix client install
 
-1. Install dependencies:
-   
-   ```bash
-   npm --prefix server install
-   npm --prefix client install
-   ```
+# Watch mode
+npm --prefix client run test
 
-2. Start the backend (API at 3000):
-   
-   ```bash
-   npm --prefix server start
-   ```
+# CI / single run
+npm --prefix client run test:ci
+```
 
-3. Start the frontend dev server (Vite at 5173):
-   
-   ```bash
-   npm --prefix client run dev
-   ```
+### Deploy
+Use the provided scripts to build locally and deploy to a remote Linux server (e.g., DigitalOcean). See `deploy/README.md` for full details.
 
-3. Open the app:
-   - Visit `http://localhost:5173`
+- Bash (Linux/macOS/WSL):
 
-   Note: In development the React app is served by Vite on port 5173. No `client/dist` is created during dev; that folder only exists after a production build.
+```bash
+bash deploy/deploy.sh -HostName <HOST> -User <USER> -RemoteDir /var/www/fringematrix -AppName fringematrix
+```
 
-### How it works
-- The server reads campaign metadata from `data/campaigns.yaml`.
-- Each campaign has an `icon_path` that points inside the `avatars/` directory.
-- The server recursively lists all image files found under that campaign’s `icon_path` and renders them in a responsive grid.
-- Clicking an image opens a fullscreen viewer with next/prev, share, and download.
-- Top and bottom navigation bars let you switch between campaigns.
+- PowerShell (Windows):
 
-### Providing images (your responsibility)
-- You must place image files into the correct path under the `avatars/` directory yourself.
-- The `icon_path` values in `data/campaigns.yaml` are relative to `avatars/`.
-- Example: if a campaign has `icon_path: "Season4/CrossTheLine"`, put images under:
-  - `avatars/Season4/CrossTheLine/...` (can be nested further)
+```powershell
+pwsh -File .\deploy\deploy.ps1 -HostName <HOST> -User deploy -RemoteDir /var/www/fringematrix -AppName fringematrix
+```
 
-Supported image extensions: `.png .jpg .jpeg .gif .webp .avif .bmp .svg`.
+These scripts:
+- Build the client (`client/dist`)
+- Package runtime pieces: `server/`, `data/`, optional `avatars/`, and built client
+- Upload to the server via SSH/SCP
+- Install production deps for the backend and start/reload via PM2
 
-### Build & Run (production)
-1. Build React app:
-   
-   ```bash
-   npm --prefix client run build
-   ```
-
-   This generates the `client/dist/` directory (it is not checked into git).
-
-2. Start server (serves `client/dist` if present):
-   
-   ```bash
-   npm --prefix server start
-   ```
-
-3. Open the app:
-   - Visit `http://localhost:3000`
-
-   Notes:
-   - For production usage, run the build step first so `client/dist` exists. The Express server will then serve the built SPA from that folder.
-   - If `client/dist` is missing, the server falls back to serving static files from `public/`. In that case, the React app itself will not be available unless you build it.
-
-### Project structure
- - `server/`: Express backend (npm module `fringematrix-backend`)
- - `client/`: React app (Vite)
- - `server/test/`: Jest test suites and API contract docs
-- `data/campaigns.yaml`: Campaign list and metadata
-- `avatars/`: Image roots (ignored by git by default)
-
-### Notes
-- Campaign IDs are generated from their `hashtag` (slugified); navigation uses these.
-- If you add or rename campaigns, restart the server to pick up changes.
+For first-time server setup and optional HTTPS, see `deploy/server-setup.sh` and `deploy/README.md`.
