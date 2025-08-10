@@ -182,8 +182,12 @@ app.get('*', (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Fringe Matrix backend running on http://localhost:${PORT}`);
-});
+// Only start the server if this file is executed directly (not when imported for tests)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Fringe Matrix backend running on http://localhost:${PORT}`);
+  });
+}
 
-
+// Export the app for testing
+module.exports = app;
