@@ -1,46 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-
-async function fetchJSON(url) {
-  const res = await fetch(url, { headers: { Accept: 'application/json' } });
-  if (!res.ok) {
-    let body = '';
-    try { body = await res.text(); } catch {}
-    throw new Error(`Failed to fetch ${url} (status ${res.status}). ${body?.slice(0, 200) || ''}`);
-  }
-  const contentType = res.headers.get('content-type') || '';
-  if (!contentType.includes('application/json')) {
-    let body = '';
-    try { body = await res.text(); } catch {}
-    throw new Error(`Expected JSON from ${url} but got '${contentType}'. Body starts: ${body.slice(0, 80)}`);
-  }
-  return res.json();
-}
-
-function ordinalize(dayNumber) {
-  const n = Number(dayNumber);
-  const mod100 = n % 100;
-  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
-  switch (n % 10) {
-    case 1: return `${n}st`;
-    case 2: return `${n}nd`;
-    case 3: return `${n}rd`;
-    default: return `${n}th`;
-  }
-}
-
-function formatDeployedAtPacific(ptString) {
-  if (!ptString || typeof ptString !== 'string') return ptString;
-  const m = ptString.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2}) (P[SD]T)$/);
-  if (!m) return ptString;
-  const [, yyyy, mm, dd, HH, MM, SS, tz] = m;
-  const monthNames = [
-    'January','February','March','April','May','June',
-    'July','August','September','October','November','December',
-  ];
-  const monthName = monthNames[Number(mm) - 1] || mm;
-  const day = ordinalize(Number(dd));
-  return `${monthName} ${day}, ${yyyy}, ${HH}:${MM}:${SS} ${tz}`;
-}
+import { fetchJSON } from './utils/fetchJSON.js';
+import { formatDeployedAtPacific } from './utils/formatDeployedAtPacific.js';
+import { gitRemoteToHttps } from './utils/gitRemoteToHttps.js';
 
 export default function App() {
   const [campaigns, setCampaigns] = useState([]);
@@ -51,6 +12,11 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isBuildInfoOpen, setIsBuildInfoOpen] = useState(false);
   const [buildInfo, setBuildInfo] = useState(null);
+
+  const repoHref = useMemo(
+    () => gitRemoteToHttps(buildInfo?.repoUrl || ''),
+    [buildInfo?.repoUrl]
+  );
 
   const activeCampaign = useMemo(
     () => campaigns.find((c) => c.id === activeCampaignId) || null,
@@ -253,8 +219,8 @@ export default function App() {
           <div className="build-info-body">
             <div className="row">
               <span className="label">Repo</span>
-              {buildInfo?.repoUrl ? (
-                <a href={buildInfo.repoUrl} target="_blank" rel="noreferrer noopener">{buildInfo.repoUrl}</a>
+              {repoHref ? (
+                <a href={repoHref} target="_blank" rel="noreferrer noopener">{repoHref}</a>
               ) : (
                 <span className="value">N/A</span>
               )}
