@@ -8,24 +8,23 @@ A futuristic single‑page web app to browse image galleries for Fringe Twitter 
 ### Tests
 
 - Test stack: Jest + Supertest
-- Tests live in `test/`
-- CI-friendly via `npm run test:ci`
+- Tests live in `server/test/`
+- CI-friendly via `npm --prefix server run test:ci`
 
 Run tests locally:
 
 ```bash
-# Install dependencies for server (app) and root (test deps)
+# Install backend dependencies
 npm --prefix server install
-npm install
 
 # Run the test suite
-npm test
+npm --prefix server test
 ```
 
 In CI or to generate JUnit output:
 
 ```bash
-npm run test:ci
+npm --prefix server run test:ci
 ```
 
 Notes:
@@ -98,9 +97,9 @@ Supported image extensions: `.png .jpg .jpeg .gif .webp .avif .bmp .svg`.
    - If `client/dist` is missing, the server falls back to serving static files from `public/`. In that case, the React app itself will not be available unless you build it.
 
 ### Project structure
-- `server/`: Express backend (npm module `fringematrix-backend`)
-- `client/`: React app (Vite)
-- `test/`: Jest test suites and API contract docs
+ - `server/`: Express backend (npm module `fringematrix-backend`)
+ - `client/`: React app (Vite)
+ - `server/test/`: Jest test suites and API contract docs
 - `data/campaigns.yaml`: Campaign list and metadata
 - `avatars/`: Image roots (ignored by git by default)
 

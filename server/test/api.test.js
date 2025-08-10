@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 // Import the Express app without starting the listener
-const app = require('../server/server');
+const app = require('../server');
 
 describe('API contract', () => {
   describe('GET /api/campaigns', () => {
@@ -65,7 +65,7 @@ describe('API contract', () => {
   });
 
   describe('GET /api/build-info', () => {
-    const projectRoot = path.join(__dirname, '..');
+    const projectRoot = path.join(__dirname, '..', '..');
     const buildInfoPath = path.join(projectRoot, 'build-info.json');
 
     function withTempFile(filePath, content, fn) {
@@ -95,14 +95,11 @@ describe('API contract', () => {
     });
 
     it('returns DEV-LOCAL when build-info.json is missing (dev mode)', async () => {
+      const originalExistsSync = fs.existsSync;
       const existsSpy = jest.spyOn(fs, 'existsSync').mockImplementation((p) => {
         if (path.resolve(p) === path.resolve(buildInfoPath)) return false;
-        return fs.existsSync.__original__(p);
+        return originalExistsSync(p);
       });
-      // Preserve original to call through
-      if (!fs.existsSync.__original__) {
-        fs.existsSync.__original__ = existsSpy.getMockImplementation();
-      }
       const res = await request(app).get('/api/build-info');
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('commitHash');

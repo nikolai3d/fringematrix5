@@ -1,15 +1,5 @@
 {
   "name": "root",
   "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:ci": "jest --ci --reporters=default --reporters=jest-junit"
-  },
-  "devDependencies": {
-    "jest": "^29.7.0",
-    "jest-junit": "^16.0.0",
-    "supertest": "^7.0.0"
-  }
+  "private": true
 }

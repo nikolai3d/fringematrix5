@@ -5,8 +5,9 @@ module.exports = {
   testMatch: ['**/?(*.)+(test).[jt]s?(x)'],
   collectCoverage: true,
   collectCoverageFrom: [
-    'server/**/*.js',
-    '!server/**/node_modules/**',
+    '<rootDir>/**/*.js',
+    '!<rootDir>/**/node_modules/**',
+    '!<rootDir>/test/**',
   ],
   coverageReporters: ['text', 'lcov'],
 };
