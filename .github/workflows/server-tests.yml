@@ -2,14 +2,8 @@ name: CI Tests
 
 on:
   pull_request:
-    paths:
-      - 'server/**'
-      - 'data/**'
-      - 'avatars/**'
-      - '.github/workflows/**'
-      - 'package.json'
-      - 'server/package.json'
-      - 'server/jest.config.js'
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
