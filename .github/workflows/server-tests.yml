@@ -1,4 +1,4 @@
-name: Server tests
+name: CI Tests
 
 on:
   pull_request:
@@ -14,6 +14,7 @@ on:
 
 jobs:
   test:
+    name: Server API Tests
     runs-on: ubuntu-latest
     defaults:
       run:
