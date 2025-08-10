@@ -77,9 +77,11 @@ SSH_OPTS=(-o BatchMode=yes -o StrictHostKeyChecking=accept-new)
 TMP_DIR="$(mktemp -d -t fringematrix-XXXXXXXX)"
 ARCHIVE_NAME="release-$(date +%Y%m%d%H%M%S).tar.gz"
 ARCHIVE_PATH="${TMPDIR:-/tmp}/$ARCHIVE_NAME"
+TMP_CLIENT=""
 REMOTE_SH_TMP=""
 
 function cleanup() {
+  if [[ -n "$TMP_CLIENT" && -d "$TMP_CLIENT" ]]; then rm -rf "$TMP_CLIENT" || true; fi
   if [[ -n "$REMOTE_SH_TMP" && -f "$REMOTE_SH_TMP" ]]; then rm -f "$REMOTE_SH_TMP" || true; fi
   if [[ -d "$TMP_DIR" ]]; then rm -rf "$TMP_DIR" || true; fi
 }
