@@ -1,0 +1,58 @@
+name: Server tests
+
+on:
+  pull_request:
+    paths:
+      - 'server/**'
+      - 'data/**'
+      - 'avatars/**'
+      - '.github/workflows/**'
+      - 'package.json'
+      - 'server/package.json'
+      - 'server/jest.config.js'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests (CI)
+        run: npm run test:ci
+        env:
+          CI: true
+          # Ensure junit report lands inside server/ so artifact path is correct
+          JEST_JUNIT_OUTPUT: junit.xml
+
+      - name: Upload JUnit test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-junit-report
+          path: server/junit.xml
+          if-no-files-found: ignore
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-coverage
+          path: server/coverage
+          if-no-files-found: ignore
+
+
