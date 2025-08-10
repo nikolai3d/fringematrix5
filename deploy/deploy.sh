@@ -94,7 +94,6 @@ find "$REPO_ROOT/client" -maxdepth 1 -mindepth 1 \
   -exec cp -a {} "$TMP_CLIENT/" \;
 (
   cd "$TMP_CLIENT"
-  rm -f package-lock.json || true
   npm install --no-audit --no-fund
   npm run build
 )
