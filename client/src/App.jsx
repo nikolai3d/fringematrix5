@@ -7,12 +7,17 @@ export default function App() {
   const [campaigns, setCampaigns] = useState([]);
   const [activeCampaignId, setActiveCampaignId] = useState(null);
   const [images, setImages] = useState([]);
+  const [imagesByCampaign, setImagesByCampaign] = useState({});
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isBuildInfoOpen, setIsBuildInfoOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [buildInfo, setBuildInfo] = useState(null);
+  const [isPreloading, setIsPreloading] = useState(true);
+  const [loadingDots, setLoadingDots] = useState(0);
+  const [preloadLoaded, setPreloadLoaded] = useState(0);
+  const [preloadTotal, setPreloadTotal] = useState(0);
 
   const repoHref = useMemo(
     () => gitRemoteToHttps(buildInfo?.repoUrl || ''),
@@ -27,9 +32,17 @@ export default function App() {
   const selectCampaign = useCallback(async (id) => {
     setActiveCampaignId(id);
     window.history.replaceState({}, '', `#${id}`);
+    const cached = imagesByCampaign[id];
+    if (cached) {
+      setImages(cached);
+      return;
+    }
+    // Fallback (should not happen if preloading completed)
     const data = await fetchJSON(`/api/campaigns/${id}/images`);
-    setImages(data.images || []);
-  }, []);
+    const list = data.images || [];
+    setImagesByCampaign((prev) => ({ ...prev, [id]: list }));
+    setImages(list);
+  }, [imagesByCampaign]);
 
   const activeIndex = useMemo(() => {
     if (!activeCampaignId) return -1;
@@ -81,21 +94,75 @@ export default function App() {
     let isMounted = true;
     (async () => {
       try {
+        setIsPreloading(true);
+        setPreloadLoaded(0);
+        setPreloadTotal(0);
+
         const data = await fetchJSON('/api/campaigns');
         if (!isMounted) return;
         setCampaigns(data.campaigns || []);
+
+        // Fetch image lists for all campaigns
+        const lists = await Promise.all(
+          (data.campaigns || []).map(async (c) => {
+            try {
+              const res = await fetchJSON(`/api/campaigns/${c.id}/images`);
+              return { id: c.id, images: res.images || [] };
+            } catch (e) {
+              console.error('Failed to fetch images for campaign', c.id, e);
+              return { id: c.id, images: [] };
+            }
+          })
+        );
+        if (!isMounted) return;
+        const map = Object.fromEntries(lists.map((x) => [x.id, x.images]));
+        setImagesByCampaign(map);
+
+        // Compute all image URLs and preload them before showing the app
+        const allUrls = lists.flatMap((x) => x.images.map((img) => img.src));
+        setPreloadTotal(allUrls.length);
+
+        await Promise.all(
+          allUrls.map(
+            (src) =>
+              new Promise((resolve) => {
+                const img = new Image();
+                const done = () => {
+                  if (isMounted) setPreloadLoaded((n) => n + 1);
+                  resolve();
+                };
+                img.onload = done;
+                img.onerror = done;
+                img.src = src;
+              })
+          )
+        );
+        if (!isMounted) return;
+
+        // Choose initial campaign and show app
         const hash = window.location.hash.replace('#', '');
         const initial = (data.campaigns || []).find((c) => c.id === hash) || (data.campaigns || [])[0];
         if (initial) {
-          await selectCampaign(initial.id);
+          setActiveCampaignId(initial.id);
+          window.history.replaceState({}, '', `#${initial.id}`);
+          setImages(map[initial.id] || []);
         }
+        setIsPreloading(false);
       } catch (e) {
         console.error(e);
         alert('Failed to initialize app. Check console for details.');
+        setIsPreloading(false);
       }
     })();
     return () => { isMounted = false; };
-  }, [selectCampaign]);
+  }, []);
+
+  // Animated dots for the CRT loader
+  useEffect(() => {
+    if (!isPreloading) return;
+    const id = setInterval(() => setLoadingDots((d) => (d + 1) % 4), 400);
+    return () => clearInterval(id);
+  }, [isPreloading]);
 
   const openLightbox = useCallback((index) => {
     setLightboxIndex(index);
@@ -138,6 +205,16 @@ export default function App() {
 
   return (
     <div id="app">
+      {isPreloading && (
+        <div className="crt-overlay" role="dialog" aria-modal={true} aria-label="Loading">
+          <div className="crt-inner">
+            <div className="crt-text">
+              Fringe Matrix 5 Loading<span className="dots">{'.'.repeat(loadingDots)}</span>
+              <div className="crt-subtext">{preloadTotal ? `${preloadLoaded} / ${preloadTotal}` : ''}</div>
+            </div>
+          </div>
+        </div>
+      )}
       <header className="navbar" id="top-navbar">
         <div className="navbar-inner">
           <button className="nav-arrow" aria-label="Previous campaign" onClick={goToPrevCampaign}>◀</button>

@@ -6,6 +6,7 @@
   --accent: #00e5ff;
   --accent-2: #7c4dff;
   --grid-gap: 14px;
+  --crt-glow: #7ef6ff;
 }
 
 * { box-sizing: border-box; }
@@ -18,6 +19,78 @@ body {
               var(--bg);
   color: var(--fg);
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, sans-serif;
+}
+
+/* CRT loading overlay */
+.crt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(1200px 800px at 50% -10%, rgba(0,229,255,0.18), transparent),
+              #000;
+  color: var(--fg);
+  overflow: hidden;
+}
+
+.crt-inner {
+  position: relative;
+  padding: 32px 28px;
+  border-radius: 14px;
+  background: rgba(3, 9, 14, 0.9);
+  border: 1px solid rgba(0,229,255,0.35);
+  box-shadow:
+    0 0 20px rgba(0,229,255,0.25),
+    inset 0 0 60px rgba(0,229,255,0.08);
+}
+
+.crt-inner::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(126, 246, 255, 0.06),
+    rgba(126, 246, 255, 0.06) 2px,
+    transparent 2px,
+    transparent 4px
+  );
+  mix-blend-mode: screen;
+  border-radius: 14px;
+  filter: blur(0.2px);
+}
+
+.crt-text {
+  font-family: "VT323", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: clamp(28px, 6vw, 52px);
+  letter-spacing: 0.02em;
+  color: #cfffff;
+  text-shadow:
+    0 0 6px var(--crt-glow),
+    0 0 24px rgba(0,229,255,0.35),
+    0 0 48px rgba(0,229,255,0.2);
+  animation: crt-flicker 2.2s infinite steps(30, end);
+}
+
+.crt-text .dots {
+  display: inline-block;
+  min-width: 1.2em;
+}
+
+.crt-subtext {
+  margin-top: 6px;
+  font-size: clamp(14px, 2.5vw, 18px);
+  color: rgba(207, 255, 255, 0.9);
+  text-shadow:
+    0 0 4px var(--crt-glow),
+    0 0 12px rgba(0,229,255,0.25);
+}
+
+@keyframes crt-flicker {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
+  20%, 24%, 55% { opacity: 0.7; }
 }
 
 .navbar {
