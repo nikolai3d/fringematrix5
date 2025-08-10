@@ -11,6 +11,7 @@ export default function App() {
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isBuildInfoOpen, setIsBuildInfoOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const [buildInfo, setBuildInfo] = useState(null);
 
   const repoHref = useMemo(
@@ -53,6 +54,7 @@ export default function App() {
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
   const toggleBuildInfo = useCallback(async () => {
     setIsBuildInfoOpen((v) => !v);
+    setIsShareOpen(false);
     if (!buildInfo) {
       try {
         const data = await fetchJSON('/api/build-info');
@@ -63,6 +65,17 @@ export default function App() {
       }
     }
   }, [buildInfo]);
+
+  const toggleShare = useCallback(() => {
+    setIsShareOpen((v) => !v);
+    setIsBuildInfoOpen(false);
+  }, []);
+
+  const threadsShareUrl = useMemo(() => {
+    const text = 'Check out Fringe Matrix';
+    const url = 'https://fringematrix.art';
+    return `https://www.threads.net/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -184,13 +197,21 @@ export default function App() {
           )}
         </section>
 
-        <section id="gallery" className="gallery-grid" aria-live="polite">
-          {images.map((img, i) => (
-            <div className="card" key={`${img.src}-${i}`}>
-              <img src={img.src} alt={img.fileName} loading="lazy" onClick={() => openLightbox(i)} />
-              <div className="filename">{img.fileName}</div>
+        <section id="gallery" className={`gallery-grid${activeCampaign && images.length === 0 ? ' empty' : ''}`} aria-live="polite">
+          {activeCampaign && images.length === 0 ? (
+            <div className="empty-state" role="status" aria-live="polite">
+              <div className="empty-emoji" aria-hidden>🖼️</div>
+              <div className="empty-title">No Images In Campaign</div>
+              <div className="empty-desc">This campaign has no uploaded images yet.</div>
             </div>
-          ))}
+          ) : (
+            images.map((img, i) => (
+              <div className="card" key={`${img.src}-${i}`}>
+                <img src={img.src} alt={img.fileName} loading="lazy" onClick={() => openLightbox(i)} />
+                <div className="filename">{img.fileName}</div>
+              </div>
+            ))
+          )}
         </section>
       </main>
 
@@ -201,6 +222,15 @@ export default function App() {
         onClick={toggleBuildInfo}
       >
         ⓘ
+      </button>
+
+      {/* Share button */}
+      <button
+        className="share-button"
+        aria-label="Share"
+        onClick={toggleShare}
+      >
+        Share
       </button>
 
       {/* Build info popover */}
@@ -237,6 +267,32 @@ export default function App() {
               <span className="label">Deployed</span>
               <span className="value">{buildInfo?.deployedAt ? formatDeployedAtPacific(buildInfo.deployedAt) : 'N/A'}</span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Share popover */}
+      {isShareOpen && (
+        <div className="share-popover" role="dialog" aria-modal={false}>
+          <div className="share-header">
+            <span>Share</span>
+            <button
+              className="share-close"
+              aria-label="Close share"
+              onClick={() => setIsShareOpen(false)}
+            >
+              ✕
+            </button>
+          </div>
+          <div className="share-body">
+            <a
+              className="action-btn"
+              href={threadsShareUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              Share on Threads
+            </a>
           </div>
         </div>
       )}
