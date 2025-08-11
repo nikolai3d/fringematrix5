@@ -142,16 +142,16 @@ export default function App() {
         // Choose initial campaign and show app
         const hash = window.location.hash.replace('#', '');
         const initial = (data.campaigns || []).find((c) => c.id === hash) || (data.campaigns || [])[0];
-        if (initial) {
+         if (initial) {
           setActiveCampaignId(initial.id);
           window.history.replaceState({}, '', `#${initial.id}`);
           setImages(map[initial.id] || []);
         }
-        setIsPreloading(false);
+         if (isMounted) setIsPreloading(false);
       } catch (e) {
         console.error(e);
         alert('Failed to initialize app. Check console for details.');
-        setIsPreloading(false);
+         if (isMounted) setIsPreloading(false);
       }
     })();
     return () => { isMounted = false; };
