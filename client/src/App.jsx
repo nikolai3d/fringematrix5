@@ -18,6 +18,7 @@ export default function App() {
   const [loadingDots, setLoadingDots] = useState(0);
   const [preloadLoaded, setPreloadLoaded] = useState(0);
   const [preloadTotal, setPreloadTotal] = useState(0);
+  const [loadingError, setLoadingError] = useState(false);
 
   const repoHref = useMemo(
     () => gitRemoteToHttps(buildInfo?.repoUrl || ''),
@@ -32,23 +33,7 @@ export default function App() {
   const selectCampaign = useCallback(async (id) => {
     setActiveCampaignId(id);
     window.history.replaceState({}, '', `#${id}`);
-    const cached = imagesByCampaign[id];
-    if (cached) {
-      setImages(cached);
-      return;
-    }
-    // Fallback (should not happen if preloading completed)
-    console.warn(`Preloading incomplete or failed for campaign ${id}. Fetching images as fallback.`);
-    try {
-      const data = await fetchJSON(`/api/campaigns/${id}/images`);
-      const list = data.images || [];
-      setImagesByCampaign((prev) => ({ ...prev, [id]: list }));
-      setImages(list);
-    } catch (e) {
-      console.error('Fallback fetch failed for campaign', id, e);
-      setImagesByCampaign((prev) => ({ ...prev, [id]: [] }));
-      setImages([]);
-    }
+    setImages(imagesByCampaign[id]);
   }, [imagesByCampaign]);
 
   const activeIndex = useMemo(() => {
@@ -129,6 +114,7 @@ export default function App() {
         const allUrls = lists.flatMap((x) => x.images.map((img) => img.src));
         setPreloadTotal(allUrls.length);
 
+        let hadError = false;
         await Promise.all(
           allUrls.map(
             (src) =>
@@ -139,12 +125,15 @@ export default function App() {
                   resolve();
                 };
                 img.onload = done;
-                img.onerror = done;
+                img.onerror = () => { hadError = true; done(); };
                 img.src = src;
               })
           )
         );
         if (!isMounted) return;
+        if (hadError) {
+          setLoadingError(true);
+        }
 
         // Choose initial campaign and show app
         const hash = window.location.hash.replace('#', '');
@@ -157,6 +146,7 @@ export default function App() {
          if (isMounted) setIsPreloading(false);
       } catch (e) {
         console.error(e);
+        setLoadingError(true);
         alert('Failed to initialize app. Check console for details.');
          if (isMounted) setIsPreloading(false);
       }
@@ -212,12 +202,21 @@ export default function App() {
 
   return (
     <div id="app">
-      {isPreloading && (
+      {isPreloading && !loadingError && (
         <div className="crt-overlay" role="dialog" aria-modal={true} aria-label="Loading">
           <div className="crt-inner">
             <div className="crt-text">
               Fringe Matrix 5 Loading<span className="dots">{'.'.repeat(loadingDots)}</span>
               <div className="crt-subtext">{preloadTotal ? `${preloadLoaded} / ${preloadTotal}` : ''}</div>
+            </div>
+          </div>
+        </div>
+      )}
+      {isPreloading && loadingError && (
+        <div className="crt-overlay" role="alertdialog" aria-modal={true} aria-label="Loading failed">
+          <div className="crt-inner">
+            <div className="crt-text">
+              Fringe Matrix loading failed, check your Internet connection or try reloading the site
             </div>
           </div>
         </div>
