@@ -38,10 +38,17 @@ export default function App() {
       return;
     }
     // Fallback (should not happen if preloading completed)
-    const data = await fetchJSON(`/api/campaigns/${id}/images`);
-    const list = data.images || [];
-    setImagesByCampaign((prev) => ({ ...prev, [id]: list }));
-    setImages(list);
+    console.warn(`Preloading incomplete or failed for campaign ${id}. Fetching images as fallback.`);
+    try {
+      const data = await fetchJSON(`/api/campaigns/${id}/images`);
+      const list = data.images || [];
+      setImagesByCampaign((prev) => ({ ...prev, [id]: list }));
+      setImages(list);
+    } catch (e) {
+      console.error('Fallback fetch failed for campaign', id, e);
+      setImagesByCampaign((prev) => ({ ...prev, [id]: [] }));
+      setImages([]);
+    }
   }, [imagesByCampaign]);
 
   const activeIndex = useMemo(() => {
