@@ -63,7 +63,7 @@ body {
 }
 
 .crt-text {
-  font-family: "VT323", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: Orbitron, Inter, sans-serif;
   font-size: clamp(28px, 6vw, 52px);
   letter-spacing: 0.02em;
   color: #cfffff;
