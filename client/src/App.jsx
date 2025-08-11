@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { fetchJSON } from './utils/fetchJSON.js';
 import { formatDeployedAtPacific } from './utils/formatDeployedAtPacific.js';
 import { gitRemoteToHttps } from './utils/gitRemoteToHttps.js';
@@ -19,6 +19,10 @@ export default function App() {
   const [preloadLoaded, setPreloadLoaded] = useState(0);
   const [preloadTotal, setPreloadTotal] = useState(0);
   const [loadingError, setLoadingError] = useState(false);
+  const shareBtnRef = useRef(null);
+  const buildBtnRef = useRef(null);
+  const [shareStyle, setShareStyle] = useState({});
+  const [buildStyle, setBuildStyle] = useState({});
 
   const repoHref = useMemo(
     () => gitRemoteToHttps(buildInfo?.repoUrl || ''),
@@ -58,7 +62,14 @@ export default function App() {
   const toggleSidebar = useCallback(() => setIsSidebarOpen((v) => !v), []);
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
   const toggleBuildInfo = useCallback(async () => {
-    setIsBuildInfoOpen((v) => !v);
+    setIsBuildInfoOpen((wasOpen) => {
+      const next = !wasOpen;
+      if (next && buildBtnRef.current) {
+        const r = buildBtnRef.current.getBoundingClientRect();
+        setBuildStyle({ top: Math.round(r.bottom + 8), left: Math.round(r.left) });
+      }
+      return next;
+    });
     setIsShareOpen(false);
     if (!buildInfo) {
       try {
@@ -72,9 +83,36 @@ export default function App() {
   }, [buildInfo]);
 
   const toggleShare = useCallback(() => {
-    setIsShareOpen((v) => !v);
+    setIsShareOpen((wasOpen) => {
+      const next = !wasOpen;
+      if (next && shareBtnRef.current) {
+        const r = shareBtnRef.current.getBoundingClientRect();
+        setShareStyle({ top: Math.round(r.bottom + 8), left: Math.round(r.left) });
+      }
+      return next;
+    });
     setIsBuildInfoOpen(false);
   }, []);
+
+  // Reposition popovers on resize/scroll while open
+  useEffect(() => {
+    const handler = () => {
+      if (isShareOpen && shareBtnRef.current) {
+        const r = shareBtnRef.current.getBoundingClientRect();
+        setShareStyle({ top: Math.round(r.bottom + 8), left: Math.round(r.left) });
+      }
+      if (isBuildInfoOpen && buildBtnRef.current) {
+        const r = buildBtnRef.current.getBoundingClientRect();
+        setBuildStyle({ top: Math.round(r.bottom + 8), left: Math.round(r.left) });
+      }
+    };
+    window.addEventListener('resize', handler);
+    window.addEventListener('scroll', handler, { passive: true });
+    return () => {
+      window.removeEventListener('resize', handler);
+      window.removeEventListener('scroll', handler);
+    };
+  }, [isShareOpen, isBuildInfoOpen]);
 
   const threadsShareUrl = useMemo(() => {
     const text = 'Check out Fringe Matrix';
@@ -221,6 +259,35 @@ export default function App() {
           </div>
         </div>
       )}
+      {/* Top toolbar with primary actions */}
+      <div className="toolbar" role="toolbar" aria-label="Primary actions">
+        <div className="toolbar-inner">
+          <button
+            className="toolbar-button"
+            aria-expanded={isSidebarOpen}
+            aria-controls="campaign-sidebar"
+            onClick={toggleSidebar}
+          >
+            Campaigns
+          </button>
+          <button
+            className="toolbar-button"
+            ref={shareBtnRef}
+            aria-pressed={isShareOpen}
+            onClick={toggleShare}
+          >
+            Share
+          </button>
+          <button
+            className="toolbar-button"
+            ref={buildBtnRef}
+            aria-pressed={isBuildInfoOpen}
+            onClick={toggleBuildInfo}
+          >
+            Build Info
+          </button>
+        </div>
+      </div>
       <header className="navbar" id="top-navbar">
         <div className="navbar-inner">
           <button className="nav-arrow" aria-label="Previous campaign" onClick={goToPrevCampaign}>◀</button>
@@ -231,15 +298,7 @@ export default function App() {
         </div>
       </header>
 
-      <button
-        className={`sidebar-toggle${isSidebarOpen ? ' open' : ''}`}
-        aria-label={isSidebarOpen ? 'Close campaign list' : 'Open campaign list'}
-        onClick={toggleSidebar}
-      >
-        {isSidebarOpen ? '✕' : '☰'}
-      </button>
-
-      <aside className={`sidebar${isSidebarOpen ? ' open' : ''}`} aria-hidden={!isSidebarOpen}>
+      <aside id="campaign-sidebar" className={`sidebar${isSidebarOpen ? ' open' : ''}`} aria-hidden={!isSidebarOpen}>
         <div className="sidebar-header">All Campaigns</div>
         <div className="sidebar-list">
           {campaigns.map((c) => (
@@ -298,27 +357,9 @@ export default function App() {
         </section>
       </main>
 
-      {/* Build info button */}
-      <button
-        className="build-info-button"
-        aria-label="Build information"
-        onClick={toggleBuildInfo}
-      >
-        ⓘ
-      </button>
-
-      {/* Share button */}
-      <button
-        className="share-button"
-        aria-label="Share"
-        onClick={toggleShare}
-      >
-        Share
-      </button>
-
       {/* Build info popover */}
       {isBuildInfoOpen && (
-        <div className="build-info-popover" role="dialog" aria-modal={false}>
+        <div className="build-info-popover" role="dialog" aria-modal={false} style={buildStyle}>
           <div className="build-info-header">
             <span>Build Info</span>
             <button
@@ -356,7 +397,7 @@ export default function App() {
 
       {/* Share popover */}
       {isShareOpen && (
-        <div className="share-popover" role="dialog" aria-modal={false}>
+        <div className="share-popover" role="dialog" aria-modal={false} style={shareStyle}>
           <div className="share-header">
             <span>Share</span>
             <button
