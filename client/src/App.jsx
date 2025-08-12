@@ -94,36 +94,47 @@ export default function App() {
     setIsBuildInfoOpen(false);
   }, []);
 
+  // Stable, throttled scroll/resize handler setup
+  const scheduledFrameRef = useRef(null);
+  const latestOpenStateRef = useRef({ isShareOpen: false, isBuildInfoOpen: false });
+
+  // Keep latest open-state in a ref so the handler can be stable
+  useEffect(() => {
+    latestOpenStateRef.current.isShareOpen = isShareOpen;
+  }, [isShareOpen]);
+  useEffect(() => {
+    latestOpenStateRef.current.isBuildInfoOpen = isBuildInfoOpen;
+  }, [isBuildInfoOpen]);
+
+  const runMeasureAndPosition = useCallback(() => {
+    scheduledFrameRef.current = null;
+    const { isShareOpen: shareOpen, isBuildInfoOpen: buildOpen } = latestOpenStateRef.current;
+    if (shareOpen && shareBtnRef.current) {
+      const r = shareBtnRef.current.getBoundingClientRect();
+      setShareStyle({ top: Math.round(r.bottom + 8), left: Math.round(r.left) });
+    }
+    if (buildOpen && buildBtnRef.current) {
+      const r = buildBtnRef.current.getBoundingClientRect();
+      setBuildStyle({ top: Math.round(r.bottom + 8), left: Math.round(r.left) });
+    }
+  }, []);
+
+  const onScrollOrResize = useCallback(() => {
+    if (scheduledFrameRef.current !== null) return;
+    scheduledFrameRef.current = requestAnimationFrame(runMeasureAndPosition);
+  }, [runMeasureAndPosition]);
+
   // Reposition popovers on resize/scroll while open
   // Use rAF to throttle DOM reads/writes to once per frame during scroll
   useEffect(() => {
-    let scheduledFrame = null;
-
-    const runMeasureAndPosition = () => {
-      scheduledFrame = null;
-      if (isShareOpen && shareBtnRef.current) {
-        const r = shareBtnRef.current.getBoundingClientRect();
-        setShareStyle({ top: Math.round(r.bottom + 8), left: Math.round(r.left) });
-      }
-      if (isBuildInfoOpen && buildBtnRef.current) {
-        const r = buildBtnRef.current.getBoundingClientRect();
-        setBuildStyle({ top: Math.round(r.bottom + 8), left: Math.round(r.left) });
-      }
-    };
-
-    const onScrollOrResize = () => {
-      if (scheduledFrame !== null) return;
-      scheduledFrame = requestAnimationFrame(runMeasureAndPosition);
-    };
-
     window.addEventListener('resize', onScrollOrResize);
     window.addEventListener('scroll', onScrollOrResize, { passive: true });
     return () => {
-      if (scheduledFrame !== null) cancelAnimationFrame(scheduledFrame);
+      if (scheduledFrameRef.current !== null) cancelAnimationFrame(scheduledFrameRef.current);
       window.removeEventListener('resize', onScrollOrResize);
       window.removeEventListener('scroll', onScrollOrResize);
     };
-  }, [isShareOpen, isBuildInfoOpen]);
+  }, [onScrollOrResize]);
 
   const threadsShareUrl = useMemo(() => {
     const text = 'Check out Fringe Matrix';
