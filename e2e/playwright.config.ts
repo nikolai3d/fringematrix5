@@ -19,19 +19,13 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: [
-    // Build client first so server can serve client/dist
-    {
-      command: 'npm --prefix ../client run build',
-      reuseExistingServer: true,
-    },
-    {
-      command: 'node ../server/server.js',
-      url: 'http://localhost:3000',
-      reuseExistingServer: true,
-      timeout: 120_000,
-    },
-  ],
+  // Start backend server; client build is triggered by the e2e npm script before tests
+  webServer: {
+    command: 'node ../server/server.js',
+    url: 'http://localhost:3000',
+    reuseExistingServer: true,
+    timeout: 120_000,
+  },
 });
 
 
