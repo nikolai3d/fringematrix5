@@ -95,8 +95,12 @@ export default function App() {
   }, []);
 
   // Reposition popovers on resize/scroll while open
+  // Use rAF to throttle DOM reads/writes to once per frame during scroll
   useEffect(() => {
-    const handler = () => {
+    let scheduledFrame = null;
+
+    const runMeasureAndPosition = () => {
+      scheduledFrame = null;
       if (isShareOpen && shareBtnRef.current) {
         const r = shareBtnRef.current.getBoundingClientRect();
         setShareStyle({ top: Math.round(r.bottom + 8), left: Math.round(r.left) });
@@ -106,11 +110,18 @@ export default function App() {
         setBuildStyle({ top: Math.round(r.bottom + 8), left: Math.round(r.left) });
       }
     };
-    window.addEventListener('resize', handler);
-    window.addEventListener('scroll', handler, { passive: true });
+
+    const onScrollOrResize = () => {
+      if (scheduledFrame !== null) return;
+      scheduledFrame = requestAnimationFrame(runMeasureAndPosition);
+    };
+
+    window.addEventListener('resize', onScrollOrResize);
+    window.addEventListener('scroll', onScrollOrResize, { passive: true });
     return () => {
-      window.removeEventListener('resize', handler);
-      window.removeEventListener('scroll', handler);
+      if (scheduledFrame !== null) cancelAnimationFrame(scheduledFrame);
+      window.removeEventListener('resize', onScrollOrResize);
+      window.removeEventListener('scroll', onScrollOrResize);
     };
   }, [isShareOpen, isBuildInfoOpen]);
 
