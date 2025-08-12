@@ -117,7 +117,7 @@ export default function App() {
       const r = buildBtnRef.current.getBoundingClientRect();
       setBuildStyle({ top: Math.round(r.bottom + 8), left: Math.round(r.left) });
     }
-  }, []);
+  }, [setShareStyle, setBuildStyle]);
 
   const onScrollOrResize = useCallback(() => {
     if (scheduledFrameRef.current !== null) return;
