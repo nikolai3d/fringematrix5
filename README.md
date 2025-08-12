@@ -67,25 +67,27 @@ npm --prefix client run test:ci
 ### End-to-End (UI) with Playwright
 
 - What is Playwright: a modern E2E testing framework that drives real browsers to validate user flows.
-- Location: `e2e/` tests, config at `playwright.config.ts`.
+- Location: `e2e/` directory (contains tests and Playwright config).
 - Runs the built SPA served by the Express backend (`server/server.js`).
 
 ```bash
-# One-time: install dependencies and browsers
-npm install
-npx playwright install --with-deps
+# One-time: install dependencies (server, client, e2e) and browsers
+npm --prefix server install
+npm --prefix client install
+npm --prefix e2e install
+npx --prefix e2e playwright install --with-deps
 
 # Build client and run E2E locally (headless)
 npm --prefix client run build
-npm run e2e
+npm --prefix e2e run e2e
 
 # Headed/debug
-npm run e2e:headed
-npm run e2e:report
+npm --prefix e2e run e2e:headed
+npm --prefix e2e run e2e:report
 ```
 
 Notes:
-- The Playwright config builds the client and starts the backend automatically via `webServer`.
+- The Playwright config in `e2e/playwright.config.ts` builds the client and starts the backend automatically via `webServer`.
 - Ensure port 3000 is free.
 - If you change API data in `data/`, re-run the tests to pick up changes.
 

@@ -7,6 +7,50 @@ on:
     branches: [ main ]
 
 jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install backend deps
+        run: npm --prefix server install
+
+      - name: Install frontend deps
+        run: npm --prefix client install
+
+      - name: Install E2E deps
+        run: npm --prefix e2e install
+
+      - name: Install Playwright browsers
+        run: npx --prefix e2e playwright install --with-deps
+
+      - name: Build frontend
+        run: npm --prefix client run build
+
+      - name: Run E2E tests
+        run: npm --prefix e2e test
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
   server-tests:
     runs-on: ubuntu-latest
     steps:
