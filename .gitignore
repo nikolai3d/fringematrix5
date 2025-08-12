@@ -30,3 +30,6 @@ deploy/ip_address.md
 build-info.json
 
 server/junit.xml
+
+playwright-report/
+test-results/
