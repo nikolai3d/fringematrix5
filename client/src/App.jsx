@@ -10,6 +10,7 @@ export default function App() {
   const [imagesByCampaign, setImagesByCampaign] = useState({});
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [hideLightboxImage, setHideLightboxImage] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isBuildInfoOpen, setIsBuildInfoOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -221,14 +222,114 @@ export default function App() {
     return () => clearInterval(id);
   }, [isPreloading]);
 
-  const openLightbox = useCallback((index) => {
+  // Wireframe zoom animation helpers
+  const wireframeElRef = useRef(null);
+  const pendingOpenStartRectRef = useRef(null);
+
+  const ensureWireframeElement = useCallback(() => {
+    if (wireframeElRef.current && document.body.contains(wireframeElRef.current)) return wireframeElRef.current;
+    const container = document.createElement('div');
+    container.className = 'wireframe-rect';
+    Object.assign(container.style, {
+      position: 'fixed',
+      left: '0px',
+      top: '0px',
+      width: '0px',
+      height: '0px',
+      pointerEvents: 'none',
+      zIndex: 100,
+      opacity: '0',
+    });
+    const inner = document.createElement('div');
+    inner.className = 'wireframe-rect-inner';
+    Object.assign(inner.style, { position: 'absolute', inset: '0' });
+    container.appendChild(inner);
+    document.body.appendChild(container);
+    wireframeElRef.current = container;
+    return container;
+  }, []);
+
+  const runWireframeAnimation = useCallback(async (fromRect, toRect) => {
+    try {
+      const el = ensureWireframeElement();
+      // Initialize at start
+      Object.assign(el.style, {
+        left: `${fromRect.left}px`,
+        top: `${fromRect.top}px`,
+        width: `${fromRect.width}px`,
+        height: `${fromRect.height}px`,
+        borderRadius: '12px',
+        display: 'block',
+      });
+      const duration = 360;
+      const easing = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
+      const animation = el.animate(
+        [
+          { left: `${fromRect.left}px`, top: `${fromRect.top}px`, width: `${fromRect.width}px`, height: `${fromRect.height}px`, borderRadius: '12px', opacity: 0, offset: 0 },
+          { opacity: 1, offset: 0.15 },
+          { opacity: 1, offset: 0.85 },
+          { left: `${toRect.left}px`, top: `${toRect.top}px`, width: `${toRect.width}px`, height: `${toRect.height}px`, borderRadius: '10px', opacity: 0, offset: 1 },
+        ],
+        { duration, easing, fill: 'forwards' }
+      );
+      await animation.finished;
+      // Ensure final state then hide
+      Object.assign(el.style, {
+        left: `${toRect.left}px`,
+        top: `${toRect.top}px`,
+        width: `${toRect.width}px`,
+        height: `${toRect.height}px`,
+      });
+      el.style.display = 'none';
+    } catch {
+      // Best effort: if animation API fails, just skip
+      const el = wireframeElRef.current;
+      if (el) el.style.display = 'none';
+    }
+  }, [ensureWireframeElement]);
+
+  const openLightbox = useCallback((index, thumbEl) => {
+    if (thumbEl) {
+      // Capture start rect for upcoming open animation
+      const rect = thumbEl.getBoundingClientRect();
+      pendingOpenStartRectRef.current = rect;
+      setHideLightboxImage(true);
+    }
     setLightboxIndex(index);
     setIsLightboxOpen(true);
   }, []);
 
-  const closeLightbox = useCallback(() => {
-    setIsLightboxOpen(false);
-  }, []);
+  const closeLightbox = useCallback(async () => {
+    // If we can animate back to thumbnail, do it
+    try {
+      const img = images[lightboxIndex];
+      const lightboxImg = document.getElementById('lightbox-image');
+      if (!img || !lightboxImg) { setIsLightboxOpen(false); return; }
+      const startRect = lightboxImg.getBoundingClientRect();
+      // Find matching thumbnail in the grid by src
+      const escaped = CSS && CSS.escape ? CSS.escape(img.src) : img.src.replace(/([#.:?+*\[\]])/g, '\\$1');
+      const thumb = document.querySelector(`.gallery-grid .card img[src="${escaped}"]`);
+      if (!thumb) { setIsLightboxOpen(false); return; }
+      const endRect = thumb.getBoundingClientRect();
+      // Cross-fade image out while wireframe fades in and travels
+      const duration = 360;
+      const imgAnim = lightboxImg.animate(
+        [
+          { opacity: 1, offset: 0 },
+          { opacity: 0, offset: 0.4 },
+          { opacity: 0, offset: 1 },
+        ],
+        { duration, easing: 'linear', fill: 'forwards' }
+      );
+      await Promise.all([
+        runWireframeAnimation(startRect, endRect),
+        imgAnim.finished.catch(() => {}),
+      ]);
+    } finally {
+      setIsLightboxOpen(false);
+      setHideLightboxImage(false);
+    }
+  }, [images, lightboxIndex, runWireframeAnimation]);
 
   const nextImage = useCallback((delta) => {
     setLightboxIndex((idx) => (images.length === 0 ? 0 : (idx + delta + images.length) % images.length));
@@ -259,6 +360,38 @@ export default function App() {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [isLightboxOpen, closeLightbox, nextImage]);
+
+  // After lightbox mounts, if we have a pending start rect, animate to the lightbox image rect
+  useEffect(() => {
+    if (!isLightboxOpen) return;
+    const startRect = pendingOpenStartRectRef.current;
+    if (!startRect) return;
+    const rAF = requestAnimationFrame(async () => {
+      const lightboxImg = document.getElementById('lightbox-image');
+      if (!lightboxImg) { setHideLightboxImage(false); pendingOpenStartRectRef.current = null; return; }
+      const endRect = lightboxImg.getBoundingClientRect();
+      // Prepare image for cross-fade
+      lightboxImg.style.opacity = '0';
+      const duration = 360;
+      const imgAnim = lightboxImg.animate(
+        [
+          { opacity: 0, offset: 0 },
+          { opacity: 0, offset: 0.6 },
+          { opacity: 1, offset: 1 },
+        ],
+        { duration, easing: 'linear', fill: 'forwards' }
+      );
+      await Promise.all([
+        runWireframeAnimation(startRect, endRect),
+        imgAnim.finished.catch(() => {}),
+      ]);
+      // Reveal the real image and clear temp state
+      lightboxImg.style.opacity = '';
+      setHideLightboxImage(false);
+      pendingOpenStartRectRef.current = null;
+    });
+    return () => cancelAnimationFrame(rAF);
+  }, [isLightboxOpen, lightboxIndex, runWireframeAnimation]);
 
   return (
     <div id="app">
@@ -371,7 +504,7 @@ export default function App() {
           ) : (
             images.map((img, i) => (
               <div className="card" key={`${img.src}-${i}`}>
-                <img src={img.src} alt={img.fileName} loading="lazy" onClick={() => openLightbox(i)} />
+                <img src={img.src} alt={img.fileName} loading="lazy" onClick={(e) => openLightbox(i, e.currentTarget)} />
                 <div className="filename">{img.fileName}</div>
               </div>
             ))
@@ -456,7 +589,12 @@ export default function App() {
       {isLightboxOpen && (
         <div id="lightbox" className="lightbox" aria-hidden={false}>
           <button className="lightbox-close" id="lightbox-close" aria-label="Close" onClick={closeLightbox}>✕</button>
-          <img id="lightbox-image" alt="Selected" src={images[lightboxIndex]?.src} />
+          <img
+            id="lightbox-image"
+            alt="Selected"
+            src={images[lightboxIndex]?.src}
+            style={{ opacity: hideLightboxImage ? 0 : 1, transition: 'opacity .12s ease' }}
+          />
           <div className="lightbox-actions">
             <button id="prev-btn" className="nav-btn" aria-label="Previous" onClick={() => nextImage(-1)}>◀</button>
             <div className="spacer"></div>
