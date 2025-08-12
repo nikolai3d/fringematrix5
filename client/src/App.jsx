@@ -225,6 +225,8 @@ export default function App() {
   // Wireframe zoom animation helpers
   const wireframeElRef = useRef(null);
   const pendingOpenStartRectRef = useRef(null);
+  const lastOpenedThumbElRef = useRef(null);
+  const activeGridThumbRef = useRef(null);
 
   const ensureWireframeElement = useCallback(() => {
     if (wireframeElRef.current && document.body.contains(wireframeElRef.current)) return wireframeElRef.current;
@@ -294,6 +296,24 @@ export default function App() {
       const rect = thumbEl.getBoundingClientRect();
       pendingOpenStartRectRef.current = rect;
       setHideLightboxImage(true);
+      // Track and fade out the clicked grid thumbnail for cross-fade
+      lastOpenedThumbElRef.current = thumbEl;
+      activeGridThumbRef.current = thumbEl;
+      try {
+        // Ensure visible before animation
+        thumbEl.style.opacity = '1';
+        const anim = thumbEl.animate(
+          [
+            { opacity: 1, offset: 0 },
+            { opacity: 0, offset: 0.4 },
+            { opacity: 0, offset: 1 },
+          ],
+          { duration: 360, easing: 'linear', fill: 'forwards' }
+        );
+        anim?.finished?.catch(() => {});
+      } catch {
+        try { thumbEl.style.opacity = '0'; } catch {}
+      }
     }
     setLightboxIndex(index);
     setIsLightboxOpen(true);
@@ -308,10 +328,16 @@ export default function App() {
       const startRect = lightboxImg.getBoundingClientRect();
       // Find matching thumbnail in the grid by src
       const escaped = CSS && CSS.escape ? CSS.escape(img.src) : img.src.replace(/([#.:?+*\[\]])/g, '\\$1');
-      const thumb = document.querySelector(`.gallery-grid .card img[src="${escaped}"]`);
+      let thumb = document.querySelector(`.gallery-grid .card img[src="${escaped}"]`);
+      if (!thumb && activeGridThumbRef.current && document.body.contains(activeGridThumbRef.current)) {
+        thumb = activeGridThumbRef.current;
+      }
+      if (!thumb && lastOpenedThumbElRef.current && document.body.contains(lastOpenedThumbElRef.current)) {
+        thumb = lastOpenedThumbElRef.current;
+      }
       if (!thumb) { setIsLightboxOpen(false); return; }
       const endRect = thumb.getBoundingClientRect();
-      // Cross-fade image out while wireframe fades in and travels
+      // Cross-fade image out while wireframe fades in and travels; grid thumb fades back in near the end
       const duration = 360;
       const imgAnim = lightboxImg.animate(
         [
@@ -321,13 +347,33 @@ export default function App() {
         ],
         { duration, easing: 'linear', fill: 'forwards' }
       );
+      // Prepare and animate the grid thumbnail fade-in
+      try { thumb.style.opacity = '0'; } catch {}
+      let thumbAnim;
+      try {
+        thumbAnim = thumb.animate(
+          [
+            { opacity: 0, offset: 0 },
+            { opacity: 0, offset: 0.6 },
+            { opacity: 1, offset: 1 },
+          ],
+          { duration, easing: 'linear', fill: 'forwards' }
+        );
+      } catch {}
       await Promise.all([
         runWireframeAnimation(startRect, endRect),
         imgAnim.finished.catch(() => {}),
+        (thumbAnim?.finished || Promise.resolve()).catch(() => {}),
       ]);
     } finally {
       setIsLightboxOpen(false);
       setHideLightboxImage(false);
+      // Ensure last opened thumbnail is restored
+      const el = lastOpenedThumbElRef.current;
+      if (el && document.body.contains(el)) {
+        try { el.style.opacity = ''; } catch {}
+      }
+      lastOpenedThumbElRef.current = null;
     }
   }, [images, lightboxIndex, runWireframeAnimation]);
 
@@ -392,6 +438,48 @@ export default function App() {
     });
     return () => cancelAnimationFrame(rAF);
   }, [isLightboxOpen, lightboxIndex, runWireframeAnimation]);
+
+  // Keep grid thumbnails in sync when navigating in the lightbox
+  useEffect(() => {
+    if (!isLightboxOpen) return;
+    const current = images[lightboxIndex];
+    if (!current) return;
+    const escapeAttr = (s) => (CSS && CSS.escape ? CSS.escape(s) : s.replace(/([#.:?+*\\[\\]])/g, '\\$1'));
+    const selector = `.gallery-grid .card img[src="${escapeAttr(current.src)}"]`;
+    const newThumb = document.querySelector(selector);
+
+    const animateOpacity = (el, to, ms) => {
+      if (!el) return { finished: Promise.resolve() };
+      try {
+        const from = parseFloat(getComputedStyle(el).opacity || '1');
+        return el.animate([{ opacity: from }, { opacity: to }], { duration: ms, easing: 'linear', fill: 'forwards' });
+      } catch {
+        try { el.style.opacity = String(to); } catch {}
+        return { finished: Promise.resolve() };
+      }
+    };
+
+    const prev = activeGridThumbRef.current;
+    if (prev && prev !== newThumb && document.body.contains(prev)) {
+      animateOpacity(prev, 1, 100);
+    }
+    if (newThumb) {
+      animateOpacity(newThumb, 0, 100);
+      activeGridThumbRef.current = newThumb;
+    } else {
+      activeGridThumbRef.current = null;
+    }
+  }, [lightboxIndex, isLightboxOpen, images]);
+
+  // Restore grid thumbnail on lightbox close
+  useEffect(() => {
+    if (isLightboxOpen) return;
+    const el = activeGridThumbRef.current;
+    if (el && document.body.contains(el)) {
+      try { el.style.opacity = ''; } catch {}
+    }
+    activeGridThumbRef.current = null;
+  }, [isLightboxOpen]);
 
   return (
     <div id="app">
