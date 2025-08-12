@@ -291,7 +291,7 @@ export default function App() {
       <header className="navbar" id="top-navbar">
         <div className="navbar-inner">
           <button className="nav-arrow" aria-label="Previous campaign" onClick={goToPrevCampaign}>◀</button>
-          <div className="current-campaign" title={activeCampaign ? `#${activeCampaign.hashtag}` : ''}>
+          <div className="current-campaign" data-testid="current-campaign-top" title={activeCampaign ? `#${activeCampaign.hashtag}` : ''}>
             {activeCampaign ? `#${activeCampaign.hashtag}` : ''}
           </div>
           <button className="nav-arrow" aria-label="Next campaign" onClick={goToNextCampaign}>▶</button>
@@ -424,7 +424,7 @@ export default function App() {
       <footer className="navbar" id="bottom-navbar">
         <div className="navbar-inner">
           <button className="nav-arrow" aria-label="Previous campaign" onClick={goToPrevCampaign}>◀</button>
-          <div className="current-campaign" title={activeCampaign ? `#${activeCampaign.hashtag}` : ''}>
+          <div className="current-campaign" data-testid="current-campaign-bottom" title={activeCampaign ? `#${activeCampaign.hashtag}` : ''}>
             {activeCampaign ? `#${activeCampaign.hashtag}` : ''}
           </div>
           <button className="nav-arrow" aria-label="Next campaign" onClick={goToNextCampaign}>▶</button>
