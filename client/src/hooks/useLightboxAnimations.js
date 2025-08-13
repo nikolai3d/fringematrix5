@@ -315,7 +315,6 @@ export function useLightboxAnimations({
           const src = el?.getAttribute?.('src');
           if (src) descriptor += ` [src="${src}"]`;
         } catch { /* ignore */ }
-        const isInDom = (() => { try { return document.body.contains(el); } catch { return false; } })();
         console.error('Failed to reset opacity on grid thumb', err, el);
       }
     }
