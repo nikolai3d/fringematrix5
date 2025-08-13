@@ -227,6 +227,11 @@ export default function App() {
   const pendingOpenStartRectRef = useRef(null);
   const lastOpenedThumbElRef = useRef(null);
   const activeGridThumbRef = useRef(null);
+  const LIGHTBOX_ANIM_MS = 360;
+  const LIGHTBOX_BACKDROP_OPACITY = 0.86;
+  const LIGHTBOX_BACKDROP_EASING_IN = 'cubic-bezier(0, 0, 0.2, 1)'; // ease-out: fast start, slow end
+  const LIGHTBOX_BACKDROP_EASING_OUT = 'cubic-bezier(0.4, 0, 1, 1)'; // ease-in: slow start, fast end
+  const backdropDimmedRef = useRef(false);
 
   const ensureWireframeElement = useCallback(() => {
     if (wireframeElRef.current && document.body.contains(wireframeElRef.current)) return wireframeElRef.current;
@@ -263,7 +268,7 @@ export default function App() {
         borderRadius: '12px',
         display: 'block',
       });
-      const duration = 360;
+      const duration = LIGHTBOX_ANIM_MS;
       const easing = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
       const animation = el.animate(
         [
@@ -289,6 +294,24 @@ export default function App() {
       if (el) el.style.display = 'none';
     }
   }, [ensureWireframeElement]);
+
+  const animateLightboxBackdrop = useCallback((direction) => {
+    const el = document.getElementById('lightbox');
+    if (!el) return { finished: Promise.resolve() };
+    try {
+      const from = direction === 'in' ? 'rgba(0,0,0,0)' : `rgba(0,0,0,${LIGHTBOX_BACKDROP_OPACITY})`;
+      const to = direction === 'in' ? `rgba(0,0,0,${LIGHTBOX_BACKDROP_OPACITY})` : 'rgba(0,0,0,0)';
+      const easing = direction === 'in' ? LIGHTBOX_BACKDROP_EASING_IN : LIGHTBOX_BACKDROP_EASING_OUT;
+      el.style.backgroundColor = from;
+      return el.animate(
+        [{ backgroundColor: from }, { backgroundColor: to }],
+        { duration: LIGHTBOX_ANIM_MS, easing, fill: 'forwards' }
+      );
+    } catch {
+      try { el.style.backgroundColor = direction === 'in' ? `rgba(0,0,0,${LIGHTBOX_BACKDROP_OPACITY})` : 'rgba(0,0,0,0)'; } catch {}
+      return { finished: Promise.resolve() };
+    }
+  }, []);
 
   const openLightbox = useCallback((index, thumbEl) => {
     if (thumbEl) {
@@ -324,7 +347,13 @@ export default function App() {
     try {
       const img = images[lightboxIndex];
       const lightboxImg = document.getElementById('lightbox-image');
-      if (!img || !lightboxImg) { setIsLightboxOpen(false); return; }
+      if (!img || !lightboxImg) {
+        const backdropAnim = animateLightboxBackdrop('out');
+        await (backdropAnim?.finished || Promise.resolve()).catch(() => {});
+        backdropDimmedRef.current = false;
+        setIsLightboxOpen(false);
+        return;
+      }
       const startRect = lightboxImg.getBoundingClientRect();
       // Find matching thumbnail in the grid by src
       const escaped = CSS && CSS.escape ? CSS.escape(img.src) : img.src.replace(/([#.:?+*\[\]])/g, '\\$1');
@@ -335,10 +364,16 @@ export default function App() {
       if (!thumb && lastOpenedThumbElRef.current && document.body.contains(lastOpenedThumbElRef.current)) {
         thumb = lastOpenedThumbElRef.current;
       }
-      if (!thumb) { setIsLightboxOpen(false); return; }
+      if (!thumb) {
+        const backdropAnim = animateLightboxBackdrop('out');
+        await (backdropAnim?.finished || Promise.resolve()).catch(() => {});
+        backdropDimmedRef.current = false;
+        setIsLightboxOpen(false);
+        return;
+      }
       const endRect = thumb.getBoundingClientRect();
       // Cross-fade image out while wireframe fades in and travels; grid thumb fades back in near the end
-      const duration = 360;
+      const duration = LIGHTBOX_ANIM_MS;
       const imgAnim = lightboxImg.animate(
         [
           { opacity: 1, offset: 0 },
@@ -347,6 +382,7 @@ export default function App() {
         ],
         { duration, easing: 'linear', fill: 'forwards' }
       );
+      const backdropAnim = animateLightboxBackdrop('out');
       // Prepare and animate the grid thumbnail fade-in
       try { thumb.style.opacity = '0'; } catch {}
       let thumbAnim;
@@ -364,7 +400,9 @@ export default function App() {
         runWireframeAnimation(startRect, endRect),
         imgAnim.finished.catch(() => {}),
         (thumbAnim?.finished || Promise.resolve()).catch(() => {}),
+        (backdropAnim?.finished || Promise.resolve()).catch(() => {}),
       ]);
+      backdropDimmedRef.current = false;
     } finally {
       setIsLightboxOpen(false);
       setHideLightboxImage(false);
@@ -375,7 +413,7 @@ export default function App() {
       }
       lastOpenedThumbElRef.current = null;
     }
-  }, [images, lightboxIndex, runWireframeAnimation]);
+  }, [images, lightboxIndex, runWireframeAnimation, animateLightboxBackdrop]);
 
   const nextImage = useCallback((delta) => {
     setLightboxIndex((idx) => (images.length === 0 ? 0 : (idx + delta + images.length) % images.length));
@@ -411,14 +449,22 @@ export default function App() {
   useEffect(() => {
     if (!isLightboxOpen) return;
     const startRect = pendingOpenStartRectRef.current;
-    if (!startRect) return;
+    const needBackdropIn = !backdropDimmedRef.current;
+    if (!startRect) {
+      if (needBackdropIn) {
+        const anim = animateLightboxBackdrop('in');
+        backdropDimmedRef.current = true;
+        anim?.finished?.catch(() => {});
+      }
+      return;
+    }
     const rAF = requestAnimationFrame(async () => {
       const lightboxImg = document.getElementById('lightbox-image');
       if (!lightboxImg) { setHideLightboxImage(false); pendingOpenStartRectRef.current = null; return; }
       const endRect = lightboxImg.getBoundingClientRect();
       // Prepare image for cross-fade
       lightboxImg.style.opacity = '0';
-      const duration = 360;
+      const duration = LIGHTBOX_ANIM_MS;
       const imgAnim = lightboxImg.animate(
         [
           { opacity: 0, offset: 0 },
@@ -427,9 +473,15 @@ export default function App() {
         ],
         { duration, easing: 'linear', fill: 'forwards' }
       );
+      let backdropAnim;
+      if (needBackdropIn) {
+        backdropAnim = animateLightboxBackdrop('in');
+        backdropDimmedRef.current = true;
+      }
       await Promise.all([
         runWireframeAnimation(startRect, endRect),
         imgAnim.finished.catch(() => {}),
+        (backdropAnim?.finished || Promise.resolve()).catch(() => {}),
       ]);
       // Reveal the real image and clear temp state
       lightboxImg.style.opacity = '';
@@ -437,7 +489,7 @@ export default function App() {
       pendingOpenStartRectRef.current = null;
     });
     return () => cancelAnimationFrame(rAF);
-  }, [isLightboxOpen, lightboxIndex, runWireframeAnimation]);
+  }, [isLightboxOpen, lightboxIndex, runWireframeAnimation, animateLightboxBackdrop]);
 
   // Keep grid thumbnails in sync when navigating in the lightbox
   useEffect(() => {
