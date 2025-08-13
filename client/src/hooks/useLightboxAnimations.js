@@ -143,22 +143,22 @@ export function useLightboxAnimations({
         return;
       }
       const startRect = lightboxImg.getBoundingClientRect();
-      const escaped = escapeForAttributeSelector(img.src);
-      let thumb = document.querySelector(`.gallery-grid .card img[src="${escaped}"]`);
-      if (!thumb && activeGridThumbRef.current && document.body.contains(activeGridThumbRef.current)) {
-        thumb = activeGridThumbRef.current;
+      const escapedSrc = escapeForAttributeSelector(img.src);
+      let thumbElement = document.querySelector(`.gallery-grid .card img[src="${escapedSrc}"]`);
+      if (!thumbElement && activeGridThumbRef.current && document.body.contains(activeGridThumbRef.current)) {
+        thumbElement = activeGridThumbRef.current;
       }
-      if (!thumb && lastOpenedThumbElRef.current && document.body.contains(lastOpenedThumbElRef.current)) {
-        thumb = lastOpenedThumbElRef.current;
+      if (!thumbElement && lastOpenedThumbElRef.current && document.body.contains(lastOpenedThumbElRef.current)) {
+        thumbElement = lastOpenedThumbElRef.current;
       }
-      if (!thumb) {
+      if (!thumbElement) {
         const backdropAnim = animateLightboxBackdrop('out');
         await (backdropAnim?.finished || Promise.resolve()).catch(() => {});
         backdropDimmedRef.current = false;
         setIsLightboxOpen(false);
         return;
       }
-      const endRect = thumb.getBoundingClientRect();
+      const endRect = thumbElement.getBoundingClientRect();
       const duration = LIGHTBOX_ANIM_MS;
       const imgAnim = lightboxImg.animate(
         [
@@ -169,10 +169,10 @@ export function useLightboxAnimations({
         { duration, easing: 'linear', fill: 'forwards' }
       );
       const backdropAnim = animateLightboxBackdrop('out');
-      try { thumb.style.opacity = '0'; } catch (styleErr) { /* ignore style assignment failures */ }
+      try { thumbElement.style.opacity = '0'; } catch (styleErr) { /* ignore style assignment failures */ }
       let thumbAnim;
       try {
-        thumbAnim = thumb.animate(
+        thumbAnim = thumbElement.animate(
           [
             { opacity: 0, offset: 0 },
             { opacity: 0, offset: 0.6 },
@@ -281,8 +281,18 @@ export function useLightboxAnimations({
     const el = activeGridThumbRef.current;
     if (el && document.body.contains(el)) {
       try { el.style.opacity = ''; } catch (err) {
-        // Non-critical: failed to reset opacity on grid thumb. Log for debugging.
-        console.error('Failed to reset opacity on grid thumb:', err);
+        const tagName = el?.tagName?.toLowerCase?.() || 'unknown';
+        const idPart = el?.id ? `#${el.id}` : '';
+        const classPart = (() => {
+          try { return el?.classList?.length ? `.${Array.from(el.classList).slice(0, 3).join('.')}` : ''; } catch { return ''; }
+        })();
+        let descriptor = `${tagName}${idPart}${classPart}`.trim();
+        try {
+          const src = el?.getAttribute?.('src');
+          if (src) descriptor += ` [src="${src}"]`;
+        } catch { /* ignore */ }
+        const isInDom = (() => { try { return document.body.contains(el); } catch { return false; } })();
+        console.error('Failed to reset opacity on grid thumb', { element: descriptor, isInDom, error: err });
       }
     }
     activeGridThumbRef.current = null;
