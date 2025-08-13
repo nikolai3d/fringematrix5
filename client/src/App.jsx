@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useLightboxAnimations } from './hooks/useLightboxAnimations.js';
 import { fetchJSON } from './utils/fetchJSON.js';
 import { formatDeployedAtPacific } from './utils/formatDeployedAtPacific.js';
 import { gitRemoteToHttps } from './utils/gitRemoteToHttps.js';
@@ -222,198 +223,15 @@ export default function App() {
     return () => clearInterval(id);
   }, [isPreloading]);
 
-  // Wireframe zoom animation helpers
-  const wireframeElRef = useRef(null);
-  const pendingOpenStartRectRef = useRef(null);
-  const lastOpenedThumbElRef = useRef(null);
-  const activeGridThumbRef = useRef(null);
-  const LIGHTBOX_ANIM_MS = 360;
-  const LIGHTBOX_BACKDROP_OPACITY = 0.86;
-  const LIGHTBOX_BACKDROP_EASING_IN = 'cubic-bezier(0, 0, 0.2, 1)'; // ease-out: fast start, slow end
-  const LIGHTBOX_BACKDROP_EASING_OUT = 'cubic-bezier(0.4, 0, 1, 1)'; // ease-in: slow start, fast end
-  const backdropDimmedRef = useRef(false);
-
-  const ensureWireframeElement = useCallback(() => {
-    if (wireframeElRef.current && document.body.contains(wireframeElRef.current)) return wireframeElRef.current;
-    const container = document.createElement('div');
-    container.className = 'wireframe-rect';
-    Object.assign(container.style, {
-      position: 'fixed',
-      left: '0px',
-      top: '0px',
-      width: '0px',
-      height: '0px',
-      pointerEvents: 'none',
-      zIndex: 100,
-      opacity: '0',
-    });
-    const inner = document.createElement('div');
-    inner.className = 'wireframe-rect-inner';
-    Object.assign(inner.style, { position: 'absolute', inset: '0' });
-    container.appendChild(inner);
-    document.body.appendChild(container);
-    wireframeElRef.current = container;
-    return container;
-  }, []);
-
-  const runWireframeAnimation = useCallback(async (fromRect, toRect) => {
-    try {
-      const el = ensureWireframeElement();
-      // Initialize at start
-      Object.assign(el.style, {
-        left: `${fromRect.left}px`,
-        top: `${fromRect.top}px`,
-        width: `${fromRect.width}px`,
-        height: `${fromRect.height}px`,
-        borderRadius: '12px',
-        display: 'block',
-      });
-      const duration = LIGHTBOX_ANIM_MS;
-      const easing = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
-      const animation = el.animate(
-        [
-          { left: `${fromRect.left}px`, top: `${fromRect.top}px`, width: `${fromRect.width}px`, height: `${fromRect.height}px`, borderRadius: '12px', opacity: 0, offset: 0 },
-          { opacity: 1, offset: 0.15 },
-          { opacity: 1, offset: 0.85 },
-          { left: `${toRect.left}px`, top: `${toRect.top}px`, width: `${toRect.width}px`, height: `${toRect.height}px`, borderRadius: '10px', opacity: 0, offset: 1 },
-        ],
-        { duration, easing, fill: 'forwards' }
-      );
-      await animation.finished;
-      // Ensure final state then hide
-      Object.assign(el.style, {
-        left: `${toRect.left}px`,
-        top: `${toRect.top}px`,
-        width: `${toRect.width}px`,
-        height: `${toRect.height}px`,
-      });
-      el.style.display = 'none';
-    } catch {
-      // Best effort: if animation API fails, just skip
-      const el = wireframeElRef.current;
-      if (el) el.style.display = 'none';
-    }
-  }, [ensureWireframeElement]);
-
-  const animateLightboxBackdrop = useCallback((direction) => {
-    const el = document.getElementById('lightbox');
-    if (!el) return { finished: Promise.resolve() };
-    try {
-      const from = direction === 'in' ? 'rgba(0,0,0,0)' : `rgba(0,0,0,${LIGHTBOX_BACKDROP_OPACITY})`;
-      const to = direction === 'in' ? `rgba(0,0,0,${LIGHTBOX_BACKDROP_OPACITY})` : 'rgba(0,0,0,0)';
-      const easing = direction === 'in' ? LIGHTBOX_BACKDROP_EASING_IN : LIGHTBOX_BACKDROP_EASING_OUT;
-      el.style.backgroundColor = from;
-      return el.animate(
-        [{ backgroundColor: from }, { backgroundColor: to }],
-        { duration: LIGHTBOX_ANIM_MS, easing, fill: 'forwards' }
-      );
-    } catch {
-      try { el.style.backgroundColor = direction === 'in' ? `rgba(0,0,0,${LIGHTBOX_BACKDROP_OPACITY})` : 'rgba(0,0,0,0)'; } catch {}
-      return { finished: Promise.resolve() };
-    }
-  }, []);
-
-  const openLightbox = useCallback((index, thumbEl) => {
-    if (thumbEl) {
-      // Capture start rect for upcoming open animation
-      const rect = thumbEl.getBoundingClientRect();
-      pendingOpenStartRectRef.current = rect;
-      setHideLightboxImage(true);
-      // Track and fade out the clicked grid thumbnail for cross-fade
-      lastOpenedThumbElRef.current = thumbEl;
-      activeGridThumbRef.current = thumbEl;
-      try {
-        // Ensure visible before animation
-        thumbEl.style.opacity = '1';
-        const anim = thumbEl.animate(
-          [
-            { opacity: 1, offset: 0 },
-            { opacity: 0, offset: 0.4 },
-            { opacity: 0, offset: 1 },
-          ],
-          { duration: 360, easing: 'linear', fill: 'forwards' }
-        );
-        anim?.finished?.catch(() => {});
-      } catch {
-        try { thumbEl.style.opacity = '0'; } catch {}
-      }
-    }
-    setLightboxIndex(index);
-    setIsLightboxOpen(true);
-  }, []);
-
-  const closeLightbox = useCallback(async () => {
-    // If we can animate back to thumbnail, do it
-    try {
-      const img = images[lightboxIndex];
-      const lightboxImg = document.getElementById('lightbox-image');
-      if (!img || !lightboxImg) {
-        const backdropAnim = animateLightboxBackdrop('out');
-        await (backdropAnim?.finished || Promise.resolve()).catch(() => {});
-        backdropDimmedRef.current = false;
-        setIsLightboxOpen(false);
-        return;
-      }
-      const startRect = lightboxImg.getBoundingClientRect();
-      // Find matching thumbnail in the grid by src
-      const escaped = CSS && CSS.escape ? CSS.escape(img.src) : img.src.replace(/([#.:?+*\[\]])/g, '\\$1');
-      let thumb = document.querySelector(`.gallery-grid .card img[src="${escaped}"]`);
-      if (!thumb && activeGridThumbRef.current && document.body.contains(activeGridThumbRef.current)) {
-        thumb = activeGridThumbRef.current;
-      }
-      if (!thumb && lastOpenedThumbElRef.current && document.body.contains(lastOpenedThumbElRef.current)) {
-        thumb = lastOpenedThumbElRef.current;
-      }
-      if (!thumb) {
-        const backdropAnim = animateLightboxBackdrop('out');
-        await (backdropAnim?.finished || Promise.resolve()).catch(() => {});
-        backdropDimmedRef.current = false;
-        setIsLightboxOpen(false);
-        return;
-      }
-      const endRect = thumb.getBoundingClientRect();
-      // Cross-fade image out while wireframe fades in and travels; grid thumb fades back in near the end
-      const duration = LIGHTBOX_ANIM_MS;
-      const imgAnim = lightboxImg.animate(
-        [
-          { opacity: 1, offset: 0 },
-          { opacity: 0, offset: 0.4 },
-          { opacity: 0, offset: 1 },
-        ],
-        { duration, easing: 'linear', fill: 'forwards' }
-      );
-      const backdropAnim = animateLightboxBackdrop('out');
-      // Prepare and animate the grid thumbnail fade-in
-      try { thumb.style.opacity = '0'; } catch {}
-      let thumbAnim;
-      try {
-        thumbAnim = thumb.animate(
-          [
-            { opacity: 0, offset: 0 },
-            { opacity: 0, offset: 0.6 },
-            { opacity: 1, offset: 1 },
-          ],
-          { duration, easing: 'linear', fill: 'forwards' }
-        );
-      } catch {}
-      await Promise.all([
-        runWireframeAnimation(startRect, endRect),
-        imgAnim.finished.catch(() => {}),
-        (thumbAnim?.finished || Promise.resolve()).catch(() => {}),
-        (backdropAnim?.finished || Promise.resolve()).catch(() => {}),
-      ]);
-      backdropDimmedRef.current = false;
-    } finally {
-      setIsLightboxOpen(false);
-      setHideLightboxImage(false);
-      // Ensure last opened thumbnail is restored
-      const el = lastOpenedThumbElRef.current;
-      if (el && document.body.contains(el)) {
-        try { el.style.opacity = ''; } catch {}
-      }
-      lastOpenedThumbElRef.current = null;
-    }
-  }, [images, lightboxIndex, runWireframeAnimation, animateLightboxBackdrop]);
+  // Lightbox animations are provided by the useLightboxAnimations hook
+  const { openLightbox, closeLightbox } = useLightboxAnimations({
+    images,
+    isLightboxOpen,
+    lightboxIndex,
+    setLightboxIndex,
+    setIsLightboxOpen,
+    setHideLightboxImage,
+  });
 
   const nextImage = useCallback((delta) => {
     setLightboxIndex((idx) => (images.length === 0 ? 0 : (idx + delta + images.length) % images.length));
@@ -445,93 +263,11 @@ export default function App() {
     return () => document.removeEventListener('keydown', onKey);
   }, [isLightboxOpen, closeLightbox, nextImage]);
 
-  // After lightbox mounts, if we have a pending start rect, animate to the lightbox image rect
-  useEffect(() => {
-    if (!isLightboxOpen) return;
-    const startRect = pendingOpenStartRectRef.current;
-    const needBackdropIn = !backdropDimmedRef.current;
-    if (!startRect) {
-      if (needBackdropIn) {
-        const anim = animateLightboxBackdrop('in');
-        backdropDimmedRef.current = true;
-        anim?.finished?.catch(() => {});
-      }
-      return;
-    }
-    const rAF = requestAnimationFrame(async () => {
-      const lightboxImg = document.getElementById('lightbox-image');
-      if (!lightboxImg) { setHideLightboxImage(false); pendingOpenStartRectRef.current = null; return; }
-      const endRect = lightboxImg.getBoundingClientRect();
-      // Prepare image for cross-fade
-      lightboxImg.style.opacity = '0';
-      const duration = LIGHTBOX_ANIM_MS;
-      const imgAnim = lightboxImg.animate(
-        [
-          { opacity: 0, offset: 0 },
-          { opacity: 0, offset: 0.6 },
-          { opacity: 1, offset: 1 },
-        ],
-        { duration, easing: 'linear', fill: 'forwards' }
-      );
-      let backdropAnim;
-      if (needBackdropIn) {
-        backdropAnim = animateLightboxBackdrop('in');
-        backdropDimmedRef.current = true;
-      }
-      await Promise.all([
-        runWireframeAnimation(startRect, endRect),
-        imgAnim.finished.catch(() => {}),
-        (backdropAnim?.finished || Promise.resolve()).catch(() => {}),
-      ]);
-      // Reveal the real image and clear temp state
-      lightboxImg.style.opacity = '';
-      setHideLightboxImage(false);
-      pendingOpenStartRectRef.current = null;
-    });
-    return () => cancelAnimationFrame(rAF);
-  }, [isLightboxOpen, lightboxIndex, runWireframeAnimation, animateLightboxBackdrop]);
+  // The hook manages the wireframe/backdrop animation timing on open/close
 
-  // Keep grid thumbnails in sync when navigating in the lightbox
-  useEffect(() => {
-    if (!isLightboxOpen) return;
-    const current = images[lightboxIndex];
-    if (!current) return;
-    const escapeAttr = (s) => (CSS && CSS.escape ? CSS.escape(s) : s.replace(/([#.:?+*\\[\\]])/g, '\\$1'));
-    const selector = `.gallery-grid .card img[src="${escapeAttr(current.src)}"]`;
-    const newThumb = document.querySelector(selector);
+  // Grid thumbnail sync handled by hook
 
-    const animateOpacity = (el, to, ms) => {
-      if (!el) return { finished: Promise.resolve() };
-      try {
-        const from = parseFloat(getComputedStyle(el).opacity || '1');
-        return el.animate([{ opacity: from }, { opacity: to }], { duration: ms, easing: 'linear', fill: 'forwards' });
-      } catch {
-        try { el.style.opacity = String(to); } catch {}
-        return { finished: Promise.resolve() };
-      }
-    };
-
-    const prev = activeGridThumbRef.current;
-    if (prev && prev !== newThumb && document.body.contains(prev)) {
-      animateOpacity(prev, 1, 100);
-    }
-    if (newThumb) {
-      animateOpacity(newThumb, 0, 100);
-      activeGridThumbRef.current = newThumb;
-    } else {
-      activeGridThumbRef.current = null;
-    }
-  }, [lightboxIndex, isLightboxOpen, images]);
-
-  // Restore grid thumbnail on lightbox close
-  useEffect(() => {
-    if (isLightboxOpen) return;
-    const el = activeGridThumbRef.current;
-    if (el && document.body.contains(el)) {
-      try { el.style.opacity = ''; } catch {}
-    }
-    activeGridThumbRef.current = null;
-  }, [isLightboxOpen]);
+  // Grid thumbnail restore handled by hook
 
   return (
     <div id="app">
