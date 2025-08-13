@@ -317,6 +317,14 @@ export function useLightboxAnimations({
         try { el.getAnimations?.().forEach(a => a.cancel()); } catch { /* ignore */ }
         try { el.remove(); } catch {
           try { el.parentNode?.removeChild?.(el); } catch { /* ignore */ }
+        try { el.getAnimations?.().forEach(a => a.cancel()); } catch (err) { 
+          console.error('Failed to cancel wireframe element animations', err, el); 
+        }
+        try { el.remove(); } catch (err) {
+          console.error('Failed to remove wireframe element with .remove()', err, el);
+          try { el.parentNode?.removeChild?.(el); } catch (err2) { 
+            console.error('Failed to remove wireframe element via parentNode.removeChild', err2, el); 
+          }
         }
         wireframeElRef.current = null;
       }
