@@ -312,7 +312,8 @@ export function useLightboxAnimations({
           const src = el?.getAttribute?.('src');
           if (src) descriptor += ` [src="${src}"]`;
         } catch { /* ignore */ }
-        console.error('Failed to reset opacity on grid thumb', err, el);
+        const descriptor = el?.outerHTML?.substring(0, 100) || 'unknown element';
+        console.error('Failed to reset opacity on grid thumb', err, descriptor);
       }
     }
     activeGridThumbRef.current = null;
