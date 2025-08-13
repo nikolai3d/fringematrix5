@@ -175,4 +175,3 @@ test.describe('Lightbox animations', () => {
   });
 });
 
-
