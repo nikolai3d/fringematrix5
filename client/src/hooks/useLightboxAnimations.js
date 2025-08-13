@@ -12,7 +12,31 @@ export function useLightboxAnimations({
   const wireframeElRef = useRef(null);
   const pendingOpenStartRectRef = useRef(null);
   const lastOpenedThumbElRef = useRef(null);
+}) {
+  /**
+   * Ref to the wireframe DOM element used for animating transitions between thumbnail and lightbox.
+   * Created and appended to the DOM as needed, and removed/hid after animation completes.
+   */
+  const wireframeElRef = useRef(null);
+  /**
+   * Ref to store the starting rectangle for the pending open animation.
+   * Set when opening the lightbox, used to animate from thumbnail to lightbox.
+   */
+  const pendingOpenStartRectRef = useRef(null);
+  /**
+   * Ref to the last thumbnail element that was opened in the lightbox.
+   * Used to coordinate animation and state between grid and lightbox.
+   */
+  const lastOpenedThumbElRef = useRef(null);
+  /**
+   * Ref to the currently active grid thumbnail element.
+   * Used for focus management and animation coordination.
+   */
   const activeGridThumbRef = useRef(null);
+  /**
+   * Ref to track whether the lightbox backdrop is currently dimmed.
+   * Used to prevent redundant backdrop animations.
+   */
   const backdropDimmedRef = useRef(false);
 
   const LIGHTBOX_ANIM_MS = 360;
