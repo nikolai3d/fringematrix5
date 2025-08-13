@@ -1,9 +1,6 @@
-name: CI Tests
+name: CI Tests (not running automatically, here for reference)
 
 on:
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
