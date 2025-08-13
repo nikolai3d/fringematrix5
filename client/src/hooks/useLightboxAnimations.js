@@ -298,6 +298,20 @@ export function useLightboxAnimations({
     activeGridThumbRef.current = null;
   }, [isLightboxOpen]);
 
+  // Cleanup wireframe helper element on unmount to prevent leaks
+  useEffect(() => {
+    return () => {
+      const el = wireframeElRef.current;
+      if (el) {
+        try { el.getAnimations?.().forEach(a => a.cancel()); } catch { /* ignore */ }
+        try { el.remove(); } catch {
+          try { el.parentNode?.removeChild?.(el); } catch { /* ignore */ }
+        }
+        wireframeElRef.current = null;
+      }
+    };
+  }, []);
+
   return { openLightbox, closeLightbox, pendingOpenStartRectRef };
 }
 
