@@ -38,7 +38,6 @@ async function waitForWireframeHidden(page: Page, timeout = 3000) {
   }, { timeout });
 }
 
-// Using shared util imported above
 
 async function getGridImageOpacityBySrc(page: Page, src: string) {
   const selector = `.gallery-grid .card img[src="${escapeForAttributeSelectorFn(src)}"]`;
