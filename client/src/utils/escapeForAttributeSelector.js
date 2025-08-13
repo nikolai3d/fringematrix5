@@ -9,7 +9,8 @@ export function escapeForAttributeSelector(value) {
   } catch (_) {
     // ignore and use fallback
   }
-  return stringValue.replace(/([#.:?+*\[\]])/g, '\\$1');
+  // Escape all non-alphanumeric characters (including quotes, whitespace, backslash, etc.)
+  return stringValue.replace(/([^\w])/g, '\\$1');
 }
 
 
