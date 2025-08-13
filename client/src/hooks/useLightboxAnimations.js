@@ -313,23 +313,16 @@ export function useLightboxAnimations({
   useEffect(() => {
     return () => {
       const el = wireframeElRef.current;
-      if (el) {
-        try { el.getAnimations?.().forEach(a => a.cancel()); } catch (err) { 
-          console.error('Failed to cancel wireframe element animations during cleanup', err, el?.outerHTML?.substring(0, 100) || 'unknown element');
-        }
-        try { el.remove(); } catch {
-          try { el.parentNode?.removeChild?.(el); } catch (err) { console.error('Failed to remove wireframe element from parent', err); }
-        try { el.getAnimations?.().forEach(a => a.cancel()); } catch (err) { 
-          console.error('Failed to cancel wireframe element animations', err, el); 
-        }
-        try { el.remove(); } catch (err) {
-          console.error('Failed to remove wireframe element with .remove()', err, el);
-          try { el.parentNode?.removeChild?.(el); } catch (err2) { 
-            console.error('Failed to remove wireframe element via parentNode.removeChild', err2, el); 
-          }
-        }
-        wireframeElRef.current = null;
+      if (!el) return;
+      try {
+        el.getAnimations?.().forEach(a => a.cancel());
+      } catch (_) { /* ignore */ }
+      try {
+        el.remove();
+      } catch (_) {
+        try { el.parentNode?.removeChild?.(el); } catch (_) { /* ignore */ }
       }
+      wireframeElRef.current = null;
     };
   }, []);
 
