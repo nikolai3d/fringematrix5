@@ -281,7 +281,7 @@ export function useLightboxAnimations({
     const el = activeGridThumbRef.current;
     if (el && document.body.contains(el)) {
       try { el.style.opacity = ''; } catch (err) {
-        const tagName = el?.tagName?.toLowerCase?.() || 'unknown';
+        const tagName = el?.tagName?.toLowerCase() || 'unknown';
         const idPart = el?.id ? `#${el.id}` : '';
         const classPart = (() => {
           try { return el?.classList?.length ? `.${Array.from(el.classList).slice(0, 3).join('.')}` : ''; } catch { return ''; }
