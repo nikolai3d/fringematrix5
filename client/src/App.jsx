@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useLightboxAnimations } from './hooks/useLightboxAnimations.js';
 import { fetchJSON } from './utils/fetchJSON.js';
 import { formatDeployedAtPacific } from './utils/formatDeployedAtPacific.js';
 import { gitRemoteToHttps } from './utils/gitRemoteToHttps.js';
@@ -10,6 +11,7 @@ export default function App() {
   const [imagesByCampaign, setImagesByCampaign] = useState({});
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [hideLightboxImage, setHideLightboxImage] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isBuildInfoOpen, setIsBuildInfoOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -221,14 +223,15 @@ export default function App() {
     return () => clearInterval(id);
   }, [isPreloading]);
 
-  const openLightbox = useCallback((index) => {
-    setLightboxIndex(index);
-    setIsLightboxOpen(true);
-  }, []);
-
-  const closeLightbox = useCallback(() => {
-    setIsLightboxOpen(false);
-  }, []);
+  // Lightbox animations are provided by the useLightboxAnimations hook
+  const { openLightbox, closeLightbox } = useLightboxAnimations({
+    images,
+    isLightboxOpen,
+    lightboxIndex,
+    setLightboxIndex,
+    setIsLightboxOpen,
+    setHideLightboxImage,
+  });
 
   const nextImage = useCallback((delta) => {
     setLightboxIndex((idx) => (images.length === 0 ? 0 : (idx + delta + images.length) % images.length));
@@ -259,6 +262,12 @@ export default function App() {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [isLightboxOpen, closeLightbox, nextImage]);
+
+  // The hook manages the wireframe/backdrop animation timing on open/close
+
+  // Grid thumbnail sync handled by hook
+
+  // Grid thumbnail restore handled by hook
 
   return (
     <div id="app">
@@ -371,7 +380,7 @@ export default function App() {
           ) : (
             images.map((img, i) => (
               <div className="card" key={`${img.src}-${i}`}>
-                <img src={img.src} alt={img.fileName} loading="lazy" onClick={() => openLightbox(i)} />
+                <img src={img.src} alt={img.fileName} loading="lazy" onClick={(e) => openLightbox(i, e.currentTarget)} />
                 <div className="filename">{img.fileName}</div>
               </div>
             ))
@@ -456,7 +465,12 @@ export default function App() {
       {isLightboxOpen && (
         <div id="lightbox" className="lightbox" aria-hidden={false}>
           <button className="lightbox-close" id="lightbox-close" aria-label="Close" onClick={closeLightbox}>✕</button>
-          <img id="lightbox-image" alt="Selected" src={images[lightboxIndex]?.src} />
+          <img
+            id="lightbox-image"
+            alt="Selected"
+            src={images[lightboxIndex]?.src}
+            style={{ opacity: hideLightboxImage ? 0 : 1, transition: 'opacity .12s ease' }}
+          />
           <div className="lightbox-actions">
             <button id="prev-btn" className="nav-btn" aria-label="Previous" onClick={() => nextImage(-1)}>◀</button>
             <div className="spacer"></div>
