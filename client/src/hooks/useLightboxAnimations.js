@@ -314,7 +314,9 @@ export function useLightboxAnimations({
     return () => {
       const el = wireframeElRef.current;
       if (el) {
-        try { el.getAnimations?.().forEach(a => a.cancel()); } catch { /* ignore */ }
+        try { el.getAnimations?.().forEach(a => a.cancel()); } catch (err) { 
+          console.error('Failed to cancel wireframe element animations during cleanup', err, el?.outerHTML?.substring(0, 100) || 'unknown element');
+        }
         try { el.remove(); } catch {
           try { el.parentNode?.removeChild?.(el); } catch { /* ignore */ }
         try { el.getAnimations?.().forEach(a => a.cancel()); } catch (err) { 
