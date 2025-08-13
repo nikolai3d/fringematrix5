@@ -72,7 +72,8 @@ export function useLightboxAnimations({
         height: `${toRect.height}px`,
       });
       el.style.display = 'none';
-    } catch {
+    } catch (animErr) {
+      // Best-effort: if animation API fails, hide the helper element
       const el = wireframeElRef.current;
       if (el) el.style.display = 'none';
     }
@@ -90,8 +91,9 @@ export function useLightboxAnimations({
         [{ backgroundColor: from }, { backgroundColor: to }],
         { duration: LIGHTBOX_ANIM_MS, easing, fill: 'forwards' }
       );
-    } catch {
-      try { el.style.backgroundColor = direction === 'in' ? `rgba(0,0,0,${LIGHTBOX_BACKDROP_OPACITY})` : 'rgba(0,0,0,0)'; } catch {}
+    } catch (err) {
+      // Best-effort fallback if Web Animations API is unavailable
+      try { el.style.backgroundColor = direction === 'in' ? `rgba(0,0,0,${LIGHTBOX_BACKDROP_OPACITY})` : 'rgba(0,0,0,0)'; } catch (styleErr) { /* ignore style assignment failures */ }
       return { finished: Promise.resolve() };
     }
   }, []);
@@ -114,8 +116,9 @@ export function useLightboxAnimations({
           { duration: LIGHTBOX_ANIM_MS, easing: 'linear', fill: 'forwards' }
         );
         anim?.finished?.catch(() => {});
-      } catch {
-        try { thumbEl.style.opacity = '0'; } catch {}
+      } catch (err) {
+        // Fall back to immediate style change if animation creation fails
+        try { thumbEl.style.opacity = '0'; } catch (styleErr) { /* ignore style assignment failures */ }
       }
     }
     setLightboxIndex(index);
@@ -160,7 +163,7 @@ export function useLightboxAnimations({
         { duration, easing: 'linear', fill: 'forwards' }
       );
       const backdropAnim = animateLightboxBackdrop('out');
-      try { thumb.style.opacity = '0'; } catch {}
+      try { thumb.style.opacity = '0'; } catch (styleErr) { /* ignore style assignment failures */ }
       let thumbAnim;
       try {
         thumbAnim = thumb.animate(
@@ -171,7 +174,7 @@ export function useLightboxAnimations({
           ],
           { duration, easing: 'linear', fill: 'forwards' }
         );
-      } catch {}
+      } catch (animErr) { /* ignore animation creation failures */ }
       await Promise.all([
         runWireframeAnimation(startRect, endRect),
         imgAnim.finished.catch(() => {}),
@@ -184,7 +187,7 @@ export function useLightboxAnimations({
       setHideLightboxImage(false);
       const el = lastOpenedThumbElRef.current;
       if (el && document.body.contains(el)) {
-        try { el.style.opacity = ''; } catch {}
+        try { el.style.opacity = ''; } catch (styleErr) { /* ignore style assignment failures */ }
       }
       lastOpenedThumbElRef.current = null;
     }
@@ -248,8 +251,9 @@ export function useLightboxAnimations({
       try {
         const from = parseFloat(getComputedStyle(el).opacity || '1');
         return el.animate([{ opacity: from }, { opacity: to }], { duration: ms, easing: 'linear', fill: 'forwards' });
-      } catch {
-        try { el.style.opacity = String(to); } catch {}
+      } catch (animErr) {
+        // Best-effort fallback for environments without Web Animations API
+        try { el.style.opacity = String(to); } catch (styleErr) { /* ignore style assignment failures */ }
         return { finished: Promise.resolve() };
       }
     };

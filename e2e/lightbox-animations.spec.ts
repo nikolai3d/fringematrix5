@@ -32,13 +32,19 @@ async function waitForWireframeHidden(page: Page, timeout = 3000) {
   }, { timeout });
 }
 
+// Minimal CSS attribute selector escaper for tests
+function escapeForAttributeSelector(value: string): string {
+  return value.replace(/([#.:?+*\[\]])/g, '\\$1');
+}
+
 async function getGridImageOpacityBySrc(page: Page, src: string) {
-  return page.evaluate((s) => {
-    const img = document.querySelector(`.gallery-grid .card img[src="${CSS && (CSS as any).escape ? (CSS as any).escape(s) : s.replace(/([#.:?+*\\[\\]])/g, '\\$1')}"]`) as HTMLElement | null;
+  const selector = `.gallery-grid .card img[src="${escapeForAttributeSelector(src)}"]`;
+  return page.evaluate((sel) => {
+    const img = document.querySelector(sel) as HTMLElement | null;
     if (!img) return null;
     const cs = getComputedStyle(img);
     return parseFloat(cs.opacity || '1');
-  }, src);
+  }, selector);
 }
 
 async function getLightboxBackdropAlpha(page: Page) {
