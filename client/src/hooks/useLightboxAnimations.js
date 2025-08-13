@@ -9,10 +9,7 @@ export function useLightboxAnimations({
   setIsLightboxOpen,
   setHideLightboxImage,
 }) {
-  const wireframeElRef = useRef(null);
-  const pendingOpenStartRectRef = useRef(null);
-  const lastOpenedThumbElRef = useRef(null);
-}) {
+  
   /**
    * Ref to the wireframe DOM element used for animating transitions between thumbnail and lightbox.
    * Created and appended to the DOM as needed, and removed/hid after animation completes.
