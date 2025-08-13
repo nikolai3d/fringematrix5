@@ -37,6 +37,8 @@ export function useLightboxAnimations({
   const backdropDimmedRef = useRef(false);
 
   const LIGHTBOX_ANIM_MS = 360;
+  // 0.86 was chosen to provide a strong dimming effect for the backdrop,
+  // while still allowing some visibility of the underlying content for context.
   const LIGHTBOX_BACKDROP_OPACITY = 0.86;
   const LIGHTBOX_BACKDROP_EASING_IN = 'cubic-bezier(0, 0, 0.2, 1)';
   const LIGHTBOX_BACKDROP_EASING_OUT = 'cubic-bezier(0.4, 0, 1, 1)';
