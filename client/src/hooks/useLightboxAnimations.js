@@ -318,7 +318,7 @@ export function useLightboxAnimations({
           console.error('Failed to cancel wireframe element animations during cleanup', err, el?.outerHTML?.substring(0, 100) || 'unknown element');
         }
         try { el.remove(); } catch {
-          try { el.parentNode?.removeChild?.(el); } catch { /* ignore */ }
+          try { el.parentNode?.removeChild?.(el); } catch (err) { console.error('Failed to remove wireframe element from parent', err); }
         try { el.getAnimations?.().forEach(a => a.cancel()); } catch (err) { 
           console.error('Failed to cancel wireframe element animations', err, el); 
         }
