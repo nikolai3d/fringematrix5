@@ -94,7 +94,12 @@ export function useLightboxAnimations({
       );
     } catch (err) {
       // Best-effort fallback if Web Animations API is unavailable
-      try { el.style.backgroundColor = direction === 'in' ? `rgba(0,0,0,${LIGHTBOX_BACKDROP_OPACITY})` : 'rgba(0,0,0,0)'; } catch (styleErr) { /* ignore style assignment failures */ }
+      try {
+        const fallbackColor = direction === 'in'
+          ? `rgba(0,0,0,${LIGHTBOX_BACKDROP_OPACITY})`
+          : 'rgba(0,0,0,0)';
+        el.style.backgroundColor = fallbackColor;
+      } catch (styleErr) { /* ignore style assignment failures */ }
       return { finished: Promise.resolve() };
     }
   }, []);
