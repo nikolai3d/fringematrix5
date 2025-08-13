@@ -280,7 +280,10 @@ export function useLightboxAnimations({
     if (isLightboxOpen) return;
     const el = activeGridThumbRef.current;
     if (el && document.body.contains(el)) {
-      try { el.style.opacity = ''; } catch {}
+      try { el.style.opacity = ''; } catch (err) {
+        // Non-critical: failed to reset opacity on grid thumb. Log for debugging.
+        console.error('Failed to reset opacity on grid thumb:', err);
+      }
     }
     activeGridThumbRef.current = null;
   }, [isLightboxOpen]);
