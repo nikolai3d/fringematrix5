@@ -302,16 +302,6 @@ export function useLightboxAnimations({
     const el = activeGridThumbRef.current;
     if (el && document.body.contains(el)) {
       try { el.style.opacity = ''; } catch (err) {
-        const tagName = el?.tagName?.toLowerCase() || 'unknown';
-        const idPart = el?.id ? `#${el.id}` : '';
-        const classPart = (() => {
-          try { return el?.classList?.length ? `.${Array.from(el.classList).slice(0, 3).join('.')}` : ''; } catch { return ''; }
-        })();
-        let descriptor = `${tagName}${idPart}${classPart}`.trim();
-        try {
-          const src = el?.getAttribute?.('src');
-          if (src) descriptor += ` [src="${src}"]`;
-        } catch { /* ignore */ }
         const descriptor = el?.outerHTML?.substring(0, 100) || 'unknown element';
         console.error('Failed to reset opacity on grid thumb', err, descriptor);
       }
