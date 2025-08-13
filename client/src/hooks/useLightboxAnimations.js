@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { escapeForAttributeSelector } from '../utils/escapeForAttributeSelector.js';
 
 export function useLightboxAnimations({
   images,
@@ -137,7 +138,7 @@ export function useLightboxAnimations({
         return;
       }
       const startRect = lightboxImg.getBoundingClientRect();
-      const escaped = CSS && CSS.escape ? CSS.escape(img.src) : img.src.replace(/([#.:?+*\[\]])/g, '\\$1');
+      const escaped = escapeForAttributeSelector(img.src);
       let thumb = document.querySelector(`.gallery-grid .card img[src="${escaped}"]`);
       if (!thumb && activeGridThumbRef.current && document.body.contains(activeGridThumbRef.current)) {
         thumb = activeGridThumbRef.current;
@@ -242,8 +243,7 @@ export function useLightboxAnimations({
     if (!isLightboxOpen) return;
     const current = images[lightboxIndex];
     if (!current) return;
-    const escapeAttr = (s) => (CSS && CSS.escape ? CSS.escape(s) : s.replace(/([#.:?+*\[\]])/g, '\\$1'));
-    const selector = `.gallery-grid .card img[src="${escapeAttr(current.src)}"]`;
+    const selector = `.gallery-grid .card img[src="${escapeForAttributeSelector(current.src)}"]`;
     const newThumb = document.querySelector(selector);
 
     const animateOpacity = (el, to, ms) => {

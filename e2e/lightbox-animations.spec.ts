@@ -1,5 +1,11 @@
 import { test, expect, Page } from '@playwright/test';
 
+let escapeForAttributeSelectorFn: (value: string) => string;
+test.beforeAll(async () => {
+  const mod = await import('../client/src/utils/escapeForAttributeSelector.js');
+  escapeForAttributeSelectorFn = mod.escapeForAttributeSelector as (value: string) => string;
+});
+
 async function waitForLoaderToFinish(page: Page) {
   const loader = page.getByRole('dialog', { name: 'Loading' });
   const visible = await loader.isVisible().catch(() => false);
@@ -32,13 +38,10 @@ async function waitForWireframeHidden(page: Page, timeout = 3000) {
   }, { timeout });
 }
 
-// Minimal CSS attribute selector escaper for tests
-function escapeForAttributeSelector(value: string): string {
-  return value.replace(/([#.:?+*\[\]])/g, '\\$1');
-}
+// Using shared util imported above
 
 async function getGridImageOpacityBySrc(page: Page, src: string) {
-  const selector = `.gallery-grid .card img[src="${escapeForAttributeSelector(src)}"]`;
+  const selector = `.gallery-grid .card img[src="${escapeForAttributeSelectorFn(src)}"]`;
   return page.evaluate((sel) => {
     const img = document.querySelector(sel) as HTMLElement | null;
     if (!img) return null;
