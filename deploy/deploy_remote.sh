@@ -8,6 +8,15 @@ REMOTE_DIR="${1:-/var/www/fringematrix}"
 ARCHIVE_NAME="${2:?Missing archive name}"
 APP_NAME="${3:-fringematrix}"
 
+# Determine port based on app name/version
+if [[ "$APP_NAME" == "fringematrix" ]]; then
+    PORT=3000  # Main production port
+else
+    # For branch deployments, calculate port from branch name hash
+    BRANCH_HASH=$(echo "$APP_NAME" | sha256sum | cut -c1-8)
+    PORT=$((3001 + (0x$BRANCH_HASH % 100)))  # Ports 3001-3100
+fi
+
 echo "[remote] Deploying to ${REMOTE_DIR}/app"
 mkdir -p "${REMOTE_DIR}/app"
 cd "${REMOTE_DIR}/app"
@@ -27,11 +36,11 @@ else
 fi
 cd ..
 
-echo "[remote] Reloading with pm2"
+echo "[remote] Reloading with pm2 on port $PORT"
 if pm2 list | grep -q "${APP_NAME}"; then
   pm2 reload "${APP_NAME}"
 else
-  pm2 start app/server/server.js --name "${APP_NAME}"
+  PORT=$PORT pm2 start server/server.js --name "${APP_NAME}"
   pm2 save
 fi
 

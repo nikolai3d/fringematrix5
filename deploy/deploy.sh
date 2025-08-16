@@ -5,7 +5,7 @@ IFS=$'\n\t'
 # Parse named args like -HostName value -User value -RemoteDir value -AppName value
 function usage() {
   cat <<USAGE
-Usage: bash deploy/deploy.sh -HostName <host> -User <user> [-RemoteDir /var/www/fringematrix] [-AppName fringematrix]
+Usage: bash deploy/deploy.sh -HostName <host> -User <user> [-RemoteDir /var/www/fringematrix] [-AppName fringematrix] [-Version main]
 
 Required:
   -HostName    Remote host (e.g., 137.184.115.206)
@@ -14,6 +14,7 @@ Required:
 Optional:
   -RemoteDir   Remote base directory (default: /var/www/fringematrix)
   -AppName     pm2 app name (default: fringematrix)
+  -Version     Branch/version name (default: main, creates subdirectory like /pr-500/)
 USAGE
 }
 
@@ -21,6 +22,7 @@ HOSTNAME=""
 USER_NAME=""
 REMOTE_DIR="/var/www/fringematrix"
 APP_NAME="fringematrix"
+VERSION="main"
 
 # Ensure Linux toolchain inside WSL (avoid Windows Node/npm on PATH)
 if [[ -f /proc/version ]] && grep -qi "microsoft" /proc/version 2>/dev/null; then
@@ -49,6 +51,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     -AppName)
       APP_NAME=${2:-}
+      shift 2
+      ;;
+    -Version)
+      VERSION=${2:-}
       shift 2
       ;;
     -h|--help)
@@ -135,9 +141,18 @@ EOF
 echo "Creating archive $ARCHIVE_NAME"
 ( cd "$TMP_DIR" && tar -czf "$ARCHIVE_PATH" . )
 
-echo "Uploading $ARCHIVE_NAME to ${USER_NAME}@${HOSTNAME}:${REMOTE_DIR}"
-ssh "${SSH_OPTS[@]}" "${USER_NAME}@${HOSTNAME}" "mkdir -p '${REMOTE_DIR}/app'"
-scp "${SSH_OPTS[@]}" "$ARCHIVE_PATH" "${USER_NAME}@${HOSTNAME}:${REMOTE_DIR}/"
+# Determine deployment directory based on version
+if [[ "$VERSION" == "main" ]]; then
+  DEPLOY_DIR="$REMOTE_DIR"
+  APP_VERSION_NAME="$APP_NAME"
+else
+  DEPLOY_DIR="$REMOTE_DIR/$VERSION"
+  APP_VERSION_NAME="${APP_NAME}-${VERSION}"
+fi
+
+echo "Uploading $ARCHIVE_NAME to ${USER_NAME}@${HOSTNAME}:${DEPLOY_DIR}"
+ssh "${SSH_OPTS[@]}" "${USER_NAME}@${HOSTNAME}" "mkdir -p '${DEPLOY_DIR}/app'"
+scp "${SSH_OPTS[@]}" "$ARCHIVE_PATH" "${USER_NAME}@${HOSTNAME}:${DEPLOY_DIR}/"
 
 echo "Uploading remote deploy script..."
 REMOTE_SH_LOCAL="$SCRIPT_DIR/deploy_remote.sh"
@@ -147,11 +162,11 @@ if [[ ! -f "$REMOTE_SH_LOCAL" ]]; then
 fi
 REMOTE_SH_TMP="$(mktemp -t deploy_remote.XXXXXXXX.sh)"
 tr -d '\r' < "$REMOTE_SH_LOCAL" > "$REMOTE_SH_TMP"
-scp "${SSH_OPTS[@]}" "$REMOTE_SH_TMP" "${USER_NAME}@${HOSTNAME}:${REMOTE_DIR}/deploy_remote.sh"
-ssh "${SSH_OPTS[@]}" "${USER_NAME}@${HOSTNAME}" "chmod +x '${REMOTE_DIR}/deploy_remote.sh'"
+scp "${SSH_OPTS[@]}" "$REMOTE_SH_TMP" "${USER_NAME}@${HOSTNAME}:${DEPLOY_DIR}/deploy_remote.sh"
+ssh "${SSH_OPTS[@]}" "${USER_NAME}@${HOSTNAME}" "chmod +x '${DEPLOY_DIR}/deploy_remote.sh'"
 
 echo "Deploying remotely..."
-ssh "${SSH_OPTS[@]}" "${USER_NAME}@${HOSTNAME}" "'${REMOTE_DIR}/deploy_remote.sh' '$REMOTE_DIR' '$ARCHIVE_NAME' '$APP_NAME'"
+ssh "${SSH_OPTS[@]}" "${USER_NAME}@${HOSTNAME}" "'${DEPLOY_DIR}/deploy_remote.sh' '$DEPLOY_DIR' '$ARCHIVE_NAME' '$APP_VERSION_NAME'"
 
 echo "Done. App should be running on port 3000 behind Nginx if configured."
 

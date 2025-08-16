@@ -275,7 +275,7 @@ export default function App() {
         <div className="crt-overlay" role="dialog" aria-modal={true} aria-label="Loading">
           <div className="crt-inner">
             <div className="crt-text">
-              Fringe Matrix 5 Loading<span className="dots">{'.'.repeat(loadingDots)}</span>
+              Fringe Matrix 5 Test-Dev Loading<span className="dots">{'.'.repeat(loadingDots)}</span>
               <div className="crt-subtext">{preloadTotal ? `${preloadLoaded} / ${preloadTotal}` : ''}</div>
             </div>
           </div>
