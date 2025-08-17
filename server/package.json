@@ -14,6 +14,7 @@
     "test:ci": "jest --ci --reporters=default --reporters=jest-junit"
   },
   "dependencies": {
+    "@vercel/blob": "^0.23.4",
     "express": "^4.19.2",
     "js-yaml": "^4.1.0",
     "root": "file:.."

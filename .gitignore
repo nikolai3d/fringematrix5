@@ -37,3 +37,4 @@ e2e/test-results/
 playwright-report/
 test-results/
 .vercel
+.env*.local
