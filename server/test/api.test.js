@@ -6,9 +6,9 @@ const fs = require('fs');
 const app = require('../server');
 
 describe('API contract', () => {
-  describe('GET /api/campaigns', () => {
+  describe('GET /main/api/campaigns', () => {
     it('returns campaigns array', async () => {
-      const res = await request(app).get('/api/campaigns');
+      const res = await request(app).get('/main/api/campaigns');
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('campaigns');
       expect(Array.isArray(res.body.campaigns)).toBe(true);
@@ -23,7 +23,7 @@ describe('API contract', () => {
         throw new Error('test read error');
       });
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      const res = await request(app).get('/api/campaigns');
+      const res = await request(app).get('/main/api/campaigns');
       expect(res.status).toBe(500);
       expect(res.body).toHaveProperty('error');
       fsSpy.mockRestore();
@@ -31,10 +31,10 @@ describe('API contract', () => {
     });
   });
 
-  describe('GET /api/campaigns/:id/images', () => {
+  describe('GET /main/api/campaigns/:id/images', () => {
     it('returns images for a known campaign when present', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      const campaignsRes = await request(app).get('/api/campaigns');
+      const campaignsRes = await request(app).get('/main/api/campaigns');
       expect(campaignsRes.status).toBe(200);
       const campaigns = campaignsRes.body.campaigns || [];
       if (campaigns.length === 0) {
@@ -42,7 +42,7 @@ describe('API contract', () => {
         return; // nothing to assert if there are no campaigns configured
       }
       const firstId = campaigns[0].id;
-      const res = await request(app).get(`/api/campaigns/${firstId}/images`);
+      const res = await request(app).get(`/main/api/campaigns/${firstId}/images`);
       // Could be 200 with images (possibly empty) or 500 if avatar paths are inaccessible
       expect([200, 500]).toContain(res.status);
       if (res.status === 200) {
@@ -58,13 +58,13 @@ describe('API contract', () => {
     });
 
     it('404s for unknown campaign', async () => {
-      const res = await request(app).get('/api/campaigns/__does_not_exist__/images');
+      const res = await request(app).get('/main/api/campaigns/__does_not_exist__/images');
       expect(res.status).toBe(404);
       expect(res.body).toEqual(expect.objectContaining({ error: expect.any(String) }));
     });
   });
 
-  describe('GET /api/build-info', () => {
+  describe('GET /main/api/build-info', () => {
     const projectRoot = path.join(__dirname, '..', '..');
     const buildInfoPath = path.join(projectRoot, 'build-info.json');
 
@@ -88,7 +88,7 @@ describe('API contract', () => {
 
     it('returns fields from build-info.json when present', async () => {
       await withTempFile(buildInfoPath, JSON.stringify({ repoUrl: 'x', commitHash: 'y', deployedAt: 'z' }), async () => {
-        const res = await request(app).get('/api/build-info');
+        const res = await request(app).get('/main/api/build-info');
         expect(res.status).toBe(200);
         expect(res.body).toEqual({ repoUrl: 'x', commitHash: 'y', deployedAt: 'z' });
       });
@@ -100,7 +100,7 @@ describe('API contract', () => {
         if (path.resolve(p) === path.resolve(buildInfoPath)) return false;
         return originalExistsSync(p);
       });
-      const res = await request(app).get('/api/build-info');
+      const res = await request(app).get('/main/api/build-info');
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('commitHash');
       expect(res.body.commitHash).toBe('DEV-LOCAL');
@@ -108,9 +108,9 @@ describe('API contract', () => {
     });
   });
 
-  describe('fallback /api/*', () => {
+  describe('fallback /main/api/*', () => {
     it('returns 404 JSON for unknown endpoints', async () => {
-      const res = await request(app).get('/api/unknown-endpoint');
+      const res = await request(app).get('/main/api/unknown-endpoint');
       expect(res.status).toBe(404);
       expect(res.body).toEqual(expect.objectContaining({ error: expect.any(String) }));
     });

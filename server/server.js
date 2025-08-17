@@ -6,6 +6,10 @@ const yaml = require('js-yaml');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Detect branch name from environment or derive from port
+const BRANCH_NAME = process.env.BRANCH_NAME || (PORT === 3000 ? 'main' : 'branch');
+const BASE_PATH = `/${BRANCH_NAME}`;
+
 // Project root is one level up from this file (which lives in server/)
 const PROJECT_ROOT = path.join(__dirname, '..');
 const DATA_DIR = path.join(PROJECT_ROOT, 'data');
@@ -90,13 +94,13 @@ function ensureDevBuildInfo() {
 ensureDevBuildInfo();
 
 // Static assets (avatars) — keep separate from SPA assets
-app.use('/avatars', express.static(AVATARS_DIR, {
+app.use(`${BASE_PATH}/avatars`, express.static(AVATARS_DIR, {
   fallthrough: true,
   maxAge: '7d',
 }));
 
 // API endpoints
-app.get('/api/campaigns', (req, res) => {
+app.get(`${BASE_PATH}/api/campaigns`, (req, res) => {
   try {
     const campaigns = loadCampaigns();
     res.json({ campaigns });
@@ -106,7 +110,7 @@ app.get('/api/campaigns', (req, res) => {
   }
 });
 
-app.get('/api/campaigns/:id/images', (req, res) => {
+app.get(`${BASE_PATH}/api/campaigns/:id/images`, (req, res) => {
   try {
     const campaigns = loadCampaigns();
     const campaign = campaigns.find((c) => c.id === req.params.id);
@@ -120,7 +124,7 @@ app.get('/api/campaigns/:id/images', (req, res) => {
 
     const images = imageFiles.map((absPath) => {
       const relativeToAvatars = path.relative(AVATARS_DIR, absPath);
-      const urlPath = '/avatars/' + relativeToAvatars.split(path.sep).join('/');
+      const urlPath = `${BASE_PATH}/avatars/` + relativeToAvatars.split(path.sep).join('/');
       return {
         src: urlPath,
         fileName: path.basename(absPath),
@@ -135,7 +139,7 @@ app.get('/api/campaigns/:id/images', (req, res) => {
 });
 
 // Build info endpoint
-app.get('/api/build-info', (req, res) => {
+app.get(`${BASE_PATH}/api/build-info`, (req, res) => {
   try {
     if (fs.existsSync(BUILD_INFO_PATH)) {
       const raw = fs.readFileSync(BUILD_INFO_PATH, 'utf8');
@@ -162,23 +166,28 @@ app.get('/api/build-info', (req, res) => {
 });
 
 // Ensure unknown /api/* paths return JSON (not SPA HTML)
-app.all('/api/*', (req, res) => {
+app.all(`${BASE_PATH}/api/*`, (req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
 // Serve SPA assets AFTER API routes so /api/* never falls through to HTML
 if (HAS_CLIENT_BUILD) {
-  app.use(express.static(CLIENT_DIST_DIR, { maxAge: '1d' }));
+  app.use(BASE_PATH, express.static(CLIENT_DIST_DIR, { maxAge: '1d' }));
 } else {
-  app.use(express.static(PUBLIC_DIR, { maxAge: '1d' }));
+  app.use(BASE_PATH, express.static(PUBLIC_DIR, { maxAge: '1d' }));
 }
 
-// SPA fallback
-app.get('*', (req, res) => {
-  if (HAS_CLIENT_BUILD) {
-    res.sendFile(path.join(CLIENT_DIST_DIR, 'index.html'));
-  } else {
-    res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
+// SPA fallback - serve HTML directly (base paths are now handled at build time)
+app.get(`${BASE_PATH}*`, (req, res) => {
+  const htmlPath = HAS_CLIENT_BUILD 
+    ? path.join(CLIENT_DIST_DIR, 'index.html')
+    : path.join(PUBLIC_DIR, 'index.html');
+  
+  try {
+    res.sendFile(htmlPath);
+  } catch (err) {
+    console.error('Error serving HTML file:', err);
+    res.status(500).send('Internal Server Error');
   }
 });
 

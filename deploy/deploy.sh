@@ -103,7 +103,8 @@ find "$REPO_ROOT/client" -maxdepth 1 -mindepth 1 \
 (
   cd "$TMP_CLIENT"
   npm install --no-audit --no-fund
-  npm run build
+  # Set BRANCH_NAME environment variable for Vite build
+  BRANCH_NAME="$VERSION" npm run build
 )
 
 echo "Staging runtime files in $TMP_DIR"
@@ -142,11 +143,11 @@ echo "Creating archive $ARCHIVE_NAME"
 ( cd "$TMP_DIR" && tar -czf "$ARCHIVE_PATH" . )
 
 # Determine deployment directory based on version
+# All deployments now go to subdirectories, including main
+DEPLOY_DIR="$REMOTE_DIR/$VERSION"
 if [[ "$VERSION" == "main" ]]; then
-  DEPLOY_DIR="$REMOTE_DIR"
   APP_VERSION_NAME="$APP_NAME"
 else
-  DEPLOY_DIR="$REMOTE_DIR/$VERSION"
   APP_VERSION_NAME="${APP_NAME}-${VERSION}"
 fi
 

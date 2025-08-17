@@ -2,7 +2,8 @@ param(
   [Parameter(Mandatory=$true)][string]$HostName,
   [Parameter(Mandatory=$true)][string]$User,
   [Parameter(Mandatory=$false)][string]$RemoteDir = "/var/www/fringematrix",
-  [Parameter(Mandatory=$false)][string]$AppName = "fringematrix"
+  [Parameter(Mandatory=$false)][string]$AppName = "fringematrix",
+  [Parameter(Mandatory=$false)][string]$Version = "main"
 )
 
 Set-StrictMode -Version Latest
@@ -21,6 +22,8 @@ function New-TempDir {
 
 Write-Host "Building client locally..." -ForegroundColor Cyan
 npm --prefix client install
+# Set BRANCH_NAME environment variable for Vite build
+$env:BRANCH_NAME = $Version
 npm --prefix client run build
 
 $temp = New-TempDir
@@ -74,9 +77,18 @@ Push-Location $temp
 tar -czf $archivePath *
 Pop-Location
 
-Write-Host "Uploading $archiveName to ${User}@${HostName}:${RemoteDir}" -ForegroundColor Cyan
-ssh @sshArgs "${User}@${HostName}" "mkdir -p '${RemoteDir}/app'" | Out-Null
-scp @scpArgs $archivePath "${User}@${HostName}:${RemoteDir}/" | Out-Null
+# Determine deployment directory and app name based on version
+# All deployments now go to subdirectories, including main
+$DeployDir = "${RemoteDir}/${Version}"
+if ($Version -eq "main") {
+  $AppVersionName = $AppName
+} else {
+  $AppVersionName = "${AppName}-${Version}"
+}
+
+Write-Host "Uploading $archiveName to ${User}@${HostName}:${DeployDir}" -ForegroundColor Cyan
+ssh @sshArgs "${User}@${HostName}" "mkdir -p '${DeployDir}/app'" | Out-Null
+scp @scpArgs $archivePath "${User}@${HostName}:${DeployDir}/" | Out-Null
 
 Write-Host "Uploading remote deploy script..." -ForegroundColor Cyan
 # Ensure LF endings for the shell script before upload
@@ -86,11 +98,11 @@ $remoteShTemp = Join-Path $env:TEMP "deploy_remote.sh"
 $remoteShContent = (Get-Content -Raw -Encoding UTF8 $remoteShLocal) -replace "`r", ""
 [System.IO.File]::WriteAllText($remoteShTemp, $remoteShContent, [System.Text.UTF8Encoding]::new($false))
 
-scp @scpArgs $remoteShTemp "${User}@${HostName}:${RemoteDir}/deploy_remote.sh" | Out-Null
-ssh @sshArgs "${User}@${HostName}" "chmod +x '${RemoteDir}/deploy_remote.sh'" | Out-Null
+scp @scpArgs $remoteShTemp "${User}@${HostName}:${DeployDir}/deploy_remote.sh" | Out-Null
+ssh @sshArgs "${User}@${HostName}" "chmod +x '${DeployDir}/deploy_remote.sh'" | Out-Null
 
 Write-Host "Deploying remotely..." -ForegroundColor Cyan
-ssh @sshArgs "${User}@${HostName}" "'${RemoteDir}/deploy_remote.sh' '$RemoteDir' '$archiveName' '$AppName'"
+ssh @sshArgs "${User}@${HostName}" "'${DeployDir}/deploy_remote.sh' '$DeployDir' '$archiveName' '$AppVersionName'"
 
 Write-Host "Done. App should be running on port 3000 behind Nginx if configured." -ForegroundColor Green
 

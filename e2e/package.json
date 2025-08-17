@@ -7,8 +7,8 @@
     "@types/node": "^20.0.0"
   },
   "scripts": {
-    "test": "npm --prefix ../client run build && playwright test",
-    "e2e": "npm --prefix ../client run build && playwright test",
+    "test": "BRANCH_NAME=local-dev npm --prefix ../client run build && playwright test",
+    "e2e": "BRANCH_NAME=local-dev npm --prefix ../client run build && playwright test",
     "e2e:headed": "playwright test --headed",
     "e2e:report": "playwright show-report"
   }

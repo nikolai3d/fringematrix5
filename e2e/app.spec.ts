@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/local-dev/');
 });
 
 test('loader appears then disappears', async ({ page }) => {

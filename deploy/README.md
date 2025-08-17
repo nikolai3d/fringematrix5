@@ -43,14 +43,14 @@ This folder contains everything you need to deploy the app to a regular Ubuntu D
 ### Deploy (every time)
 
 #### Main Production Deployment
-Deploy to the main production site (accessible at `fringematrix.art/`):
+Deploy to the main production site (accessible at `fringematrix.art/main/`):
 
 ```bash
 # Using bash script (recommended)
-bash deploy/deploy.sh -HostName <DROPLET_IP_OR_HOSTNAME> -User deploy
+bash deploy/deploy.sh -HostName <DROPLET_IP_OR_HOSTNAME> -User deploy -Version main
 
 # Using PowerShell (Windows)
-pwsh -File .\deploy\deploy.ps1 -HostName <DROPLET_IP_OR_HOSTNAME> -User deploy -RemoteDir /var/www/fringematrix -AppName fringematrix
+pwsh -File .\deploy\deploy.ps1 -HostName <DROPLET_IP_OR_HOSTNAME> -User deploy -Version main
 ```
 
 #### Branch/PR Deployment
@@ -63,23 +63,26 @@ bash deploy/deploy.sh -HostName <DROPLET_IP_OR_HOSTNAME> -User deploy -Version p
 # Deploy a feature branch
 bash deploy/deploy.sh -HostName <DROPLET_IP_OR_HOSTNAME> -User deploy -Version feature-auth
 
-# Custom settings
-bash deploy/deploy.sh -HostName <DROPLET_IP_OR_HOSTNAME> -User deploy -Version pr-500 -RemoteDir /var/www/fringematrix -AppName fringematrix
+# Deploy test branch
+bash deploy/deploy.sh -HostName <DROPLET_IP_OR_HOSTNAME> -User deploy -Version test-branch
 ```
 
 #### What the deployment does:
-- Builds the client (`client/dist`)
-- Bundles only the runtime bits: `server/` (backend), `data/`, `avatars/`, `client/dist/`
-- Uploads the bundle via `scp`
-- For branch deployments: creates version-specific directory (e.g., `/var/www/fringematrix/pr-500/`)
-- Installs production deps for the backend on the server (`npm ci --omit=dev` inside `server/`)
-- Starts or reloads the app with PM2:
-  - Main: `fringematrix` on port 3000
-  - Branch: `fringematrix-pr-500` on auto-assigned port (3001-3100)
+- **Builds the client** with branch-specific base paths (`BRANCH_NAME=<Version>`)
+  - Main branch: assets served from `/main/assets/`
+  - Feature branches: assets served from `/<branch-name>/assets/`
+- **Bundles runtime bits**: `server/` (backend), `data/`, `avatars/`, `client/dist/`
+- **Uploads** the bundle via `scp` to `/var/www/fringematrix/<Version>/`
+- **Installs** production deps for the backend on the server (`npm ci --omit=dev`)
+- **Starts/reloads** the app with PM2:
+  - Main: `fringematrix` on port 3000 (BRANCH_NAME=main)
+  - Branches: `fringematrix-<branch>` on auto-assigned ports (3001-3100)
 
 #### Access your deployments:
-- **Main production**: `http://yourdomain.com` or `http://YOUR_DROPLET_IP`
-- **Branch deployment**: `http://yourdomain.com/pr-500/` (requires nginx configuration - see below)
+- **Main production**: `https://yourdomain.com/main/`
+- **Branch deployments**: `https://yourdomain.com/<branch-name>/`
+
+All deployments are completely self-contained with proper asset routing built at deploy time.
 
 ### Remove Branch Deployments
 

@@ -72,4 +72,9 @@ jobs:
         env:
           CI: true
 
+      - name: Build client with local-dev branch
+        run: npm run build
+        env:
+          BRANCH_NAME: local-dev
+
 

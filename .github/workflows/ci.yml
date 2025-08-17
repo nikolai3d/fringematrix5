@@ -26,10 +26,23 @@ jobs:
           node-version: 20
       - run: npm ci --prefix client
       - run: npm run test:ci --prefix client
+      
+  client-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci --prefix client
+      - name: Build client with local-dev branch
+        run: npm run build --prefix client
+        env:
+          BRANCH_NAME: local-dev
 
   e2e-playwright:
     runs-on: ubuntu-latest
-    needs: [server-tests, client-tests]
+    needs: [server-tests, client-tests, client-build]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -46,6 +59,8 @@ jobs:
 
       - name: Run Playwright tests
         run: npm run e2e --prefix e2e
+        env:
+          BRANCH_NAME: local-dev
 
       - name: Upload Playwright report
         if: always()

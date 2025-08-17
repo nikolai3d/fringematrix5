@@ -3,6 +3,7 @@ import { useLightboxAnimations } from './hooks/useLightboxAnimations.js';
 import { fetchJSON } from './utils/fetchJSON.js';
 import { formatDeployedAtPacific } from './utils/formatDeployedAtPacific.js';
 import { gitRemoteToHttps } from './utils/gitRemoteToHttps.js';
+import { getApiUrl } from './utils/getBranchPrefix.js';
 
 export default function App() {
   const [campaigns, setCampaigns] = useState([]);
@@ -75,7 +76,7 @@ export default function App() {
     setIsShareOpen(false);
     if (!buildInfo) {
       try {
-        const data = await fetchJSON('/api/build-info');
+        const data = await fetchJSON(getApiUrl('/api/build-info'));
         setBuildInfo(data);
       } catch (e) {
         console.error(e);
@@ -152,7 +153,7 @@ export default function App() {
         setPreloadLoaded(0);
         setPreloadTotal(0);
 
-        const data = await fetchJSON('/api/campaigns');
+        const data = await fetchJSON(getApiUrl('/api/campaigns'));
         if (!isMounted) return;
         setCampaigns(data.campaigns || []);
 
@@ -160,7 +161,7 @@ export default function App() {
         const lists = await Promise.all(
           (data.campaigns || []).map(async (c) => {
             try {
-              const res = await fetchJSON(`/api/campaigns/${c.id}/images`);
+              const res = await fetchJSON(getApiUrl(`/api/campaigns/${c.id}/images`));
               return { id: c.id, images: res.images || [] };
             } catch (e) {
               console.error('Failed to fetch images for campaign', c.id, e);

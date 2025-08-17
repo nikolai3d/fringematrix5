@@ -1,0 +1,82 @@
+# Map branch names to ports (add this before the server blocks)
+map $branch_name $backend_port {
+    default 3000;  # Main site
+    test-branch 3033;
+    # Add more branches here as needed:
+    # pr-500 3034;
+    # feature-auth 3035;
+}
+
+# HTTP to HTTPS redirect
+server {
+    listen 80;
+    listen [::]:80;
+    server_name fringematrix.art www.fringematrix.art;
+    return 301 https://$host$request_uri;
+}
+
+# Main HTTPS server
+server {
+    server_name fringematrix.art www.fringematrix.art; # managed by Certbot
+    
+    # Extract branch name from URL
+    set $branch_name "main";
+    if ($uri ~ ^/([a-zA-Z0-9][a-zA-Z0-9_-]+)/.*$) {
+        set $branch_name $1;
+    }
+    
+    # Main site root
+    location / {
+        proxy_pass http://127.0.0.1:$backend_port;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Branch-Name $branch_name;
+    }
+    
+    # Branch sites - strip branch prefix and proxy to appropriate backend
+    location ~ ^/([a-zA-Z0-9][a-zA-Z0-9_-]+)(/.*)?$ {
+        set $branch_name $1;
+        set $path $2;
+        
+        # Rewrite URL to remove branch prefix
+        rewrite ^/[^/]+(/.*)?$ $1 break;
+        
+        proxy_pass http://127.0.0.1:$backend_port;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Branch-Name $branch_name;
+    }
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/fringematrix.art/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/fringematrix.art/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+}
+
+# Fallback HTTP server (managed by Certbot)
+server {
+    if ($host = www.fringematrix.art) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+    if ($host = fringematrix.art) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+    listen 80;
+    server_name fringematrix.art www.fringematrix.art;
+    return 404; # managed by Certbot
+}

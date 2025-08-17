@@ -21,8 +21,8 @@ export default defineConfig({
   ],
   // Start backend server; client build is triggered by the e2e npm script before tests
   webServer: {
-    command: 'node ../server/server.js',
-    url: 'http://localhost:3000',
+    command: 'BRANCH_NAME=local-dev node ../server/server.js',
+    url: 'http://localhost:3000/local-dev',
     reuseExistingServer: true,
     timeout: 120_000,
   },

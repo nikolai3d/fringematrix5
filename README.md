@@ -31,6 +31,24 @@ npm --prefix client run dev
 Notes:
 - In development the React app is served by Vite on port 5173. No `client/dist` is created during dev; that folder only exists after a production build.
 
+### Production Build
+
+For local testing or production builds, you must specify a branch name to set the correct base path:
+
+```bash
+# For local development/testing
+BRANCH_NAME=local-dev npm --prefix client run build
+
+# For production deployment (examples)
+BRANCH_NAME=main npm --prefix client run build
+BRANCH_NAME=test-branch npm --prefix client run build
+```
+
+The branch name determines the base path for assets:
+- `BRANCH_NAME=local-dev` → assets served from `/local-dev/assets/`
+- `BRANCH_NAME=main` → assets served from `/main/assets/`
+- `BRANCH_NAME=feature-xyz` → assets served from `/feature-xyz/assets/`
+
 ### Test
 Server (backend):
 
@@ -78,7 +96,7 @@ npm --prefix e2e install
 npx --prefix e2e playwright install --with-deps
 
 # Build client and run E2E locally (headless)
-npm --prefix client run build
+BRANCH_NAME=local-dev npm --prefix client run build
 npm --prefix e2e run e2e
 
 # Headed/debug
@@ -94,22 +112,37 @@ Notes:
 ### Deploy
 Use the provided scripts to build locally and deploy to a remote Linux server (e.g., DigitalOcean). See `deploy/README.md` for full details.
 
+Each deployment creates a branch-specific directory and runs on its own port:
+
 - Bash (Linux/macOS/WSL):
 
 ```bash
-bash deploy/deploy.sh -HostName <HOST> -User <USER> -RemoteDir /var/www/fringematrix -AppName fringematrix
+# Deploy main branch
+bash deploy/deploy.sh -HostName <HOST> -User <USER> -Version main
+
+# Deploy feature branch
+bash deploy/deploy.sh -HostName <HOST> -User <USER> -Version feature-xyz
 ```
 
 - PowerShell (Windows):
 
 ```powershell
-pwsh -File .\deploy\deploy.ps1 -HostName <HOST> -User deploy -RemoteDir /var/www/fringematrix -AppName fringematrix
+# Deploy main branch  
+pwsh -File .\deploy\deploy.ps1 -HostName <HOST> -User deploy -Version main
+
+# Deploy feature branch
+pwsh -File .\deploy\deploy.ps1 -HostName <HOST> -User deploy -Version feature-xyz
 ```
 
 These scripts:
-- Build the client (`client/dist`)
+- Build the client with branch-specific base paths (`BRANCH_NAME=<Version>`)
 - Package runtime pieces: `server/`, `data/`, optional `avatars/`, and built client
-- Upload to the server via SSH/SCP
+- Deploy to `/var/www/fringematrix/<Version>/` on the server
 - Install production deps for the backend and start/reload via PM2
+- Main branch runs on port 3000, other branches get calculated ports (3001-3100)
+
+Access your deployments at:
+- Main: `https://yoursite.com/main/`
+- Branches: `https://yoursite.com/<branch-name>/`
 
 For first-time server setup and optional HTTPS, see `deploy/server-setup.sh` and `deploy/README.md`.

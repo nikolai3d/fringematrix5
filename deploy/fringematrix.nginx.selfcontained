@@ -1,0 +1,97 @@
+# Map branch names to ports
+map $branch_name $backend_port {
+    default 0;  # Invalid port for unknown branches
+    main 3000;
+    test-branch 3033;
+    # Add more branches here as needed:
+    # pr-500 3034;
+    # test-dev 3035;
+}
+
+# HTTP to HTTPS redirect
+server {
+    listen 80;
+    listen [::]:80;
+    server_name fringematrix.art www.fringematrix.art;
+    return 301 https://$host$request_uri;
+}
+
+# Main HTTPS server
+server {
+    server_name fringematrix.art www.fringematrix.art; # managed by Certbot
+    
+    # Root page - simple landing page
+    location = / {
+        return 200 '<!DOCTYPE html>
+<html>
+<head>
+    <title>Fringe Matrix Deployments</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #0a0a0a; color: #fff; }
+        .container { max-width: 600px; margin: 0 auto; text-align: center; }
+        h1 { color: #00e5ff; }
+        .branch { margin: 20px 0; padding: 15px; background: #1a1a1a; border-radius: 8px; }
+        a { color: #00e5ff; text-decoration: none; font-size: 18px; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Fringe Matrix Deployments</h1>
+        <div class="branch">
+            <a href="/main/">Main Site</a>
+        </div>
+        <div class="branch">
+            <a href="/test-branch/">Test Branch</a>
+        </div>
+    </div>
+</body>
+</html>';
+        add_header Content-Type text/html;
+    }
+    
+    # Branch deployments - each completely self-contained
+    location ~ ^/([a-zA-Z0-9][a-zA-Z0-9_-]+)(/.*)?$ {
+        set $branch_name $1;
+        set $full_path $uri;
+        
+        # Check if branch exists in our map
+        if ($backend_port = 0) {
+            return 404 "Branch '$branch_name' not found";
+        }
+        
+        # Route everything to the branch backend
+        proxy_pass http://127.0.0.1:$backend_port;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Branch-Name $branch_name;
+        proxy_set_header X-Original-URI $full_path;
+    }
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/fringematrix.art/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/fringematrix.art/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+}
+
+# Fallback HTTP server (managed by Certbot)
+server {
+    if ($host = www.fringematrix.art) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+    if ($host = fringematrix.art) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+    listen 80;
+    server_name fringematrix.art www.fringematrix.art;
+    return 404; # managed by Certbot
+}
