@@ -187,7 +187,7 @@ app.get(`${BASE_PATH}*`, (req, res) => {
     res.sendFile(htmlPath);
   } catch (err) {
     console.error('Error serving HTML file:', err);
-    res.status(500).send('Internal Server Error');
+    res.status(500).json({ error: 'Failed to serve HTML file', details: err.message });
   }
 });
 
