@@ -1,4 +1,4 @@
-name: PR Deploy
+name: PR Deploy (disabled; handled in CI)
 
 on:
   workflow_run:
@@ -9,7 +9,7 @@ jobs:
   deploy:
     name: Deploy PR env
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request' && !github.event.workflow_run.head_repository.fork && secrets.PR_DEPLOY_HOST != '' && secrets.PR_DEPLOY_SSH_KEY != '' }}
+    if: ${{ false }}
     permissions:
       contents: read
     concurrency:
