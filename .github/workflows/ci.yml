@@ -54,4 +54,7 @@ jobs:
           name: playwright-report
           path: e2e/playwright-report
 
+  # Auto-deploy to Vercel happens automatically on push/PR
+  # No manual deployment steps needed!
+
 

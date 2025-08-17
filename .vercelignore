@@ -1,0 +1,25 @@
+# Vercel ignore file
+node_modules/
+.git/
+.env.local
+.env.*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build directories
+client/dist/
+client/node_modules/
+server/node_modules/
+e2e/node_modules/
+
+# Testing
+e2e/playwright-report/
+e2e/test-results/
+test-results/
+playwright-report/
+
+# Development files
+deploy/
+ai_logs/
+.claude/

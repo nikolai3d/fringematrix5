@@ -2,6 +2,32 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const yaml = require('js-yaml');
+const { list } = require('@vercel/blob');
+
+// Auto-load .env.local if it exists (like in our migration script)
+const ENV_LOCAL_PATH = path.join(__dirname, '..', '.env.local');
+if (fs.existsSync(ENV_LOCAL_PATH)) {
+  const envContent = fs.readFileSync(ENV_LOCAL_PATH, 'utf8');
+  const envVars = envContent
+    .split('\n')
+    .filter(line => line && !line.startsWith('#') && line.includes('='))
+    .reduce((acc, line) => {
+      const [key, ...valueParts] = line.split('=');
+      const value = valueParts.join('=').replace(/^["']|["']$/g, ''); // Remove surrounding quotes
+      acc[key.trim()] = value;
+      return acc;
+    }, {});
+  
+  // Set environment variables if they're not already set
+  Object.entries(envVars).forEach(([key, value]) => {
+    if (!process.env[key]) {
+      process.env[key] = value;
+    }
+  });
+  
+  console.log('📋 Loaded environment variables from .env.local');
+  console.log('🔑 BLOB_READ_WRITE_TOKEN:', process.env.BLOB_READ_WRITE_TOKEN ? 'FOUND' : 'MISSING');
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -35,38 +61,10 @@ function slugify(str) {
     .replace(/(^-|-$)+/g, '');
 }
 
-function walkDirectoryRecursive(startDir) {
-  const results = [];
-  if (!fs.existsSync(startDir)) return results;
+// walkDirectoryRecursive function removed - no longer needed with blob storage
 
-  const stack = [startDir];
-  while (stack.length) {
-    const current = stack.pop();
-    let stat;
-    try {
-      stat = fs.statSync(current);
-    } catch (_) {
-      continue;
-    }
-    if (stat.isDirectory()) {
-      let children = [];
-      try {
-        children = fs.readdirSync(current);
-      } catch (_) {
-        children = [];
-      }
-      for (const child of children) {
-        stack.push(path.join(current, child));
-      }
-    } else if (stat.isFile()) {
-      results.push(current);
-    }
-  }
-  return results;
-}
-
-function isImageFile(filePath) {
-  const ext = path.extname(filePath).toLowerCase();
+function isImageFile(pathname) {
+  const ext = path.extname(pathname).toLowerCase();
   return ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.bmp', '.svg'].includes(ext);
 }
 
@@ -89,11 +87,33 @@ function ensureDevBuildInfo() {
 
 ensureDevBuildInfo();
 
-// Static assets (avatars) — keep separate from SPA assets
-app.use('/avatars', express.static(AVATARS_DIR, {
-  fallthrough: true,
-  maxAge: '7d',
-}));
+// Avatar redirect route for backward compatibility
+// Redirects /avatars/* requests to the CDN URLs
+app.get('/avatars/*', async (req, res) => {
+  try {
+    const avatarPath = req.params[0]; // Get everything after /avatars/
+    const blobPath = `avatars/${avatarPath}`;
+    
+    // Find the blob with this exact path
+    const { blobs } = await list({ 
+      prefix: blobPath,
+      limit: 1 
+    });
+    
+    // Look for exact match
+    const blob = blobs.find(b => b.pathname === blobPath);
+    
+    if (!blob) {
+      return res.status(404).json({ error: 'Image not found' });
+    }
+    
+    // Redirect to the CDN URL
+    res.redirect(302, blob.url);
+  } catch (err) {
+    console.error('Avatar redirect error:', err);
+    res.status(500).json({ error: 'Failed to serve avatar' });
+  }
+});
 
 // API endpoints
 app.get('/api/campaigns', (req, res) => {
@@ -106,7 +126,7 @@ app.get('/api/campaigns', (req, res) => {
   }
 });
 
-app.get('/api/campaigns/:id/images', (req, res) => {
+app.get('/api/campaigns/:id/images', async (req, res) => {
   try {
     const campaigns = loadCampaigns();
     const campaign = campaigns.find((c) => c.id === req.params.id);
@@ -114,23 +134,31 @@ app.get('/api/campaigns/:id/images', (req, res) => {
       return res.status(404).json({ error: 'Campaign not found' });
     }
 
-    const basePath = campaign.icon_path ? path.join(AVATARS_DIR, campaign.icon_path) : AVATARS_DIR;
-    const allFiles = walkDirectoryRecursive(basePath);
-    const imageFiles = allFiles.filter(isImageFile);
+    // Get the campaign's folder path for blob filtering
+    const campaignPath = campaign.icon_path || '';
+    const blobPrefix = campaignPath ? `avatars/${campaignPath}/` : 'avatars/';
 
-    const images = imageFiles.map((absPath) => {
-      const relativeToAvatars = path.relative(AVATARS_DIR, absPath);
-      const urlPath = '/avatars/' + relativeToAvatars.split(path.sep).join('/');
-      return {
-        src: urlPath,
-        fileName: path.basename(absPath),
-      };
+    // List blobs with the campaign prefix
+    const { blobs } = await list({
+      prefix: blobPrefix,
+      limit: 1000, // Adjust as needed for your image collection size
     });
+
+    // Filter for image files and format response
+    const images = blobs
+      .filter(blob => isImageFile(blob.pathname))
+      .map(blob => ({
+        src: blob.url, // Direct CDN URL
+        fileName: blob.pathname.split('/').pop(), // Extract filename from path
+        // Optional: keep backward compatibility info
+        blobPath: blob.pathname,
+        size: blob.size,
+      }));
 
     res.json({ images });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to list images' });
+    console.error('Blob listing error:', err);
+    res.status(500).json({ error: 'Failed to list images from CDN' });
   }
 });
 
