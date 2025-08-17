@@ -1,7 +1,21 @@
 {
-  "name": "root",
+  "name": "fringematrix",
   "version": "1.0.0",
   "private": true,
-  "description": "Stub package.json to work around Windows npm behavior.",
-  "scripts": {}
+  "description": "Fringe Matrix Gallery - A digital archive for fan-created avatar images",
+  "scripts": {
+    "build": "npm run build:client",
+    "build:client": "cd client && npm ci && npm run build",
+    "dev": "npm run dev:server & npm run dev:client",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "start": "cd server && npm start",
+    "test": "npm run test:server && npm run test:client",
+    "test:server": "cd server && npm test",
+    "test:client": "cd client && npm run test:ci",
+    "test:e2e": "cd e2e && npm run e2e"
+  },
+  "engines": {
+    "node": ">=18"
+  }
 }
