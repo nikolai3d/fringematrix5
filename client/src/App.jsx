@@ -79,7 +79,7 @@ export default function App() {
         setBuildInfo(data);
       } catch (e) {
         console.error(e);
-        setBuildInfo({ repoUrl: null, commitHash: null, builtAt: null, committedAt: 'N/A' });
+        setBuildInfo({ repoUrl: null, commitHash: null, builtAt: null });
       }
     }
   }, [buildInfo]);
@@ -421,10 +421,6 @@ export default function App() {
             <div className="row">
               <span className="label">Time of build:</span>
               <span className="value">{buildInfo?.builtAt ? formatTimePacific(buildInfo.builtAt) : 'N/A'}</span>
-            </div>
-            <div className="row">
-              <span className="label">Time of commit:</span>
-              <span className="value">{buildInfo?.committedAt ? formatTimePacific(buildInfo.committedAt) : 'N/A'}</span>
             </div>
           </div>
         </div>

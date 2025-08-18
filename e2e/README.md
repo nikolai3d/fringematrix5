@@ -109,8 +109,8 @@ npm run e2e:conservative
 - Build-info.json generation with proper environment detection
 - Client building with latest changes
 - Environment-specific values:
-  - **Local development**: `commitHash: "dev-local"`, `committedAt: "N/A"`
-  - **CI environment**: `commitHash: "<actual-git-hash>"`, `committedAt: "<commit-timestamp>"`
+  - **Local development**: `commitHash: "dev-local"`
+  - **CI environment**: `commitHash: "<actual-git-hash>"`
 
 ### Advanced Usage
 

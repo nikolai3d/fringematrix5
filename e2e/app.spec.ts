@@ -23,7 +23,7 @@ test('Build Info popover toggles and shows fields', async ({ page }) => {
   await expect(buildDialog.getByText('Repo', { exact: true })).toBeVisible();
   await expect(buildDialog.getByText('Commit', { exact: true })).toBeVisible();
   await expect(buildDialog.getByText('Time of build:', { exact: true })).toBeVisible();
-  await expect(buildDialog.getByText('Time of commit:', { exact: true })).toBeVisible();
+
   await buildDialog.getByRole('button', { name: 'Close build info' }).click();
   await expect(buildDialog).toBeHidden();
 });
@@ -92,16 +92,7 @@ test('Build Info shows correct values for environment', async ({ page }) => {
     expect(commitValue).toBe('dev-local');
   }
   
-  const commitTimeRow = buildDialog.locator('.row').filter({ hasText: 'Time of commit:' });
-  if (process.env.CI) {
-    // In CI, should have actual commit time
-    const commitTimeValue = await commitTimeRow.locator('.value').textContent();
-    expect(commitTimeValue).not.toBe('N/A');
-    expect(commitTimeValue).toMatch(/\d{4}/); // Should contain a year
-  } else {
-    // In local development, commit time should be N/A
-    await expect(commitTimeRow).toContainText('N/A');
-  }
+
   
   // Build time should always have a valid timestamp
   const buildTimeRow = buildDialog.locator('.row').filter({ hasText: 'Time of build:' });

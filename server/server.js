@@ -122,8 +122,7 @@ function ensureDevBuildInfo() {
       const devInfo = {
         repoUrl: null,
         commitHash: 'DEV-LOCAL',
-        builtAt: new Date().toISOString(),
-        committedAt: 'N/A'
+        builtAt: new Date().toISOString()
       };
       fs.writeFileSync(BUILD_INFO_PATH, JSON.stringify(devInfo, null, 2), 'utf8');
     }
@@ -230,23 +229,20 @@ app.get('/api/build-info', (req, res) => {
       return res.json({
         repoUrl: data.repoUrl || null,
         commitHash: data.commitHash || null,
-        builtAt: data.builtAt || data.deployedAt || null, // backward compatibility
-        committedAt: data.committedAt || 'N/A'
+        builtAt: data.builtAt || data.deployedAt || null // backward compatibility
       });
     }
     if (IS_DEV || !HAS_CLIENT_BUILD) {
       return res.json({ 
         repoUrl: null, 
         commitHash: 'DEV-LOCAL', 
-        builtAt: new Date().toISOString(),
-        committedAt: 'N/A'
+        builtAt: new Date().toISOString()
       });
     }
     return res.json({ 
       repoUrl: null, 
       commitHash: null, 
-      builtAt: null,
-      committedAt: 'N/A'
+      builtAt: null
     });
   } catch (err) {
     console.error(err);

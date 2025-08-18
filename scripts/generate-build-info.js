@@ -90,86 +90,7 @@ function getCommitHash() {
   return 'dev-local';
 }
 
-/**
- * Get commit timestamp for a given commit hash
- */
-function getCommitTimestamp(commitHash) {
-  if (commitHash === 'dev-local') {
-    return 'N/A';
-  }
-  
-  console.log(`   🕐 Attempting to get commit timestamp for: ${commitHash}`);
-  
-  // Try multiple ways to get commit timestamp
-  
-  // 1. Try with specific commit hash (ISO format)
-  console.log(`   Trying: git show -s --format=%cI ${commitHash}`);
-  let timestamp = safeExec(`git show -s --format=%cI ${commitHash}`);
-  if (timestamp) {
-    console.log(`   ✅ Success with specific hash: ${timestamp}`);
-    return timestamp;
-  }
-  
-  // 2. Try with HEAD (works better with shallow clones)
-  console.log(`   Trying: git show -s --format=%cI HEAD`);
-  timestamp = safeExec('git show -s --format=%cI HEAD');
-  if (timestamp) {
-    console.log(`   ✅ Success with HEAD: ${timestamp}`);
-    return timestamp;
-  }
-  
-  // 3. Try different format specifiers that might work in shallow clones
-  console.log(`   Trying: git show -s --format=%ci ${commitHash}`);
-  timestamp = safeExec(`git show -s --format=%ci ${commitHash}`); // committer date, ISO-like
-  if (timestamp) {
-    console.log(`   ✅ Success with %ci format: ${timestamp}`);
-    return timestamp;
-  }
-  
-  // 4. Try with HEAD using different format
-  console.log(`   Trying: git show -s --format=%ci HEAD`);
-  timestamp = safeExec('git show -s --format=%ci HEAD');
-  if (timestamp) {
-    console.log(`   ✅ Success with HEAD %ci: ${timestamp}`);
-    return timestamp;
-  }
-  
-  // 5. Try git log with different format options
-  timestamp = safeExec('git log -1 --format="%ci"');
-  if (timestamp) {
-    return timestamp.replace(/"/g, ''); // Remove quotes
-  }
-  
-  // 6. Try author date instead of commit date
-  timestamp = safeExec(`git show -s --format=%aI ${commitHash}`);
-  if (timestamp) {
-    return timestamp;
-  }
-  
-  // 7. Try author date with HEAD
-  timestamp = safeExec('git show -s --format=%aI HEAD');
-  if (timestamp) {
-    return timestamp;
-  }
-  
-  // 8. Try git log with author date
-  timestamp = safeExec('git log -1 --format="%aI"');
-  if (timestamp) {
-    return timestamp.replace(/"/g, ''); // Remove quotes
-  }
-  
-  // 9. Last resort: try with short hash if we have a long one
-  if (commitHash.length > 7) {
-    const shortHash = commitHash.substring(0, 7);
-    timestamp = safeExec(`git show -s --format=%cI ${shortHash}`);
-    if (timestamp) {
-      return timestamp;
-    }
-  }
-  
-  console.log(`   ❌ All timestamp methods failed`);
-  return 'N/A';
-}
+
 
 /**
  * Generate build info object
@@ -178,7 +99,6 @@ function generateBuildInfo() {
   const now = new Date().toISOString();
   const repoUrl = getRepoUrl();
   const commitHash = getCommitHash();
-  const committedAt = getCommitTimestamp(commitHash);
   
   console.log(`🔧 Generating build-info.json:`);
   console.log(`   Environment: ${isDeploymentEnvironment() ? 'CI/Deployment' : 'Local Development'}`);
@@ -189,13 +109,11 @@ function generateBuildInfo() {
   console.log(`   Repo URL: ${repoUrl || 'N/A'}`);
   console.log(`   Commit Hash: ${commitHash}`);
   console.log(`   Built At: ${now}`);
-  console.log(`   Committed At: ${committedAt}`);
 
   return {
     repoUrl,
     commitHash,
-    builtAt: now,
-    committedAt
+    builtAt: now
   };
 }
 
@@ -224,6 +142,5 @@ module.exports = {
   writeBuildInfo,
   isDeploymentEnvironment,
   getCommitHash,
-  getCommitTimestamp,
   getRepoUrl
 };

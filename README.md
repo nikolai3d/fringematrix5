@@ -173,13 +173,13 @@ See `VERCEL_DEPLOYMENT.md` for migration notes from legacy deployment.
 ### Build Information
 
 The app automatically generates build metadata in `build-info.json`:
-- **Local development**: `commitHash: "dev-local"`, `committedAt: "N/A"`
-- **CI/Production**: `commitHash: "<actual-git-hash>"`, `committedAt: "<commit-timestamp>"`
+- **Local development**: `commitHash: "dev-local"`
+- **CI/Production**: `commitHash: "<actual-git-hash>"`
 
 This file is generated during `npm run build` and includes:
 - Repository URL
 - Build timestamp (`builtAt`)
-- Commit hash and timestamp (environment-dependent)
+- Commit hash (environment-dependent)
 
 ## Troubleshooting
 

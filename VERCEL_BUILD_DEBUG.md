@@ -6,7 +6,6 @@ This document helps debug build-info.json generation issues in Vercel deployment
 
 In Vercel deployments, build-info.json should contain:
 - `commitHash`: Actual Git commit SHA (40 characters)
-- `committedAt`: Actual commit timestamp
 - `repoUrl`: Repository URL
 - `builtAt`: Build timestamp
 
@@ -26,7 +25,6 @@ In your Vercel deployment, look for build-info generation logs:
    Repo URL: https://github.com/owner/repo
    Commit Hash: abc123... (should match VERCEL_GIT_COMMIT_SHA)
    Built At: 2025-08-18T...
-   Committed At: 2025-08-18T... (should be actual timestamp)
 ✅ build-info.json written to /vercel/path0/build-info.json
 ```
 
@@ -96,8 +94,7 @@ This ensures:
 {
   "repoUrl": "git@github.com:owner/repo.git",
   "commitHash": "dev-local", 
-  "builtAt": "2025-08-18T...",
-  "committedAt": "N/A"
+  "builtAt": "2025-08-18T..."
 }
 ```
 
@@ -106,8 +103,7 @@ This ensures:
 {
   "repoUrl": "https://github.com/owner/repo",
   "commitHash": "a1b2c3d4e5f6...", 
-  "builtAt": "2025-08-18T...",
-  "committedAt": "2025-08-17T..."
+  "builtAt": "2025-08-18T..."
 }
 ```
 
