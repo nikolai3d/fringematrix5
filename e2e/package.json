@@ -10,6 +10,7 @@
     "test": "npm --prefix ../client run build && playwright test",
     "e2e": "npm --prefix ../client run build && playwright test",
     "e2e:headed": "playwright test --headed",
+    "e2e:conservative": "npm --prefix ../client run build && playwright test --config=playwright.config.test.ts",
     "e2e:report": "playwright show-report"
   }
 }

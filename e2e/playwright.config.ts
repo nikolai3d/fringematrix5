@@ -2,9 +2,11 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: '.',
-  fullyParallel: true,
+  fullyParallel: false, // Run tests sequentially to avoid Blob API rate limits
+  workers: 2, // Use 2 workers for balanced speed vs rate limit protection
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
+  timeout: 90_000, // 90 seconds for individual tests
   reporter: [['list'], ['html', { outputFolder: 'playwright-report' }]],
   outputDir: 'test-results',
   use: {
@@ -12,6 +14,8 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
+    actionTimeout: 60_000, // 60 seconds for individual actions (like waiting for elements)
+    navigationTimeout: 60_000, // 60 seconds for page navigation
   },
   projects: [
     {

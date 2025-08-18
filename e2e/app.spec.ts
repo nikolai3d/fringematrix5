@@ -20,9 +20,10 @@ test('Build Info popover toggles and shows fields', async ({ page }) => {
   await page.getByRole('button', { name: 'Build Info' }).click();
   const buildDialog = page.getByRole('dialog').filter({ hasText: 'Build Info' });
   await expect(buildDialog).toBeVisible();
-  await expect(buildDialog.getByText('Repo')).toBeVisible();
-  await expect(buildDialog.getByText('Commit')).toBeVisible();
-  await expect(buildDialog.getByText('Deployed')).toBeVisible();
+  await expect(buildDialog.getByText('Repo', { exact: true })).toBeVisible();
+  await expect(buildDialog.getByText('Commit', { exact: true })).toBeVisible();
+  await expect(buildDialog.getByText('Time of build:', { exact: true })).toBeVisible();
+  await expect(buildDialog.getByText('Time of commit:', { exact: true })).toBeVisible();
   await buildDialog.getByRole('button', { name: 'Close build info' }).click();
   await expect(buildDialog).toBeHidden();
 });
@@ -64,6 +65,61 @@ test('Sidebar campaign switch updates hash and gallery heading', async ({ page }
     await expect(page.getByTestId('current-campaign-top')).toHaveText(campaign);
     await expect(page.getByTestId('current-campaign-bottom')).toHaveText(campaign);
   }
+});
+
+test('Build Info shows local development values', async ({ page }) => {
+  // Wait for loader to go away if present
+  const loader = page.getByRole('dialog', { name: 'Loading' });
+  if (await loader.isVisible().catch(() => false)) {
+    await loader.waitFor({ state: 'detached' });
+  }
+
+  await page.getByRole('button', { name: 'Build Info' }).click();
+  const buildDialog = page.getByRole('dialog').filter({ hasText: 'Build Info' });
+  await expect(buildDialog).toBeVisible();
+  
+  // In local development, should show dev-local commit and N/A for commit time
+  const commitRow = buildDialog.locator('.row').nth(1); // Second row after Repo
+  await expect(commitRow).toContainText('Commit');
+  await expect(commitRow).toContainText('dev-local');
+  
+  const commitTimeRow = buildDialog.locator('.row').filter({ hasText: 'Time of commit:' });
+  await expect(commitTimeRow).toContainText('N/A');
+  
+  // Build time should have a valid timestamp
+  const buildTimeRow = buildDialog.locator('.row').filter({ hasText: 'Time of build:' });
+  const buildTimeText = await buildTimeRow.locator('.value').textContent();
+  expect(buildTimeText).not.toBe('N/A');
+  expect(buildTimeText).not.toBe('');
+  
+  await buildDialog.getByRole('button', { name: 'Close build info' }).click();
+});
+
+test('Build Info displays proper time formats', async ({ page }) => {
+  // Wait for loader to go away if present
+  const loader = page.getByRole('dialog', { name: 'Loading' });
+  if (await loader.isVisible().catch(() => false)) {
+    await loader.waitFor({ state: 'detached' });
+  }
+
+  await page.getByRole('button', { name: 'Build Info' }).click();
+  const buildDialog = page.getByRole('dialog').filter({ hasText: 'Build Info' });
+  await expect(buildDialog).toBeVisible();
+  
+  // Check that build time is formatted as a readable date in Pacific time
+  const buildTimeRow = buildDialog.locator('.row').filter({ hasText: 'Time of build:' });
+  const buildTimeValue = buildDialog.locator('.row').filter({ hasText: 'Time of build:' }).locator('.value');
+  const buildTimeText = await buildTimeValue.textContent();
+  
+  if (buildTimeText && buildTimeText !== 'N/A') {
+    // Should contain month name, day, year, and time with timezone
+    expect(buildTimeText).toMatch(/(January|February|March|April|May|June|July|August|September|October|November|December)/);
+    expect(buildTimeText).toMatch(/\d{4}/); // year
+    expect(buildTimeText).toMatch(/\d{1,2}:\d{2}:\d{2}/); // time
+    expect(buildTimeText).toMatch(/(PST|PDT)/); // Pacific timezone
+  }
+  
+  await buildDialog.getByRole('button', { name: 'Close build info' }).click();
 });
 
 test('Lightbox opens and navigates images', async ({ page }) => {

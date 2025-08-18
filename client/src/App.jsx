@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useLightboxAnimations } from './hooks/useLightboxAnimations.js';
 import { fetchJSON } from './utils/fetchJSON.js';
-import { formatDeployedAtPacific } from './utils/formatDeployedAtPacific.js';
+import { formatTimePacific } from './utils/formatTimePacific.js';
 import { gitRemoteToHttps } from './utils/gitRemoteToHttps.js';
 
 export default function App() {
@@ -79,7 +79,7 @@ export default function App() {
         setBuildInfo(data);
       } catch (e) {
         console.error(e);
-        setBuildInfo({ repoUrl: null, commitHash: null, deployedAt: null });
+        setBuildInfo({ repoUrl: null, commitHash: null, builtAt: null, committedAt: 'N/A' });
       }
     }
   }, [buildInfo]);
@@ -419,8 +419,12 @@ export default function App() {
               )}
             </div>
             <div className="row">
-              <span className="label">Deployed</span>
-              <span className="value">{buildInfo?.deployedAt ? formatDeployedAtPacific(buildInfo.deployedAt) : 'N/A'}</span>
+              <span className="label">Time of build:</span>
+              <span className="value">{buildInfo?.builtAt ? formatTimePacific(buildInfo.builtAt) : 'N/A'}</span>
+            </div>
+            <div className="row">
+              <span className="label">Time of commit:</span>
+              <span className="value">{buildInfo?.committedAt ? formatTimePacific(buildInfo.committedAt) : 'N/A'}</span>
             </div>
           </div>
         </div>
