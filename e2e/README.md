@@ -33,15 +33,25 @@ We've implemented several protections to handle this:
 
 ```typescript
 export default defineConfig({
-  workers: 2, // Balance between speed and rate limits
+  workers: process.env.CI ? 1 : 2, // Auto-adjust: 1 in CI, 2 locally
   fullyParallel: false, // Prevent too many concurrent requests
-  timeout: 90_000, // 90 seconds for individual tests
+  timeout: process.env.CI ? 120_000 : 90_000, // 2min in CI, 90s locally
   use: {
-    actionTimeout: 60_000, // 60 seconds for actions
-    navigationTimeout: 60_000, // 60 seconds for navigation
+    actionTimeout: process.env.CI ? 90_000 : 60_000, // 90s in CI, 60s locally
+    navigationTimeout: process.env.CI ? 90_000 : 60_000, // 90s in CI, 60s locally
   }
 });
 ```
+
+**🤖 Automatic CI Detection**: The configuration automatically uses conservative settings when `process.env.CI` is detected.
+
+**Supported CI Environments:**
+- GitHub Actions (sets `CI=true`)
+- Vercel Build (sets `CI=1`) 
+- GitLab CI (sets `CI=true`)
+- CircleCI (sets `CI=true`)
+- Travis CI (sets `CI=true`)
+- Most other CI platforms
 
 ### Adjusting Workers
 
@@ -161,10 +171,16 @@ npm run e2e
 
 ### For CI/CD
 
-1. **Use `workers: 1`** in CI environments
-2. **Enable retries**: Already configured for CI
-3. **Monitor test duration** and adjust timeouts if needed
-4. **Consider test splitting** for large test suites
+1. **Automatic conservative mode**: CI automatically uses `workers: 1` and longer timeouts
+2. **Enable retries**: Already configured for CI (`retries: 2`)
+3. **Extended timeouts**: 2-minute test timeout, 90s action timeout in CI
+4. **Environment detection**: Uses `process.env.CI` to detect CI environments
+
+**CI Settings Applied Automatically:**
+- `workers: 1` (vs 2 locally)
+- `timeout: 120_000` (vs 90_000 locally) 
+- `actionTimeout: 90_000` (vs 60_000 locally)
+- `retries: 2` (vs 0 locally)
 
 ### Configuration Templates
 
@@ -182,11 +198,12 @@ timeout: 90_000,
 // Current recommended settings
 ```
 
-**Conservative (CI or rate limit issues):**
+**Conservative (automatically applied in CI):**
 ```typescript
 workers: 1,
 timeout: 120_000,
-// Maximum reliability
+actionTimeout: 90_000,
+// Maximum reliability - applied automatically in CI environments
 ```
 
 ## File Structure
