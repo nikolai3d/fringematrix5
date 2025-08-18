@@ -4,8 +4,9 @@
   "private": true,
   "description": "Fringe Matrix Gallery - A digital archive for fan-created avatar images",
   "scripts": {
-    "build": "npm run build:client",
+    "build": "npm run generate:build-info && npm run build:client",
     "build:client": "cd client && npm ci && npm run build",
+    "generate:build-info": "node scripts/generate-build-info.js",
     "dev": "npm run dev:server & npm run dev:client",
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",

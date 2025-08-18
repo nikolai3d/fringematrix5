@@ -87,10 +87,10 @@ describe('API contract', () => {
     }
 
     it('returns fields from build-info.json when present', async () => {
-      await withTempFile(buildInfoPath, JSON.stringify({ repoUrl: 'x', commitHash: 'y', deployedAt: 'z' }), async () => {
+      await withTempFile(buildInfoPath, JSON.stringify({ repoUrl: 'x', commitHash: 'y', builtAt: 'z' }), async () => {
         const res = await request(app).get('/api/build-info');
         expect(res.status).toBe(200);
-        expect(res.body).toEqual({ repoUrl: 'x', commitHash: 'y', deployedAt: 'z' });
+        expect(res.body).toEqual({ repoUrl: 'x', commitHash: 'y', builtAt: 'z' });
       });
     });
 
@@ -104,6 +104,7 @@ describe('API contract', () => {
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('commitHash');
       expect(res.body.commitHash).toBe('DEV-LOCAL');
+      expect(res.body).toHaveProperty('builtAt');
       existsSpy.mockRestore();
     });
   });
