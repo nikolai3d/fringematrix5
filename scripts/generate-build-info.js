@@ -126,7 +126,7 @@ function writeBuildInfo(buildInfo) {
     fs.writeFileSync(BUILD_INFO_PATH, content, 'utf8');
     console.log(`✅ build-info.json written to ${BUILD_INFO_PATH}`);
   } catch (error) {
-    console.error(`❌ Failed to write build-info.json:`, error.message);
+    console.error(`❌ Failed to write build-info.json to ${BUILD_INFO_PATH}:`, error.message);
     process.exit(1);
   }
 }
