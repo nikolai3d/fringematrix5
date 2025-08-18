@@ -67,7 +67,7 @@ test('Sidebar campaign switch updates hash and gallery heading', async ({ page }
   }
 });
 
-test('Build Info shows local development values', async ({ page }) => {
+test('Build Info shows correct values for environment', async ({ page }) => {
   // Wait for loader to go away if present
   const loader = page.getByRole('dialog', { name: 'Loading' });
   if (await loader.isVisible().catch(() => false)) {
@@ -78,15 +78,32 @@ test('Build Info shows local development values', async ({ page }) => {
   const buildDialog = page.getByRole('dialog').filter({ hasText: 'Build Info' });
   await expect(buildDialog).toBeVisible();
   
-  // In local development, should show dev-local commit and N/A for commit time
+  // Check commit row
   const commitRow = buildDialog.locator('.row').nth(1); // Second row after Repo
   await expect(commitRow).toContainText('Commit');
-  await expect(commitRow).toContainText('dev-local');
+  
+  const commitValue = await commitRow.locator('.value').textContent();
+  
+  if (process.env.CI) {
+    // In CI, should show actual commit hash (40 characters)
+    expect(commitValue).toMatch(/^[a-f0-9]{40}$/);
+  } else {
+    // In local development, should show dev-local
+    expect(commitValue).toBe('dev-local');
+  }
   
   const commitTimeRow = buildDialog.locator('.row').filter({ hasText: 'Time of commit:' });
-  await expect(commitTimeRow).toContainText('N/A');
+  if (process.env.CI) {
+    // In CI, should have actual commit time
+    const commitTimeValue = await commitTimeRow.locator('.value').textContent();
+    expect(commitTimeValue).not.toBe('N/A');
+    expect(commitTimeValue).toMatch(/\d{4}/); // Should contain a year
+  } else {
+    // In local development, commit time should be N/A
+    await expect(commitTimeRow).toContainText('N/A');
+  }
   
-  // Build time should have a valid timestamp
+  // Build time should always have a valid timestamp
   const buildTimeRow = buildDialog.locator('.row').filter({ hasText: 'Time of build:' });
   const buildTimeText = await buildTimeRow.locator('.value').textContent();
   expect(buildTimeText).not.toBe('N/A');

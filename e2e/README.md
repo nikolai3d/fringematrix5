@@ -103,6 +103,15 @@ If you're hitting rate limits frequently:
 npm run e2e:conservative
 ```
 
+### Build Process
+
+**Important**: E2E scripts now run the complete build process (`npm run build`) which includes:
+- Build-info.json generation with proper environment detection
+- Client building with latest changes
+- Environment-specific values:
+  - **Local development**: `commitHash: "dev-local"`, `committedAt: "N/A"`
+  - **CI environment**: `commitHash: "<actual-git-hash>"`, `committedAt: "<commit-timestamp>"`
+
 ### Advanced Usage
 
 ```bash
@@ -173,10 +182,10 @@ npm start
 cd e2e && npx playwright test
 ```
 
-**Stale client build:**
+**Stale build-info or client build:**
 ```bash
-# Force rebuild client
-npm run build:client
+# Force full rebuild (includes build-info generation)
+npm run build
 npm run e2e
 ```
 
