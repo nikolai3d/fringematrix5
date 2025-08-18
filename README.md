@@ -136,6 +136,8 @@ The project is configured for automatic Vercel deployment:
 2. Add `BLOB_READ_WRITE_TOKEN` to Vercel environment variables
 3. Deploy automatically on push to main branch
 
+**Build Info**: Vercel should automatically provide Git commit information. If build info shows "dev-local" in deployment, see `VERCEL_BUILD_DEBUG.md` for troubleshooting.
+
 ### Manual Deployment
 
 See `VERCEL_DEPLOYMENT.md` for migration notes from legacy deployment.
@@ -196,5 +198,8 @@ Check server logs for:
 
 ---
 
-For detailed testing documentation, see `e2e/README.md`.
-For deployment history, see `VERCEL_DEPLOYMENT.md`.
+## Documentation
+
+- `e2e/README.md` - Detailed testing documentation
+- `VERCEL_DEPLOYMENT.md` - Deployment migration history  
+- `VERCEL_BUILD_DEBUG.md` - Troubleshooting build-info.json in Vercel deployments
