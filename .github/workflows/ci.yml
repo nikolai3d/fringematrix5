@@ -46,6 +46,8 @@ jobs:
 
       - name: Run Playwright tests
         run: npm run e2e --prefix e2e
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
 
       - name: Upload Playwright report
         if: always()

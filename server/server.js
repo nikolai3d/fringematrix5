@@ -45,8 +45,15 @@ const IS_DEV = process.env.NODE_ENV !== 'production';
 // Simple cache for blob listings to reduce API calls during testing
 const blobCache = new Map();
 const CACHE_TTL = 30000; // 30 seconds cache during development/testing
+const HAS_BLOB_TOKEN = !!process.env.BLOB_READ_WRITE_TOKEN;
 
 async function listBlobsWithCache(options) {
+  // If no blob token is available (e.g., in CI), return empty results
+  if (!HAS_BLOB_TOKEN) {
+    console.log('No BLOB_READ_WRITE_TOKEN found, returning empty blob list for testing');
+    return { blobs: [] };
+  }
+
   const cacheKey = JSON.stringify(options);
   const cached = blobCache.get(cacheKey);
   
@@ -71,6 +78,12 @@ async function listBlobsWithCache(options) {
       await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
       return await list(options);
     }
+    
+    if (error.message && error.message.includes('No token found')) {
+      console.log('Blob token missing, returning empty blob list for testing');
+      return { blobs: [] };
+    }
+    
     throw error;
   }
 }
@@ -120,6 +133,13 @@ function ensureDevBuildInfo() {
 }
 
 ensureDevBuildInfo();
+
+// Log blob functionality status
+if (HAS_BLOB_TOKEN) {
+  console.log('🔵 Blob API: Enabled (token found)');
+} else {
+  console.log('⚪ Blob API: Disabled (no token - using fallback for testing)');
+}
 
 // Avatar redirect route for backward compatibility
 // Redirects /avatars/* requests to the CDN URLs

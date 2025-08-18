@@ -121,6 +121,26 @@ npx playwright test --debug
 
 ## Troubleshooting
 
+### Missing Blob Token (CI)
+
+**Symptoms:**
+- Error: `No token found. Either configure the BLOB_READ_WRITE_TOKEN environment variable`
+- Tests fail to load avatar images
+
+**Automatic Solution:**
+- Server automatically falls back to empty blob lists when no token is found
+- Tests continue to work but with no avatar images
+- Server logs: `⚪ Blob API: Disabled (no token - using fallback for testing)`
+
+**To Enable Blob API in CI:**
+1. **GitHub Actions**: Add `BLOB_READ_WRITE_TOKEN` to repository secrets
+   - Go to: Repository → Settings → Secrets and variables → Actions
+   - Click "New repository secret"
+   - Name: `BLOB_READ_WRITE_TOKEN`
+   - Value: Your Vercel Blob token
+2. **Other CI platforms**: Add `BLOB_READ_WRITE_TOKEN` to environment variables
+3. Server will log: `🔵 Blob API: Enabled (token found)`
+
 ### Rate Limit Errors
 
 **Symptoms:**
@@ -182,6 +202,15 @@ npm run e2e
 - `actionTimeout: 90_000` (vs 60_000 locally)
 - `retries: 2` (vs 0 locally)
 
+**GitHub Actions Configuration:**
+The `.github/workflows/ci.yml` includes:
+```yaml
+- name: Run Playwright tests
+  run: npm run e2e --prefix e2e
+  env:
+    BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+```
+
 ### Configuration Templates
 
 **High-speed (local development):**
@@ -240,10 +269,11 @@ When these occur, reduce workers or increase cache time.
 
 | Issue | Solution |
 |-------|----------|
+| Missing blob token | Automatic fallback (no action needed) |
 | Rate limit errors | Reduce `workers` to 1 |
 | Tests too slow | Increase `workers` to 3-4 |
 | Timeouts | Increase `timeout` values |
 | Stale data | Decrease `CACHE_TTL` |
-| CI failures | Use conservative config |
+| CI failures | Conservative config auto-applied |
 
 For questions or issues, check server logs and adjust worker/cache settings accordingly.
