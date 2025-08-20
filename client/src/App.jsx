@@ -378,8 +378,8 @@ export default function App() {
         </div>
       </header>
 
-      {isCampaignLoading && (
-        <div className="campaign-loading-bar" role="status" aria-label="Loading campaign">
+      <div className="campaign-progress-area" role="status" aria-label="Campaign loading status">
+        {isCampaignLoading && (
           <div className="campaign-loading-content">
             <div className="campaign-loading-text">
               Loading Images<span className="dots">{'.'.repeat(loadingDots)}</span>
@@ -401,8 +401,8 @@ export default function App() {
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <aside id="campaign-sidebar" className={`sidebar${isSidebarOpen ? ' open' : ''}`} aria-hidden={!isSidebarOpen}>
         <div className="sidebar-header">All Campaigns</div>

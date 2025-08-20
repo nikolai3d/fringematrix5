@@ -65,13 +65,15 @@ test('Sidebar campaign switch updates hash and gallery heading with loading', as
     
     await second.click();
     
-    // Check for campaign loading bar
-    const campaignLoader = page.getByRole('status', { name: 'Loading campaign' });
-    if (await campaignLoader.isVisible().catch(() => false)) {
-      await expect(campaignLoader).toBeVisible();
-      await expect(campaignLoader.getByText(/Loading Images/)).toBeVisible();
-      await expect(campaignLoader.locator('.campaign-progress-bar')).toBeVisible();
-      await campaignLoader.waitFor({ state: 'detached' });
+    // Check for campaign loading content within permanent progress area
+    const progressArea = page.getByRole('status', { name: 'Campaign loading status' });
+    await expect(progressArea).toBeVisible(); // Progress area should always be visible
+    
+    const loadingContent = progressArea.locator('.campaign-loading-content');
+    if (await loadingContent.isVisible().catch(() => false)) {
+      await expect(loadingContent.getByText(/Loading Images/)).toBeVisible();
+      await expect(loadingContent.locator('.campaign-progress-bar')).toBeVisible();
+      await loadingContent.waitFor({ state: 'detached' });
     }
 
     await expect(sidebar).not.toHaveClass(/open/);
@@ -170,9 +172,11 @@ test('Campaign loading disables UI interactions', async ({ page }) => {
     const second = sidebarButtons.nth(1);
     await second.click();
     
-    // Check if campaign loader appears
-    const campaignLoader = page.getByRole('status', { name: 'Loading campaign' });
-    if (await campaignLoader.isVisible().catch(() => false)) {
+    // Check if campaign loading content appears
+    const progressArea = page.getByRole('status', { name: 'Campaign loading status' });
+    const loadingContent = progressArea.locator('.campaign-loading-content');
+    
+    if (await loadingContent.isVisible().catch(() => false)) {
       // During loading, navigation buttons should be disabled
       const navButtons = page.locator('.nav-arrow');
       for (let i = 0; i < await navButtons.count(); i++) {
@@ -185,7 +189,7 @@ test('Campaign loading disables UI interactions', async ({ page }) => {
       await expect(page.getByRole('button', { name: 'Build Info' })).toBeDisabled();
       
       // Wait for loading to complete
-      await campaignLoader.waitFor({ state: 'detached' });
+      await loadingContent.waitFor({ state: 'detached' });
       
       // After loading, buttons should be enabled again
       await expect(page.getByRole('button', { name: 'Campaigns' })).toBeEnabled();
