@@ -248,8 +248,79 @@ export default function App() {
         const initial = (data.campaigns || []).find((c) => c.id === hash) || (data.campaigns || [])[0];
         
         if (initial) {
-          // Use selectCampaign to handle the initial campaign loading
-          await selectCampaign(initial.id);
+          // Manually load the initial campaign without using selectCampaign to avoid dependency
+          setActiveCampaignId(initial.id);
+          window.history.replaceState({}, '', `#${initial.id}`);
+          
+          // Start loading the initial campaign
+          setIsCampaignLoading(true);
+          setCampaignLoadProgress(0);
+          setCampaignLoadTotal(0);
+          setCampaignLoadError(false);
+          
+          try {
+            const res = await fetchJSON(`/api/campaigns/${initial.id}/images`);
+            const campaignImages = res.images || [];
+            
+            setCampaignLoadTotal(campaignImages.length);
+            
+            if (campaignImages.length === 0) {
+              setImages([]);
+            } else {
+              // Create placeholder images
+              const placeholderImages = campaignImages.map(img => ({
+                fileName: img.fileName,
+                originalSrc: img.src,
+                src: null,
+                isLoading: true,
+                loadedSrc: null
+              }));
+              setImages(placeholderImages);
+              
+              // Load all images
+              let loadedCount = 0;
+              let hasError = false;
+              
+              const loadPromises = campaignImages.map((img) => 
+                new Promise((resolve) => {
+                  const image = new Image();
+                  const done = () => {
+                    loadedCount++;
+                    setCampaignLoadProgress(loadedCount);
+                    resolve();
+                  };
+                  image.onload = done;
+                  image.onerror = () => {
+                    hasError = true;
+                    done();
+                  };
+                  image.src = img.src;
+                })
+              );
+              
+              await Promise.all(loadPromises);
+              
+              if (hasError) {
+                setCampaignLoadError(true);
+              }
+              
+              // Show all images at once
+              const fullyLoadedImages = campaignImages.map(img => ({
+                ...img,
+                isLoading: false,
+                loadedSrc: img.src
+              }));
+              
+              setImages(fullyLoadedImages);
+              setImagesByCampaign(prev => ({ ...prev, [initial.id]: campaignImages }));
+            }
+          } catch (error) {
+            console.error('Failed to load initial campaign images:', error);
+            setCampaignLoadError(true);
+            setImages([]);
+          } finally {
+            setIsCampaignLoading(false);
+          }
         }
         
         // Only hide the main loader after everything is ready
@@ -262,7 +333,7 @@ export default function App() {
       }
     })();
     return () => { isMounted = false; };
-  }, [selectCampaign]);
+  }, []); // Empty dependency array - only run once on mount
 
   // Animated dots for the CRT loader
   useEffect(() => {
