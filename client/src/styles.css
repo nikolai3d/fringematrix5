@@ -93,6 +93,119 @@ body {
   20%, 24%, 55% { opacity: 0.7; }
 }
 
+/* Campaign loading overlay */
+.campaign-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: grid;
+  place-items: center;
+  background: rgba(6, 9, 15, 0.85);
+  backdrop-filter: blur(4px);
+  color: var(--fg);
+}
+
+.campaign-loading-inner {
+  position: relative;
+  padding: 32px 28px;
+  border-radius: 14px;
+  background: rgba(3, 9, 14, 0.95);
+  border: 1px solid rgba(0,229,255,0.35);
+  box-shadow:
+    0 0 20px rgba(0,229,255,0.25),
+    inset 0 0 60px rgba(0,229,255,0.08);
+  min-width: 300px;
+  text-align: center;
+}
+
+.campaign-loading-text {
+  font-size: 18px;
+  font-weight: 600;
+  text-shadow:
+    0 0 6px var(--crt-glow),
+    0 0 12px var(--crt-glow),
+    0 0 18px var(--crt-glow);
+  animation: crt-flicker 2.2s infinite steps(30, end);
+  margin-bottom: 20px;
+}
+
+.campaign-progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.campaign-progress-bar {
+  width: 240px;
+  height: 8px;
+  background: rgba(0, 229, 255, 0.15);
+  border-radius: 4px;
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  overflow: hidden;
+  position: relative;
+}
+
+.campaign-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, 
+    var(--crt-glow) 0%,
+    rgba(0, 229, 255, 0.9) 50%,
+    var(--crt-glow) 100%
+  );
+  transition: width 0.3s ease;
+  box-shadow:
+    0 0 8px rgba(0, 229, 255, 0.6),
+    0 0 16px rgba(0, 229, 255, 0.4),
+    inset 0 0 8px rgba(255, 255, 255, 0.2);
+  position: relative;
+}
+
+.campaign-progress-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 100%
+  );
+  animation: progress-shimmer 1.5s infinite ease-in-out;
+}
+
+@keyframes progress-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.campaign-progress-text {
+  font-size: 13px;
+  color: var(--muted);
+  text-shadow:
+    0 0 4px var(--crt-glow),
+    0 0 8px var(--crt-glow);
+}
+
+.campaign-error-text {
+  font-size: 12px;
+  color: #ff6b6b;
+  margin-top: 12px;
+  text-shadow: 0 0 4px rgba(255, 107, 107, 0.5);
+}
+
+/* Disable interactions during campaign loading */
+.campaign-loading .sidebar,
+.campaign-loading .gallery-grid,
+.campaign-loading .lightbox {
+  pointer-events: none;
+}
+
+.campaign-loading .toolbar-button:disabled,
+.campaign-loading .nav-arrow:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .navbar {
   position: sticky;
   top: 0;
