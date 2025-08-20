@@ -65,8 +65,8 @@ test('Sidebar campaign switch updates hash and gallery heading with loading', as
     
     await second.click();
     
-    // Check for campaign loading overlay
-    const campaignLoader = page.getByRole('dialog', { name: 'Loading campaign' });
+    // Check for campaign loading bar
+    const campaignLoader = page.getByRole('status', { name: 'Loading campaign' });
     if (await campaignLoader.isVisible().catch(() => false)) {
       await expect(campaignLoader).toBeVisible();
       await expect(campaignLoader.getByText(/Loading Campaign/)).toBeVisible();
@@ -171,7 +171,7 @@ test('Campaign loading disables UI interactions', async ({ page }) => {
     await second.click();
     
     // Check if campaign loader appears
-    const campaignLoader = page.getByRole('dialog', { name: 'Loading campaign' });
+    const campaignLoader = page.getByRole('status', { name: 'Loading campaign' });
     if (await campaignLoader.isVisible().catch(() => false)) {
       // During loading, navigation buttons should be disabled
       const navButtons = page.locator('.nav-arrow');

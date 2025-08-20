@@ -93,54 +93,50 @@ body {
   20%, 24%, 55% { opacity: 0.7; }
 }
 
-/* Campaign loading overlay */
-.campaign-loading-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 999;
-  display: grid;
-  place-items: center;
-  background: rgba(6, 9, 15, 0.85);
-  backdrop-filter: blur(4px);
-  color: var(--fg);
+/* Campaign loading inline bar */
+.campaign-loading-bar {
+  position: relative;
+  width: 100%;
+  background: rgba(3, 9, 14, 0.8);
+  border-bottom: 1px solid rgba(0,229,255,0.2);
+  backdrop-filter: blur(2px);
+  z-index: 10;
 }
 
-.campaign-loading-inner {
-  position: relative;
-  padding: 32px 28px;
-  border-radius: 14px;
-  background: rgba(3, 9, 14, 0.95);
-  border: 1px solid rgba(0,229,255,0.35);
-  box-shadow:
-    0 0 20px rgba(0,229,255,0.25),
-    inset 0 0 60px rgba(0,229,255,0.08);
-  min-width: 300px;
-  text-align: center;
+.campaign-loading-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 }
 
 .campaign-loading-text {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 600;
   text-shadow:
-    0 0 6px var(--crt-glow),
-    0 0 12px var(--crt-glow),
-    0 0 18px var(--crt-glow);
+    0 0 4px var(--crt-glow),
+    0 0 8px var(--crt-glow);
   animation: crt-flicker 2.2s infinite steps(30, end);
-  margin-bottom: 20px;
+  color: var(--fg);
 }
 
 .campaign-progress-container {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
+  width: 100%;
+  max-width: 320px;
 }
 
 .campaign-progress-bar {
-  width: 240px;
-  height: 8px;
+  width: 100%;
+  height: 6px;
   background: rgba(0, 229, 255, 0.15);
-  border-radius: 4px;
+  border-radius: 3px;
   border: 1px solid rgba(0, 229, 255, 0.3);
   overflow: hidden;
   position: relative;
@@ -179,29 +175,23 @@ body {
 }
 
 .campaign-progress-text {
-  font-size: 13px;
+  font-size: 11px;
   color: var(--muted);
   text-shadow:
-    0 0 4px var(--crt-glow),
-    0 0 8px var(--crt-glow);
+    0 0 2px var(--crt-glow),
+    0 0 4px var(--crt-glow);
 }
 
 .campaign-error-text {
-  font-size: 12px;
+  font-size: 11px;
   color: #ff6b6b;
-  margin-top: 12px;
-  text-shadow: 0 0 4px rgba(255, 107, 107, 0.5);
+  text-shadow: 0 0 2px rgba(255, 107, 107, 0.5);
 }
 
-/* Disable interactions during campaign loading */
-.campaign-loading .sidebar,
-.campaign-loading .gallery-grid,
-.campaign-loading .lightbox {
-  pointer-events: none;
-}
-
-.campaign-loading .toolbar-button:disabled,
-.campaign-loading .nav-arrow:disabled {
+/* Disabled button styles during campaign loading */
+.toolbar-button:disabled,
+.nav-arrow:disabled,
+.sidebar-item:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

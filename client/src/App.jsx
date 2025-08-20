@@ -300,7 +300,7 @@ export default function App() {
   // Grid thumbnail restore handled by hook
 
   return (
-    <div id="app" className={isCampaignLoading ? 'campaign-loading' : ''}>
+    <div id="app">
       {isPreloading && !loadingError && (
         <div className="crt-overlay" role="dialog" aria-modal={true} aria-label="Loading">
           <div className="crt-inner">
@@ -317,31 +317,6 @@ export default function App() {
             <div className="crt-text">
               Fringe Matrix loading failed, check your Internet connection or try reloading the site
             </div>
-          </div>
-        </div>
-      )}
-      {isCampaignLoading && (
-        <div className="campaign-loading-overlay" role="dialog" aria-modal={true} aria-label="Loading campaign">
-          <div className="campaign-loading-inner">
-            <div className="campaign-loading-text">
-              Loading Campaign<span className="dots">{'.'.repeat(loadingDots)}</span>
-            </div>
-            <div className="campaign-progress-container">
-              <div className="campaign-progress-bar">
-                <div 
-                  className="campaign-progress-fill"
-                  style={{ width: campaignLoadTotal > 0 ? `${(campaignLoadProgress / campaignLoadTotal) * 100}%` : '0%' }}
-                ></div>
-              </div>
-              <div className="campaign-progress-text">
-                {campaignLoadTotal > 0 ? `${campaignLoadProgress} / ${campaignLoadTotal}` : 'Preparing...'}
-              </div>
-            </div>
-            {campaignLoadError && (
-              <div className="campaign-error-text">
-                Some images failed to load
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -386,6 +361,32 @@ export default function App() {
           <button className="nav-arrow" aria-label="Next campaign" onClick={goToNextCampaign} disabled={isCampaignLoading}>▶</button>
         </div>
       </header>
+
+      {isCampaignLoading && (
+        <div className="campaign-loading-bar" role="status" aria-label="Loading campaign">
+          <div className="campaign-loading-content">
+            <div className="campaign-loading-text">
+              Loading Campaign<span className="dots">{'.'.repeat(loadingDots)}</span>
+            </div>
+            <div className="campaign-progress-container">
+              <div className="campaign-progress-bar">
+                <div 
+                  className="campaign-progress-fill"
+                  style={{ width: campaignLoadTotal > 0 ? `${(campaignLoadProgress / campaignLoadTotal) * 100}%` : '0%' }}
+                ></div>
+              </div>
+              <div className="campaign-progress-text">
+                {campaignLoadTotal > 0 ? `${campaignLoadProgress} / ${campaignLoadTotal}` : 'Preparing...'}
+              </div>
+            </div>
+            {campaignLoadError && (
+              <div className="campaign-error-text">
+                Some images failed to load
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <aside id="campaign-sidebar" className={`sidebar${isSidebarOpen ? ' open' : ''}`} aria-hidden={!isSidebarOpen}>
         <div className="sidebar-header">All Campaigns</div>
