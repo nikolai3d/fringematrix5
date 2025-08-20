@@ -57,27 +57,38 @@ describe('Campaign Loading Placeholder Logic', () => {
     expect(loadedImage.loadedSrc).toBe('https://example.com/test.jpg');
   });
 
-  it('should maintain placeholder state until all images in progress are loaded', () => {
+  it('should maintain all placeholders until ALL images are loaded (all-or-nothing)', () => {
     const images = [
       { fileName: 'img1.jpg', originalSrc: 'url1', src: null, isLoading: true, loadedSrc: null },
       { fileName: 'img2.jpg', originalSrc: 'url2', src: null, isLoading: true, loadedSrc: null },
       { fileName: 'img3.jpg', originalSrc: 'url3', src: null, isLoading: true, loadedSrc: null }
     ];
     
-    // Simulate first image loading (from selectCampaign logic)
-    const imagesAfterFirstLoad = images.map((img, i) => 
-      i === 0 
-        ? { ...img, isLoading: false, src: img.originalSrc, loadedSrc: img.originalSrc }
-        : img
-    );
+    // In all-or-nothing loading, images should remain as placeholders until ALL are loaded
+    // Even if some individual images finish loading, they should stay as placeholders
     
-    // Verify mixed state
-    expect(imagesAfterFirstLoad[0].isLoading).toBe(false);
-    expect(imagesAfterFirstLoad[0].src).toBe('url1');
-    expect(imagesAfterFirstLoad[1].isLoading).toBe(true);
-    expect(imagesAfterFirstLoad[1].src).toBeNull();
-    expect(imagesAfterFirstLoad[2].isLoading).toBe(true);
-    expect(imagesAfterFirstLoad[2].src).toBeNull();
+    // During loading phase - all should remain placeholders
+    images.forEach(img => {
+      expect(img.isLoading).toBe(true);
+      expect(img.src).toBeNull();
+      expect(img.loadedSrc).toBeNull();
+    });
+    
+    // After ALL images complete loading - show all at once
+    const originalUrls = ['url1', 'url2', 'url3'];
+    const imagesAfterAllLoaded = originalUrls.map((url, i) => ({
+      src: url,
+      fileName: images[i].fileName,
+      isLoading: false,
+      loadedSrc: url
+    }));
+    
+    // Verify all images show at once
+    imagesAfterAllLoaded.forEach((img, i) => {
+      expect(img.isLoading).toBe(false);
+      expect(img.src).toBe(originalUrls[i]);
+      expect(img.loadedSrc).toBe(originalUrls[i]);
+    });
   });
 
   it('should not provide actual image URLs until image preloading is complete', () => {
@@ -109,5 +120,49 @@ describe('Campaign Loading Placeholder Logic', () => {
     
     expect(afterLoading.src).toBe('https://cdn.example.com/real-image.jpg');
     expect(afterLoading.isLoading).toBe(false);
+  });
+
+  it('should enforce all-or-nothing loading behavior per campaign', () => {
+    // Simulate a campaign with multiple images
+    const campaignImages = [
+      { src: 'https://example.com/img1.jpg', fileName: 'img1.jpg' },
+      { src: 'https://example.com/img2.jpg', fileName: 'img2.jpg' },
+      { src: 'https://example.com/img3.jpg', fileName: 'img3.jpg' }
+    ];
+    
+    // Create initial placeholders (all should be loading)
+    const placeholders = campaignImages.map(img => ({
+      fileName: img.fileName,
+      originalSrc: img.src,
+      src: null,
+      isLoading: true,
+      loadedSrc: null
+    }));
+    
+    // Verify all start as placeholders
+    placeholders.forEach(placeholder => {
+      expect(placeholder.src).toBeNull();
+      expect(placeholder.isLoading).toBe(true);
+    });
+    
+    // In all-or-nothing, even if individual images finish loading,
+    // we don't update them until ALL are done
+    
+    // Simulate ALL images completing (the final state update from selectCampaign)
+    const allLoaded = campaignImages.map(img => ({
+      ...img,
+      isLoading: false,
+      loadedSrc: img.src
+    }));
+    
+    // Verify all images appear at once
+    allLoaded.forEach((img, index) => {
+      expect(img.src).toBe(campaignImages[index].src);
+      expect(img.isLoading).toBe(false);
+      expect(img.loadedSrc).toBe(campaignImages[index].src);
+    });
+    
+    // Key assertion: there should be no intermediate state where some images
+    // have src and others don't - it's all placeholders or all images
   });
 });

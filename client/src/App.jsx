@@ -81,26 +81,17 @@ export default function App() {
       }));
       setImages(placeholderImages);
       
-      // Load images progressively in background
+      // Load all images in background, but keep all as placeholders until ALL are done
       let loadedCount = 0;
       let hasError = false;
       
-      // Load images one by one and update them as they complete
-      const loadPromises = campaignImages.map((img, index) => 
+      // Load all images in parallel, but don't show any until all are complete
+      const loadPromises = campaignImages.map((img) => 
         new Promise((resolve) => {
           const image = new Image();
           const done = () => {
             loadedCount++;
             setCampaignLoadProgress(loadedCount);
-            
-            // Update this specific image in the array
-            setImages(prevImages => 
-              prevImages.map((prevImg, i) => 
-                i === index 
-                  ? { ...prevImg, isLoading: false, src: img.src, loadedSrc: img.src }
-                  : prevImg
-              )
-            );
             resolve();
           };
           image.onload = done;
@@ -117,6 +108,15 @@ export default function App() {
       if (hasError) {
         setCampaignLoadError(true);
       }
+      
+      // ALL images are now loaded - show them all at once
+      const fullyLoadedImages = campaignImages.map(img => ({
+        ...img,
+        isLoading: false,
+        loadedSrc: img.src
+      }));
+      
+      setImages(fullyLoadedImages);
       
       // Update cache with fully loaded images
       setImagesByCampaign(prev => ({ ...prev, [id]: campaignImages }));

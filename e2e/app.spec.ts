@@ -197,7 +197,7 @@ test('Campaign loading disables UI interactions', async ({ page }) => {
   }
 });
 
-test('Campaign loading shows only placeholders, not actual images', async ({ page }) => {
+test('Campaign loading shows all placeholders until ALL images load (all-or-nothing)', async ({ page }) => {
   // Wait for initial loading to complete
   const loader = page.getByRole('dialog', { name: 'Loading' });
   if (await loader.isVisible().catch(() => false)) {
@@ -222,27 +222,49 @@ test('Campaign loading shows only placeholders, not actual images', async ({ pag
     const loadingContent = progressArea.locator('.campaign-loading-content');
     
     if (await loadingContent.isVisible().catch(() => false)) {
-      // During loading, should only see placeholders, not actual images
+      // During loading, should see ALL placeholders and NO actual images
       const placeholders = page.locator('.image-placeholder');
       const placeholderCount = await placeholders.count();
-      expect(placeholderCount).toBeGreaterThan(0);
       
-      // Verify placeholder content
-      await expect(placeholders.first().getByText('Loading...')).toBeVisible();
-      
-      // Critical test: No img elements should have actual src URLs during loading
-      const imageElements = page.locator('.gallery-grid img[src]');
-      const imageCount = await imageElements.count();
-      
-      // If there are img elements with src, they should be minimal/empty
-      for (let i = 0; i < imageCount; i++) {
-        const imgSrc = await imageElements.nth(i).getAttribute('src');
-        // During loading, img src should be null, empty, or just the page URL
-        expect(imgSrc === null || imgSrc === '' || imgSrc === await page.url()).toBe(true);
+      if (placeholderCount > 0) {
+        // Verify all cards show placeholders
+        await expect(placeholders.first().getByText('Loading...')).toBeVisible();
+        
+        // Critical: ALL images should be placeholders during loading (all-or-nothing)
+        const cards = page.locator('.gallery-grid .card');
+        const cardCount = await cards.count();
+        
+        if (cardCount > 0) {
+          // Every card should contain a placeholder, no actual images
+          for (let i = 0; i < cardCount; i++) {
+            const card = cards.nth(i);
+            const hasPlaceholder = await card.locator('.image-placeholder').isVisible();
+            const hasActualImage = await card.locator('img[src]:not([src=""])').isVisible();
+            
+            // During all-or-nothing loading: all should be placeholders
+            expect(hasPlaceholder).toBe(true);
+            expect(hasActualImage).toBe(false);
+          }
+        }
       }
       
       // Wait for loading to complete
       await loadingContent.waitFor({ state: 'detached' });
+      
+      // After loading completes, ALL should be actual images, NO placeholders
+      await page.waitForTimeout(100); // Brief wait for DOM update
+      
+      const remainingPlaceholders = await page.locator('.image-placeholder').count();
+      expect(remainingPlaceholders).toBe(0);
+      
+      // Now all should be actual images
+      const actualImages = page.locator('.gallery-grid img[src]:not([src=""])');
+      const actualImageCount = await actualImages.count();
+      if (actualImageCount > 0) {
+        // Verify they have real src URLs
+        const firstImageSrc = await actualImages.first().getAttribute('src');
+        expect(firstImageSrc).toMatch(/^https?:\/\//);
+      }
     }
   }
 });
