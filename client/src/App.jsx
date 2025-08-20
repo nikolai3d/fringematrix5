@@ -52,12 +52,11 @@ export default function App() {
       return;
     }
     
-    // Otherwise, load images for this campaign
+    // Start loading process but don't block UI
     setIsCampaignLoading(true);
     setCampaignLoadProgress(0);
     setCampaignLoadTotal(0);
     setCampaignLoadError(false);
-    setImages([]);
     
     try {
       // Fetch image list for this campaign
@@ -72,37 +71,53 @@ export default function App() {
         return;
       }
       
-      // Preload all images for this campaign
+      // Create placeholder images immediately (gray squares)
+      const placeholderImages = campaignImages.map(img => ({
+        ...img,
+        isLoading: true,
+        loadedSrc: null
+      }));
+      setImages(placeholderImages);
+      
+      // Load images progressively in background
       let loadedCount = 0;
       let hasError = false;
       
-      await Promise.all(
-        campaignImages.map(
-          (img) =>
-            new Promise((resolve) => {
-              const image = new Image();
-              const done = () => {
-                loadedCount++;
-                setCampaignLoadProgress(loadedCount);
-                resolve();
-              };
-              image.onload = done;
-              image.onerror = () => {
-                hasError = true;
-                done();
-              };
-              image.src = img.src;
-            })
-        )
+      // Load images one by one and update them as they complete
+      const loadPromises = campaignImages.map((img, index) => 
+        new Promise((resolve) => {
+          const image = new Image();
+          const done = () => {
+            loadedCount++;
+            setCampaignLoadProgress(loadedCount);
+            
+            // Update this specific image in the array
+            setImages(prevImages => 
+              prevImages.map((prevImg, i) => 
+                i === index 
+                  ? { ...prevImg, isLoading: false, loadedSrc: img.src }
+                  : prevImg
+              )
+            );
+            resolve();
+          };
+          image.onload = done;
+          image.onerror = () => {
+            hasError = true;
+            done();
+          };
+          image.src = img.src;
+        })
       );
+      
+      await Promise.all(loadPromises);
       
       if (hasError) {
         setCampaignLoadError(true);
       }
       
-      // Update cache and display images
+      // Update cache with fully loaded images
       setImagesByCampaign(prev => ({ ...prev, [id]: campaignImages }));
-      setImages(campaignImages);
     } catch (error) {
       console.error('Failed to load campaign images:', error);
       setCampaignLoadError(true);
@@ -367,7 +382,7 @@ export default function App() {
         <div className="campaign-loading-bar" role="status" aria-label="Loading campaign">
           <div className="campaign-loading-content">
             <div className="campaign-loading-text">
-              Loading Campaign<span className="dots">{'.'.repeat(loadingDots)}</span>
+              Loading Images<span className="dots">{'.'.repeat(loadingDots)}</span>
             </div>
             <div className="campaign-progress-container">
               <div className="campaign-progress-bar">
@@ -377,7 +392,7 @@ export default function App() {
                 ></div>
               </div>
               <div className="campaign-progress-text">
-                {campaignLoadTotal > 0 ? `${campaignLoadProgress} / ${campaignLoadTotal}` : 'Preparing...'}
+                {campaignLoadTotal > 0 ? `${campaignLoadProgress} / ${campaignLoadTotal} loaded` : 'Preparing...'}
               </div>
             </div>
             {campaignLoadError && (
@@ -441,7 +456,21 @@ export default function App() {
           ) : (
             images.map((img, i) => (
               <div className="card" key={`${img.src}-${i}`}>
-                <img src={img.src} alt={img.fileName} loading="lazy" onClick={(e) => openLightbox(i, e.currentTarget)} />
+                {img.isLoading ? (
+                  <div className="image-placeholder">
+                    <div className="placeholder-content">
+                      <div className="placeholder-icon">📷</div>
+                      <div className="placeholder-text">Loading...</div>
+                    </div>
+                  </div>
+                ) : (
+                  <img 
+                    src={img.loadedSrc || img.src} 
+                    alt={img.fileName} 
+                    loading="lazy" 
+                    onClick={(e) => openLightbox(i, e.currentTarget)} 
+                  />
+                )}
                 <div className="filename">{img.fileName}</div>
               </div>
             ))

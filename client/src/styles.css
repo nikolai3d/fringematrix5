@@ -188,6 +188,63 @@ body {
   text-shadow: 0 0 2px rgba(255, 107, 107, 0.5);
 }
 
+/* Image placeholder for loading state */
+.image-placeholder {
+  width: 100%;
+  aspect-ratio: 1;
+  background: linear-gradient(135deg, 
+    rgba(137, 160, 179, 0.2) 0%,
+    rgba(137, 160, 179, 0.1) 50%,
+    rgba(137, 160, 179, 0.2) 100%
+  );
+  border: 1px solid rgba(137, 160, 179, 0.3);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.image-placeholder::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  animation: placeholder-shimmer 2s infinite ease-in-out;
+}
+
+@keyframes placeholder-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.placeholder-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 1;
+  position: relative;
+}
+
+.placeholder-icon {
+  font-size: 24px;
+  opacity: 0.6;
+  filter: grayscale(1);
+}
+
+.placeholder-text {
+  font-size: 12px;
+  color: var(--muted);
+  opacity: 0.8;
+  text-shadow: 0 0 2px rgba(137, 160, 179, 0.5);
+}
+
 /* Disabled button styles during campaign loading */
 .toolbar-button:disabled,
 .nav-arrow:disabled,

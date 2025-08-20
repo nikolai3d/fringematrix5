@@ -69,7 +69,7 @@ test('Sidebar campaign switch updates hash and gallery heading with loading', as
     const campaignLoader = page.getByRole('status', { name: 'Loading campaign' });
     if (await campaignLoader.isVisible().catch(() => false)) {
       await expect(campaignLoader).toBeVisible();
-      await expect(campaignLoader.getByText(/Loading Campaign/)).toBeVisible();
+      await expect(campaignLoader.getByText(/Loading Images/)).toBeVisible();
       await expect(campaignLoader.locator('.campaign-progress-bar')).toBeVisible();
       await campaignLoader.waitFor({ state: 'detached' });
     }
