@@ -207,6 +207,13 @@ test('Campaign loading disables UI interactions', async ({ page }) => {
       
       // After loading, buttons should be enabled again
       await expect(page.getByRole('button', { name: 'Campaigns' })).toBeEnabled();
+    } else {
+      // If loading content is not visible (images already cached), 
+      // buttons should remain enabled
+      const navButtons = page.locator('.nav-arrow');
+      for (let i = 0; i < await navButtons.count(); i++) {
+        await expect(navButtons.nth(i)).toBeEnabled();
+      }
     }
   }
 });
