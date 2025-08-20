@@ -230,12 +230,13 @@ export default function App() {
         const hash = window.location.hash.replace('#', '');
         const initial = (data.campaigns || []).find((c) => c.id === hash) || (data.campaigns || [])[0];
         
-        if (isMounted) setIsPreloading(false);
-        
         if (initial) {
           // Use selectCampaign to handle the initial campaign loading
           await selectCampaign(initial.id);
         }
+        
+        // Only hide the main loader after everything is ready
+        if (isMounted) setIsPreloading(false);
       } catch (e) {
         console.error(e);
         setLoadingError(true);
