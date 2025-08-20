@@ -73,7 +73,9 @@ export default function App() {
       
       // Create placeholder images immediately (gray squares)
       const placeholderImages = campaignImages.map(img => ({
-        ...img,
+        fileName: img.fileName,
+        originalSrc: img.src, // Store original URL separately
+        src: null, // Don't provide src until loaded
         isLoading: true,
         loadedSrc: null
       }));
@@ -95,7 +97,7 @@ export default function App() {
             setImages(prevImages => 
               prevImages.map((prevImg, i) => 
                 i === index 
-                  ? { ...prevImg, isLoading: false, loadedSrc: img.src }
+                  ? { ...prevImg, isLoading: false, src: img.src, loadedSrc: img.src }
                   : prevImg
               )
             );

@@ -197,6 +197,56 @@ test('Campaign loading disables UI interactions', async ({ page }) => {
   }
 });
 
+test('Campaign loading shows only placeholders, not actual images', async ({ page }) => {
+  // Wait for initial loading to complete
+  const loader = page.getByRole('dialog', { name: 'Loading' });
+  if (await loader.isVisible().catch(() => false)) {
+    await loader.waitFor({ state: 'detached' });
+  }
+
+  // Open campaigns sidebar
+  await page.getByRole('button', { name: 'Campaigns' }).click();
+  const sidebar = page.locator('#campaign-sidebar');
+  await expect(sidebar).toHaveClass(/open/);
+
+  const sidebarButtons = sidebar.getByRole('button');
+  const buttonCount = await sidebarButtons.count();
+  
+  if (buttonCount > 1) {
+    // Click a different campaign to trigger loading
+    const second = sidebarButtons.nth(1);
+    await second.click();
+    
+    // Check for loading state
+    const progressArea = page.getByRole('status', { name: 'Campaign loading status' });
+    const loadingContent = progressArea.locator('.campaign-loading-content');
+    
+    if (await loadingContent.isVisible().catch(() => false)) {
+      // During loading, should only see placeholders, not actual images
+      const placeholders = page.locator('.image-placeholder');
+      const placeholderCount = await placeholders.count();
+      expect(placeholderCount).toBeGreaterThan(0);
+      
+      // Verify placeholder content
+      await expect(placeholders.first().getByText('Loading...')).toBeVisible();
+      
+      // Critical test: No img elements should have actual src URLs during loading
+      const imageElements = page.locator('.gallery-grid img[src]');
+      const imageCount = await imageElements.count();
+      
+      // If there are img elements with src, they should be minimal/empty
+      for (let i = 0; i < imageCount; i++) {
+        const imgSrc = await imageElements.nth(i).getAttribute('src');
+        // During loading, img src should be null, empty, or just the page URL
+        expect(imgSrc === null || imgSrc === '' || imgSrc === await page.url()).toBe(true);
+      }
+      
+      // Wait for loading to complete
+      await loadingContent.waitFor({ state: 'detached' });
+    }
+  }
+});
+
 test('Lightbox opens and navigates images', async ({ page }) => {
   const loader = page.getByRole('dialog', { name: 'Loading' });
   if (await loader.isVisible().catch(() => false)) {
