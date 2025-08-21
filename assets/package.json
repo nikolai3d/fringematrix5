@@ -15,6 +15,6 @@
     "@vercel/blob": "^0.23.4"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   }
 }

@@ -6,7 +6,7 @@ A digital archive for fan-created avatar images, built with React frontend and E
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 22+
 - NPM
 
 ### Development Setup
