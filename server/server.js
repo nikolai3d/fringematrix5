@@ -1,8 +1,12 @@
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
-const yaml = require('js-yaml');
-const { list } = require('@vercel/blob');
+import express from 'express';
+import path from 'path';
+import fs from 'fs';
+import yaml from 'js-yaml';
+import { list } from '@vercel/blob';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Auto-load .env.local if it exists (like in our migration script)
 const ENV_LOCAL_PATH = path.join(__dirname, '..', '.env.local');
@@ -272,11 +276,11 @@ app.get('*', (req, res) => {
 });
 
 // Only start the server if this file is executed directly (not when imported for tests)
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   app.listen(PORT, () => {
     console.log(`Fringe Matrix backend running on http://localhost:${PORT}`);
   });
 }
 
 // Export the app for testing
-module.exports = app;
+export default app;

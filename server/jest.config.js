@@ -1,6 +1,8 @@
 /** @type {import('jest').Config} */
-module.exports = {
+export default {
   testEnvironment: 'node',
+  transform: {},
+  setupFilesAfterEnv: [],
   roots: ['<rootDir>/test'],
   testMatch: ['**/?(*.)+(test).[jt]s?(x)'],
   collectCoverage: true,

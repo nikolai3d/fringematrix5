@@ -1,9 +1,14 @@
-const request = require('supertest');
-const path = require('path');
-const fs = require('fs');
+import request from 'supertest';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Import the Express app without starting the listener
-const app = require('../server');
+import app from '../server.js';
 
 describe('API contract', () => {
   describe('GET /api/campaigns', () => {

@@ -25,7 +25,7 @@ export default defineConfig({
   ],
   // Start backend server; client build is triggered by the e2e npm script before tests
   webServer: {
-    command: 'node ../server/server.js',
+    command: 'cd .. && node server/server.js',
     url: 'http://localhost:3000',
     reuseExistingServer: true,
     timeout: 120_000,
