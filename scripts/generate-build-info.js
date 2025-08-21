@@ -136,12 +136,12 @@ function writeBuildInfo(buildInfo) {
 }
 
 // Main execution
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   const buildInfo = generateBuildInfo();
   writeBuildInfo(buildInfo);
 }
 
-module.exports = {
+export {
   generateBuildInfo,
   writeBuildInfo,
   isDeploymentEnvironment,
