@@ -196,7 +196,13 @@ test('Campaign loading disables UI interactions', async ({ page }) => {
     const progressArea = page.getByRole('status', { name: 'Campaign loading status' });
     const loadingContent = progressArea.locator('.campaign-loading-content');
     
-    if (await loadingContent.isVisible().catch(() => false)) {
+    // Wait for loading content to appear AND buttons to be disabled
+    try {
+      await loadingContent.waitFor({ state: 'visible', timeout: 1000 });
+      // Once loading content is visible, wait for the first navigation button to be disabled
+      // This ensures the React state update has propagated to disable all buttons
+      await expect(page.locator('.nav-arrow').first()).toBeDisabled({ timeout: 2000 });
+      
       // During loading, navigation buttons should be disabled
       const navButtons = page.locator('.nav-arrow');
       for (let i = 0; i < await navButtons.count(); i++) {
@@ -213,8 +219,8 @@ test('Campaign loading disables UI interactions', async ({ page }) => {
       
       // After loading, buttons should be enabled again
       await expect(page.getByRole('button', { name: 'Campaigns' })).toBeEnabled();
-    } else {
-      // If loading content is not visible (images already cached), 
+    } catch (e) {
+      // If loading content doesn't appear (images already cached), 
       // buttons should remain enabled
       const navButtons = page.locator('.nav-arrow');
       for (let i = 0; i < await navButtons.count(); i++) {
