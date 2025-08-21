@@ -37,10 +37,13 @@ vercel --confirm
 
 ### 3. Test Local Development
 ```bash
-# Install Vercel CLI locally for testing
-npm install -g vercel
+# Install dependencies (unified npm structure)
+npm ci
 
-# Test the serverless function locally
+# Test the full application locally
+npm run dev
+
+# Or test with Vercel CLI for serverless function testing
 vercel dev
 ```
 
@@ -78,9 +81,9 @@ Once connected to GitHub:
 ## Build Process
 
 Vercel automatically:
-1. Installs server dependencies: `npm ci --prefix server`
-2. Installs client dependencies: `npm ci --prefix client`  
-3. Builds React app: `npm run build --prefix client`
+1. Installs dependencies: `npm ci` (unified package.json)
+2. Generates build info: `npm run generate:build-info`
+3. Builds React app: `npm run build:client`
 4. Deploys serverless function: `api/index.js`
 
 ## URL Management
@@ -143,14 +146,15 @@ If something goes wrong:
 
 ## Local Development
 
-Development workflow remains the same:
+Development workflow (unified npm structure):
 ```bash
-# Terminal 1: Start backend
-cd server && npm run dev
-
-# Terminal 2: Start frontend  
-cd client && npm run dev
+# Start both backend and frontend concurrently
+npm run dev
 ```
+
+This automatically starts:
+- Backend server on `http://localhost:3000`
+- Frontend dev server (proxied through backend)
 
 The proxy configuration in `client/vite.config.js` handles API routing in development.
 
