@@ -85,13 +85,13 @@ const CACHE_TTL = 15000; // 15 seconds
 
 ```bash
 # Run all e2e tests (2 workers)
-npm run e2e
+npm run test:e2e
 
 # Run with browser visible
-npm run e2e:headed
+npm run test:e2e:headed
 
 # View test report
-npm run e2e:report
+npm run test:e2e:report
 ```
 
 ### Conservative Mode
@@ -100,7 +100,7 @@ If you're hitting rate limits frequently:
 
 ```bash
 # Use extra conservative settings (1 worker, longer timeouts)
-npm run e2e:conservative
+npm run test:e2e:conservative
 ```
 
 ### Build Process
@@ -186,7 +186,7 @@ cd e2e && npx playwright test
 ```bash
 # Force full rebuild (includes build-info generation)
 npm run build
-npm run e2e
+npm run test:e2e
 ```
 
 ## Best Practices
@@ -196,7 +196,7 @@ npm run e2e
 1. **Start with conservative settings** when debugging
 2. **Monitor server logs** for rate limit warnings
 3. **Run targeted tests** instead of full suite during development
-4. **Use headed mode** for debugging: `npm run e2e:headed`
+4. **Use headed mode** for debugging: `npm run test:e2e:headed`
 
 ### For CI/CD
 
@@ -215,7 +215,7 @@ npm run e2e
 The `.github/workflows/ci.yml` includes:
 ```yaml
 - name: Run Playwright tests
-  run: npm run e2e --prefix e2e
+  run: npm run test:e2e
   env:
     BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
 ```

@@ -16,10 +16,8 @@ A digital archive for fan-created avatar images, built with React frontend and E
 git clone <repository-url>
 cd fringematrix
 
-# Install dependencies
-npm --prefix server install
-npm --prefix client install
-npm --prefix e2e install
+# Install dependencies (unified package.json)
+npm install
 
 # Start development servers
 npm run dev
@@ -95,16 +93,16 @@ npm test
 
 ```bash
 # Install Playwright browsers (one-time)
-npx --prefix e2e playwright install --with-deps
+npx playwright install --with-deps
 
 # Run e2e tests
-npm run e2e
+npm run test:e2e
 
 # Run with browser visible
-npm --prefix e2e run e2e:headed
+npm run test:e2e:headed
 
 # View test report
-npm --prefix e2e run e2e:report
+npm run test:e2e:report
 ```
 
 **Note**: E2E tests require `BLOB_READ_WRITE_TOKEN` for full functionality. Without it, tests run with empty image data (fallback mode).
