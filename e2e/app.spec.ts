@@ -126,7 +126,7 @@ test('Build Info shows correct values for environment', async ({ page }) => {
     // In CI, should show actual commit hash (40 characters)
     expect(commitValue).toMatch(/^[a-f0-9]{40}$/);
   } else {
-    // In local development, can show DEV-LOCAL or dev-local depending on build-info.json
+    // In local development, can show `DEV-LOCAL` or `dev-local` depending on build-info.json
     expect(commitValue).toMatch(/^(DEV-LOCAL|dev-local|N\/A)$/);
   }
   
