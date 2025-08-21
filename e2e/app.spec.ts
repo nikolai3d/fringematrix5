@@ -134,7 +134,13 @@ test('Build Info shows correct values for environment', async ({ page }) => {
   
   // Build time should always have a valid timestamp
   const buildTimeRow = buildDialog.locator('.row').filter({ hasText: 'Time of build:' });
-  const buildTimeText = await buildTimeRow.locator('.value').textContent();
+  const buildTimeValue = buildTimeRow.locator('.value');
+  
+  // Wait for the build time to be populated (not N/A)
+  await expect(buildTimeValue).not.toHaveText('N/A');
+  await expect(buildTimeValue).not.toHaveText('');
+  
+  const buildTimeText = await buildTimeValue.textContent();
   expect(buildTimeText).not.toBe('N/A');
   expect(buildTimeText).not.toBe('');
   
