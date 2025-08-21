@@ -25,6 +25,7 @@ export default function App() {
   const [campaignLoadProgress, setCampaignLoadProgress] = useState(0);
   const [campaignLoadTotal, setCampaignLoadTotal] = useState(0);
   const [campaignLoadError, setCampaignLoadError] = useState(false);
+  const isCampaignLoadingRef = useRef(false);
   const shareBtnRef = useRef(null);
   const buildBtnRef = useRef(null);
   const [shareStyle, setShareStyle] = useState({});
@@ -40,8 +41,13 @@ export default function App() {
     [campaigns, activeCampaignId]
   );
 
+  // Keep the ref in sync with the state
+  useEffect(() => {
+    isCampaignLoadingRef.current = isCampaignLoading;
+  }, [isCampaignLoading]);
+
   const selectCampaign = useCallback(async (id) => {
-    if (isCampaignLoading) return;
+    if (isCampaignLoadingRef.current) return;
     
     setActiveCampaignId(id);
     window.history.replaceState({}, '', `#${id}`);
@@ -127,7 +133,7 @@ export default function App() {
     } finally {
       setIsCampaignLoading(false);
     }
-  }, [imagesByCampaign, isCampaignLoading]);
+  }, [imagesByCampaign]);
 
   const activeIndex = useMemo(() => {
     if (!activeCampaignId) return -1;
