@@ -14,7 +14,7 @@ A digital archive for fan-created avatar images, built with React frontend and E
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd fringematrix
+cd fringematrix5
 
 # Install dependencies (unified package.json)
 npm install
@@ -40,12 +40,13 @@ npm start
 ## Project Structure
 
 ```
-fringematrix/
+fringematrix5/
 ├── client/          # React frontend (Vite)
 ├── server/          # Express backend
 ├── e2e/             # Playwright end-to-end tests
 ├── data/            # Campaign configuration (YAML)
 ├── avatars/         # Avatar images (served from Vercel Blob CDN)
+├── assets/          # Migration scripts and utilities
 ├── scripts/         # Build utilities
 └── deploy/          # Legacy deployment scripts (deprecated)
 ```

@@ -35,24 +35,24 @@ If you don't have blob storage set up yet:
 **The script automatically loads `.env.local`** - no manual setup needed!
 ```bash
 # See what would be uploaded
-node assets/migrate-to-blob.js --dry-run
+node assets/migrate-to-blob.mjs --dry-run
 
 # Upload everything
-node assets/migrate-to-blob.js
+node assets/migrate-to-blob.mjs
 
 # Upload specific campaign only
-node assets/migrate-to-blob.js --campaign=Season4
+node assets/migrate-to-blob.mjs --campaign=Season4
 ```
 
 ## Migration Script Options
 
-### `migrate-to-blob.js`
+### `migrate-to-blob.mjs`
 
 **Purpose**: Upload all avatar images to Vercel Blob Storage while preserving directory structure.
 
 **Usage**:
 ```bash
-node assets/migrate-to-blob.js [options]
+node assets/migrate-to-blob.mjs [options]
 ```
 
 **Options**:
@@ -64,16 +64,16 @@ node assets/migrate-to-blob.js [options]
 **Examples**:
 ```bash
 # Preview what will be uploaded
-node assets/migrate-to-blob.js --dry-run
+node assets/migrate-to-blob.mjs --dry-run
 
 # Upload only Season 4 images
-node assets/migrate-to-blob.js --campaign=Season4
+node assets/migrate-to-blob.mjs --campaign=Season4
 
 # Force re-upload everything (overwrite existing)
-node assets/migrate-to-blob.js --force
+node assets/migrate-to-blob.mjs --force
 
 # Upload everything (skips existing files)
-node assets/migrate-to-blob.js
+node assets/migrate-to-blob.mjs
 ```
 
 ## Current Directory Structure
@@ -142,7 +142,7 @@ export BLOB_READ_WRITE_TOKEN=vercel_blob_rw_xxxxxxxxxxxxx
 
 **Inline with Command**:
 ```bash
-BLOB_READ_WRITE_TOKEN=your_token node assets/migrate-to-blob.js --dry-run
+BLOB_READ_WRITE_TOKEN=your_token node assets/migrate-to-blob.mjs --dry-run
 ```
 
 ### Loading `.env.local` into Shell
@@ -162,14 +162,14 @@ export $(grep -v '^#' .env.local | xargs)
 **Method 3: Use with `dotenv` CLI**
 ```bash
 npm install -g dotenv-cli
-dotenv node assets/migrate-to-blob.js --dry-run
+dotenv node assets/migrate-to-blob.mjs --dry-run
 ```
 
 **Method 4: Auto-loading (Built into our script)**
 ```bash
 # Our migration script automatically loads .env.local
 # No manual environment setup needed!
-node assets/migrate-to-blob.js --dry-run
+node assets/migrate-to-blob.mjs --dry-run
 ```
 
 **Vercel Dashboard Setup** (if blob storage doesn't exist):
@@ -199,12 +199,12 @@ After successful migration:
 
 ### "BLOB_READ_WRITE_TOKEN environment variable is required"
 - **Get the token**: `vercel env pull` (creates/updates `.env.local`)
-- **Run the script**: `node assets/migrate-to-blob.js --dry-run` (auto-loads `.env.local`)
+- **Run the script**: `node assets/migrate-to-blob.mjs --dry-run` (auto-loads `.env.local`)
 - **If still getting this error**: Check that `.env.local` contains `BLOB_READ_WRITE_TOKEN=...`
 - **If `.env.local` is empty**: You may need to create blob storage in Vercel Dashboard first
 
 ### "Avatars directory not found"  
-- Run script from project root: `node assets/migrate-to-blob.js`
+- Run script from project root: `node assets/migrate-to-blob.mjs`
 - Check that `avatars/` directory exists
 
 ### "Campaign directory not found"

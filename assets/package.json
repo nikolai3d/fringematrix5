@@ -4,12 +4,12 @@
   "private": true,
   "description": "Asset management and migration scripts for Fringe Matrix Gallery",
   "scripts": {
-    "migrate": "node migrate-to-blob.js",
-    "migrate:dry-run": "node migrate-to-blob.js --dry-run",
-    "migrate:season4": "node migrate-to-blob.js --campaign=Season4",
-    "migrate:season5": "node migrate-to-blob.js --campaign=Season5",
-    "migrate:force": "node migrate-to-blob.js --force",
-    "help": "node migrate-to-blob.js --help"
+    "migrate": "node migrate-to-blob.mjs",
+    "migrate:dry-run": "node migrate-to-blob.mjs --dry-run",
+    "migrate:season4": "node migrate-to-blob.mjs --campaign=Season4",
+    "migrate:season5": "node migrate-to-blob.mjs --campaign=Season5",
+    "migrate:force": "node migrate-to-blob.mjs --force",
+    "help": "node migrate-to-blob.mjs --help"
   },
   "dependencies": {
     "@vercel/blob": "^0.23.4"

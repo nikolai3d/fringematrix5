@@ -11,7 +11,7 @@
  * 2. Set environment variable: BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
  * 
  * Usage:
- *   node assets/migrate-to-blob.js [--dry-run] [--campaign=Season4]
+ *   node assets/migrate-to-blob.mjs [--dry-run] [--campaign=Season4]
  * 
  * Options:
  *   --dry-run      Show what would be uploaded without actually uploading
@@ -90,7 +90,7 @@ Vercel Blob Migration Script
 Uploads avatar images from local filesystem to Vercel Blob Storage.
 
 Usage:
-  node assets/migrate-to-blob.js [options]
+  node assets/migrate-to-blob.mjs [options]
 
 Options:
   --dry-run              Show what would be uploaded without uploading
@@ -103,9 +103,9 @@ Prerequisites:
   2. Set BLOB_READ_WRITE_TOKEN environment variable
 
 Examples:
-  node assets/migrate-to-blob.js --dry-run
-  node assets/migrate-to-blob.js --campaign=Season4
-  node assets/migrate-to-blob.js --force
+  node assets/migrate-to-blob.mjs --dry-run
+  node assets/migrate-to-blob.mjs --campaign=Season4
+  node assets/migrate-to-blob.mjs --force
 `);
   process.exit(0);
 }

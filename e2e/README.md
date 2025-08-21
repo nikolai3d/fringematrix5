@@ -33,7 +33,7 @@ We've implemented several protections to handle this:
 
 ```typescript
 export default defineConfig({
-  workers: process.env.CI ? 1 : 2, // Auto-adjust: 1 in CI, 2 locally
+  workers: process.env.CI ? 2 : 2, // Use 2 workers in CI, 2 locally
   fullyParallel: false, // Prevent too many concurrent requests
   timeout: process.env.CI ? 120_000 : 90_000, // 2min in CI, 90s locally
   use: {
