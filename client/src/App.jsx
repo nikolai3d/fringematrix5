@@ -339,7 +339,7 @@ export default function App() {
       }
     })();
     return () => { isMounted = false; };
-  }, []); // On mount: initializes app state, fetches campaigns and images, handles errors, and manages preloading state
+  }, []); // On mount: initializes app state, fetches campaigns and images, handles errors, and manages per-campaign loading state
 
   // Animated dots for the CRT loader
   useEffect(() => {
