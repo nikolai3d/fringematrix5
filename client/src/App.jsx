@@ -21,6 +21,11 @@ export default function App() {
   const [preloadLoaded, setPreloadLoaded] = useState(0);
   const [preloadTotal, setPreloadTotal] = useState(0);
   const [loadingError, setLoadingError] = useState(false);
+  const [isCampaignLoading, setIsCampaignLoading] = useState(false);
+  const [campaignLoadProgress, setCampaignLoadProgress] = useState(0);
+  const [campaignLoadTotal, setCampaignLoadTotal] = useState(0);
+  const [campaignLoadError, setCampaignLoadError] = useState(false);
+  const isCampaignLoadingRef = useRef(false);
   const shareBtnRef = useRef(null);
   const buildBtnRef = useRef(null);
   const [shareStyle, setShareStyle] = useState({});
@@ -36,10 +41,98 @@ export default function App() {
     [campaigns, activeCampaignId]
   );
 
+  // Keep the ref in sync with the state
+  useEffect(() => {
+    isCampaignLoadingRef.current = isCampaignLoading;
+  }, [isCampaignLoading]);
+
   const selectCampaign = useCallback(async (id) => {
+    if (isCampaignLoadingRef.current) return;
+    
     setActiveCampaignId(id);
     window.history.replaceState({}, '', `#${id}`);
-    setImages(imagesByCampaign[id]);
+    
+    // If images are already loaded, just set them
+    if (imagesByCampaign[id]) {
+      setImages(imagesByCampaign[id]);
+      return;
+    }
+    
+    // Start loading process but don't block UI
+    setIsCampaignLoading(true);
+    setCampaignLoadProgress(0);
+    setCampaignLoadTotal(0);
+    setCampaignLoadError(false);
+    
+    try {
+      // Fetch image list for this campaign
+      const res = await fetchJSON(`/api/campaigns/${id}/images`);
+      const campaignImages = res.images || [];
+      
+      setCampaignLoadTotal(campaignImages.length);
+      
+      if (campaignImages.length === 0) {
+        setImages([]);
+        setIsCampaignLoading(false);
+        return;
+      }
+      
+      // Create placeholder images immediately (gray squares)
+      const placeholderImages = campaignImages.map(img => ({
+        fileName: img.fileName,
+        originalSrc: img.src, // Store original URL separately
+        src: null, // Don't provide src until loaded
+        isLoading: true,
+        loadedSrc: null
+      }));
+      setImages(placeholderImages);
+      
+      // Load all images in background, but keep all as placeholders until ALL are done
+      let loadedCount = 0;
+      let hasError = false;
+      
+      // Load all images in parallel, but don't show any until all are complete
+      const loadPromises = campaignImages.map((img) => 
+        new Promise((resolve) => {
+          const image = new Image();
+          const done = () => {
+            loadedCount++;
+            setCampaignLoadProgress(loadedCount);
+            resolve();
+          };
+          image.onload = done;
+          image.onerror = () => {
+            hasError = true;
+            done();
+          };
+          image.src = img.src;
+        })
+      );
+      
+      await Promise.all(loadPromises);
+      
+      if (hasError) {
+        setCampaignLoadError(true);
+      }
+      
+      // ALL images are now loaded - show them all at once
+      const fullyLoadedImages = campaignImages.map(img => ({
+        ...img,
+        isLoading: false,
+        loadedSrc: img.src
+      }));
+      
+      setImages(fullyLoadedImages);
+      
+      // Update cache with fully loaded images
+      setImagesByCampaign(prev => ({ ...prev, [id]: campaignImages }));
+    } catch (error) {
+      console.error('Failed to load campaign images:', error);
+      setCampaignLoadError(true);
+      setImages([]);
+    } finally {
+      setIsCampaignLoading(false);
+    }
   }, [imagesByCampaign]);
 
   const activeIndex = useMemo(() => {
@@ -156,65 +249,97 @@ export default function App() {
         if (!isMounted) return;
         setCampaigns(data.campaigns || []);
 
-        // Fetch image lists for all campaigns
-        const lists = await Promise.all(
-          (data.campaigns || []).map(async (c) => {
-            try {
-              const res = await fetchJSON(`/api/campaigns/${c.id}/images`);
-              return { id: c.id, images: res.images || [] };
-            } catch (e) {
-              console.error('Failed to fetch images for campaign', c.id, e);
-              return { id: c.id, images: [] };
-            }
-          })
-        );
-        if (!isMounted) return;
-        const map = Object.fromEntries(lists.map((x) => [x.id, x.images]));
-        setImagesByCampaign(map);
-
-        // Compute all image URLs and preload them before showing the app
-        const allUrls = lists.flatMap((x) => x.images.map((img) => img.src));
-        setPreloadTotal(allUrls.length);
-
-        let hadError = false;
-        await Promise.all(
-          allUrls.map(
-            (src) =>
-              new Promise((resolve) => {
-                const img = new Image();
-                const done = () => {
-                  if (isMounted) setPreloadLoaded((n) => n + 1);
-                  resolve();
-                };
-                img.onload = done;
-                img.onerror = () => { hadError = true; done(); };
-                img.src = src;
-              })
-          )
-        );
-        if (!isMounted) return;
-        if (hadError) {
-          setLoadingError(true);
-        }
-
-        // Choose initial campaign and show app
+        // Choose initial campaign and load its images
         const hash = window.location.hash.replace('#', '');
         const initial = (data.campaigns || []).find((c) => c.id === hash) || (data.campaigns || [])[0];
-         if (initial) {
+        
+        if (initial) {
+          // Manually load the initial campaign without using selectCampaign to avoid dependency
           setActiveCampaignId(initial.id);
           window.history.replaceState({}, '', `#${initial.id}`);
-          setImages(map[initial.id] || []);
+          
+          // Start loading the initial campaign
+          setIsCampaignLoading(true);
+          setCampaignLoadProgress(0);
+          setCampaignLoadTotal(0);
+          setCampaignLoadError(false);
+          
+          try {
+            const res = await fetchJSON(`/api/campaigns/${initial.id}/images`);
+            const campaignImages = res.images || [];
+            
+            setCampaignLoadTotal(campaignImages.length);
+            
+            if (campaignImages.length === 0) {
+              setImages([]);
+            } else {
+              // Create placeholder images
+              const placeholderImages = campaignImages.map(img => ({
+                fileName: img.fileName,
+                originalSrc: img.src,
+                src: null,
+                isLoading: true,
+                loadedSrc: null
+              }));
+              setImages(placeholderImages);
+              
+              // Load all images
+              let loadedCount = 0;
+              let hasError = false;
+              
+              const loadPromises = campaignImages.map((img) => 
+                new Promise((resolve) => {
+                  const image = new Image();
+                  const done = () => {
+                    loadedCount++;
+                    setCampaignLoadProgress(loadedCount);
+                    resolve();
+                  };
+                  image.onload = done;
+                  image.onerror = () => {
+                    hasError = true;
+                    done();
+                  };
+                  image.src = img.src;
+                })
+              );
+              
+              await Promise.all(loadPromises);
+              
+              if (hasError) {
+                setCampaignLoadError(true);
+              }
+              
+              // Show all images at once
+              const fullyLoadedImages = campaignImages.map(img => ({
+                ...img,
+                isLoading: false,
+                loadedSrc: img.src
+              }));
+              
+              setImages(fullyLoadedImages);
+              setImagesByCampaign(prev => ({ ...prev, [initial.id]: campaignImages }));
+            }
+          } catch (error) {
+            console.error('Failed to load initial campaign images:', error);
+            setCampaignLoadError(true);
+            setImages([]);
+          } finally {
+            setIsCampaignLoading(false);
+          }
         }
-         if (isMounted) setIsPreloading(false);
+        
+        // Only hide the main loader after everything is ready
+        if (isMounted) setIsPreloading(false);
       } catch (e) {
         console.error(e);
         setLoadingError(true);
         alert('Failed to initialize app. Check console for details.');
-         if (isMounted) setIsPreloading(false);
+        if (isMounted) setIsPreloading(false);
       }
     })();
     return () => { isMounted = false; };
-  }, []);
+  }, []); // On mount: initializes app state, fetches campaigns and images, handles errors, and manages per-campaign loading state
 
   // Animated dots for the CRT loader
   useEffect(() => {
@@ -298,6 +423,7 @@ export default function App() {
             aria-expanded={isSidebarOpen}
             aria-controls="campaign-sidebar"
             onClick={toggleSidebar}
+            disabled={isCampaignLoading}
           >
             Campaigns
           </button>
@@ -306,6 +432,7 @@ export default function App() {
             ref={shareBtnRef}
             aria-pressed={isShareOpen}
             onClick={toggleShare}
+            disabled={isCampaignLoading}
           >
             Share
           </button>
@@ -314,6 +441,7 @@ export default function App() {
             ref={buildBtnRef}
             aria-pressed={isBuildInfoOpen}
             onClick={toggleBuildInfo}
+            disabled={isCampaignLoading}
           >
             Build Info
           </button>
@@ -321,13 +449,39 @@ export default function App() {
       </div>
       <header className="navbar" id="top-navbar">
         <div className="navbar-inner">
-          <button className="nav-arrow" aria-label="Previous campaign" onClick={goToPrevCampaign}>◀</button>
+          <button className="nav-arrow" aria-label="Previous campaign" onClick={goToPrevCampaign} disabled={isCampaignLoading}>◀</button>
           <div className="current-campaign" data-testid="current-campaign-top" title={activeCampaign ? `#${activeCampaign.hashtag}` : ''}>
             {activeCampaign ? `#${activeCampaign.hashtag}` : ''}
           </div>
-          <button className="nav-arrow" aria-label="Next campaign" onClick={goToNextCampaign}>▶</button>
+          <button className="nav-arrow" aria-label="Next campaign" onClick={goToNextCampaign} disabled={isCampaignLoading}>▶</button>
         </div>
       </header>
+
+      <div className="campaign-progress-area" role="status" aria-label="Campaign loading status">
+        {isCampaignLoading && (
+          <div className="campaign-loading-content">
+            <div className="campaign-loading-text">
+              Loading Images<span className="dots">{'.'.repeat(loadingDots)}</span>
+            </div>
+            <div className="campaign-progress-container">
+              <div className="campaign-progress-bar">
+                <div 
+                  className="campaign-progress-fill"
+                  style={{ width: campaignLoadTotal > 0 ? `${(campaignLoadProgress / campaignLoadTotal) * 100}%` : '0%' }}
+                ></div>
+              </div>
+              <div className="campaign-progress-text">
+                {campaignLoadTotal > 0 ? `${campaignLoadProgress} / ${campaignLoadTotal} loaded` : 'Preparing...'}
+              </div>
+            </div>
+            {campaignLoadError && (
+              <div className="campaign-error-text">
+                Some images failed to load
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <aside id="campaign-sidebar" className={`sidebar${isSidebarOpen ? ' open' : ''}`} aria-hidden={!isSidebarOpen}>
         <div className="sidebar-header">All Campaigns</div>
@@ -337,6 +491,7 @@ export default function App() {
               key={c.id}
               className={`sidebar-item${c.id === activeCampaignId ? ' active' : ''}`}
               onClick={async () => { await selectCampaign(c.id); closeSidebar(); }}
+              disabled={isCampaignLoading}
             >
               #{c.hashtag}
             </button>
@@ -380,7 +535,21 @@ export default function App() {
           ) : (
             images.map((img, i) => (
               <div className="card" key={`${img.src}-${i}`}>
-                <img src={img.src} alt={img.fileName} loading="lazy" onClick={(e) => openLightbox(i, e.currentTarget)} />
+                {img.isLoading ? (
+                  <div className="image-placeholder">
+                    <div className="placeholder-content">
+                      <div className="placeholder-icon">📷</div>
+                      <div className="placeholder-text">Loading...</div>
+                    </div>
+                  </div>
+                ) : (
+                  <img 
+                    src={img.loadedSrc || img.src} 
+                    alt={img.fileName} 
+                    loading="lazy" 
+                    onClick={(e) => openLightbox(i, e.currentTarget)} 
+                  />
+                )}
                 <div className="filename">{img.fileName}</div>
               </div>
             ))
@@ -454,11 +623,11 @@ export default function App() {
 
       <footer className="navbar" id="bottom-navbar">
         <div className="navbar-inner">
-          <button className="nav-arrow" aria-label="Previous campaign" onClick={goToPrevCampaign}>◀</button>
+          <button className="nav-arrow" aria-label="Previous campaign" onClick={goToPrevCampaign} disabled={isCampaignLoading}>◀</button>
           <div className="current-campaign" data-testid="current-campaign-bottom" title={activeCampaign ? `#${activeCampaign.hashtag}` : ''}>
             {activeCampaign ? `#${activeCampaign.hashtag}` : ''}
           </div>
-          <button className="nav-arrow" aria-label="Next campaign" onClick={goToNextCampaign}>▶</button>
+          <button className="nav-arrow" aria-label="Next campaign" onClick={goToNextCampaign} disabled={isCampaignLoading}>▶</button>
         </div>
       </footer>
 
