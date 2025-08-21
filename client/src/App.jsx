@@ -339,7 +339,7 @@ export default function App() {
       }
     })();
     return () => { isMounted = false; };
-  }, []); // Empty dependency array - only run once on mount
+  }, []); // On mount: initializes app state, fetches campaigns and images, handles errors, and manages preloading state
 
   // Animated dots for the CRT loader
   useEffect(() => {
