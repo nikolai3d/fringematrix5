@@ -1,6 +1,6 @@
 # Fringe Matrix Gallery
 
-A digital archive for fan-created avatar images, built with React frontend and Express backend.
+A digital archive for fan-created avatar images, built with React + TypeScript frontend and Express + TypeScript backend.
 
 ## Quick Start
 
@@ -41,8 +41,15 @@ npm start
 
 ```
 fringematrix5/
-├── client/          # React frontend (Vite)
-├── server/          # Express backend
+├── client/          # React + TypeScript frontend (Vite)
+│   ├── src/         # TypeScript source files
+│   ├── test/        # Client-side tests
+│   └── tsconfig.json # TypeScript configuration
+├── server/          # Express + TypeScript backend
+│   ├── server.ts    # Main server entry point
+│   ├── test/        # Server-side tests
+│   ├── tsconfig.json # TypeScript configuration
+│   └── jest.config.js # Jest configuration
 ├── e2e/             # Playwright end-to-end tests
 ├── data/            # Campaign configuration (YAML)
 ├── avatars/         # Avatar images (served from Vercel Blob CDN)
@@ -75,35 +82,93 @@ BLOB_READ_WRITE_TOKEN=your-vercel-blob-token
 - Tests will still run successfully but without real avatar images
 - Server logs will show: `⚪ Blob API: Disabled (no token - using fallback for testing)`
 
-## Testing
+## Available Commands
 
-### Unit Tests
+### Development Commands
 
 ```bash
-# Test server
-npm run test:server
+# Start both client and server in development mode
+npm run dev
 
-# Test client  
-npm run test:client
+# Start only the server (TypeScript)
+npm run dev:server
 
-# Test all
-npm test
+# Start only the client (Vite dev server)
+npm run dev:client
+
+# Preview production build locally
+npm run preview
 ```
 
-### End-to-End Tests
+### Build Commands
 
 ```bash
-# Install Playwright browsers (one-time)
+# Full production build (includes build info generation)
+npm run build
+
+# Build only the client
+npm run build:client
+
+# Generate build info only
+npm run generate:build-info
+```
+
+### Testing Commands
+
+#### Unit Tests
+```bash
+# Run all tests (server + client)
+npm test
+
+# Test server only
+npm run test:server
+
+# Test server in watch mode
+npm run test:server:watch
+
+# Test server for CI (with JUnit reporter)
+npm run test:server:ci
+
+# Test client only
+npm run test:client
+
+# Test client for CI
+npm run test:client:ci
+```
+
+#### End-to-End Tests
+```bash
+# Install Playwright browsers (one-time setup)
 npx playwright install --with-deps
 
 # Run e2e tests
 npm run test:e2e
 
-# Run with browser visible
+# Run e2e tests with browser visible
 npm run test:e2e:headed
+
+# Run conservative e2e tests (reduced rate limiting)
+npm run test:e2e:conservative
 
 # View test report
 npm run test:e2e:report
+```
+
+### Quality Assurance Commands
+
+```bash
+# TypeScript type checking (client only)
+npm run typecheck
+
+# Linting (currently not configured)
+npm run lint
+```
+
+### Production Commands
+
+```bash
+# Start production server
+npm start
 ```
 
 **Note**: E2E tests require `BLOB_READ_WRITE_TOKEN` for full functionality. Without it, tests run with empty image data (fallback mode).
@@ -143,14 +208,19 @@ See `VERCEL_DEPLOYMENT.md` for migration notes from legacy deployment.
 
 ## Architecture
 
-### Frontend (React + Vite)
-- Modern React with hooks
+### Frontend (React + TypeScript + Vite)
+- Modern React with hooks and TypeScript
 - Vite for fast development and building
+- TypeScript for type safety
 - CSS custom properties for theming
 - Responsive grid layouts
+- Vitest for unit testing
 
-### Backend (Express)
+### Backend (Express + TypeScript)
 - RESTful API for campaigns and images
+- TypeScript for type safety and better development experience
+- tsx for TypeScript execution in development
+- Jest with ts-jest for unit testing
 - Vercel Blob integration for CDN storage
 - YAML-based campaign configuration
 - Development/production environment handling
@@ -159,6 +229,8 @@ See `VERCEL_DEPLOYMENT.md` for migration notes from legacy deployment.
 - Automatic build-info.json generation
 - Environment-aware builds (dev vs production)
 - Git commit tracking for deployments
+- TypeScript compilation and type checking
+- Unified package.json for monorepo-style development
 
 ## Development
 
@@ -186,7 +258,8 @@ This file is generated during `npm run build` and includes:
 
 1. **Missing images**: Check `BLOB_READ_WRITE_TOKEN` configuration
 2. **E2E test failures**: See `e2e/README.md` for rate limiting solutions  
-3. **Build failures**: Ensure Node.js 18+ and clean `npm install`
+3. **Build failures**: Ensure Node.js 22+ and clean `npm install`
+4. **TypeScript errors**: Run `npm run typecheck` to check for type issues
 
 ### Logs
 
@@ -197,8 +270,29 @@ Check server logs for:
 
 ---
 
+## TypeScript Configuration
+
+### Server TypeScript Setup
+- `server/tsconfig.json` - Server TypeScript configuration
+- Uses `tsx` for development execution
+- Jest with `ts-jest` for testing TypeScript files
+- Strict type checking enabled
+
+### Client TypeScript Setup
+- `client/tsconfig.json` - Client TypeScript configuration
+- Vite handles TypeScript compilation
+- Vitest for testing TypeScript components
+- React JSX support
+
+### Development Notes
+- Both client and server use TypeScript with strict mode
+- Type definitions included for all major dependencies
+- Import/export syntax is ES modules throughout
+- Full type safety for API contracts and data structures
+
 ## Documentation
 
 - `e2e/README.md` - Detailed testing documentation
+- `server/test/api.contract.md` - API endpoint specifications
 - `VERCEL_DEPLOYMENT.md` - Deployment migration history  
 - `VERCEL_BUILD_DEBUG.md` - Troubleshooting build-info.json in Vercel deployments
