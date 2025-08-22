@@ -1,4 +1,4 @@
-export function gitRemoteToHttps(remote) {
+export function gitRemoteToHttps(remote: string | null): string {
   if (!remote || typeof remote !== 'string') return '';
   const trimmed = remote.trim();
 

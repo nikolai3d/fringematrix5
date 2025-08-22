@@ -1,5 +1,22 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { escapeForAttributeSelector } from '../utils/escapeForAttributeSelector.js';
+import { escapeForAttributeSelector } from '../utils/escapeForAttributeSelector';
+import type { ImageData } from '../types/api';
+
+interface UseLightboxAnimationsProps {
+  images: ImageData[];
+  isLightboxOpen: boolean;
+  lightboxIndex: number;
+  setLightboxIndex: (index: number) => void;
+  setIsLightboxOpen: (open: boolean) => void;
+  setHideLightboxImage: (hide: boolean) => void;
+}
+
+interface Rect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
 
 export function useLightboxAnimations({
   images,
@@ -8,33 +25,33 @@ export function useLightboxAnimations({
   setLightboxIndex,
   setIsLightboxOpen,
   setHideLightboxImage,
-}) {
+}: UseLightboxAnimationsProps) {
   
   /**
    * Ref to the wireframe DOM element used for animating transitions between thumbnail and lightbox.
    * Created and appended to the DOM as needed, and removed/hid after animation completes.
    */
-  const wireframeElRef = useRef(null);
+  const wireframeElRef = useRef<HTMLDivElement | null>(null);
   /**
    * Ref to store the starting rectangle for the pending open animation.
    * Set when opening the lightbox, used to animate from thumbnail to lightbox.
    */
-  const pendingOpenStartRectRef = useRef(null);
+  const pendingOpenStartRectRef = useRef<Rect | null>(null);
   /**
    * Ref to the last thumbnail element that was opened in the lightbox.
    * Used to coordinate animation and state between grid and lightbox.
    */
-  const lastOpenedThumbElRef = useRef(null);
+  const lastOpenedThumbElRef = useRef<HTMLElement | null>(null);
   /**
    * Ref to the currently active grid thumbnail element.
    * Used for focus management and animation coordination.
    */
-  const activeGridThumbRef = useRef(null);
+  const activeGridThumbRef = useRef<HTMLElement | null>(null);
   /**
    * Ref to track whether the lightbox backdrop is currently dimmed.
    * Used to prevent redundant backdrop animations.
    */
-  const backdropDimmedRef = useRef(false);
+  const backdropDimmedRef = useRef<boolean>(false);
 
   const LIGHTBOX_ANIM_MS = 360;
   // 0.86 was chosen to provide a strong dimming effect for the backdrop,
@@ -66,7 +83,7 @@ export function useLightboxAnimations({
     return container;
   }, []);
 
-  const runWireframeAnimation = useCallback(async (fromRect, toRect) => {
+  const runWireframeAnimation = useCallback(async (fromRect: Rect, toRect: Rect) => {
     try {
       const el = ensureWireframeElement();
       Object.assign(el.style, {
@@ -103,7 +120,7 @@ export function useLightboxAnimations({
     }
   }, [ensureWireframeElement]);
 
-  const animateLightboxBackdrop = useCallback((direction) => {
+  const animateLightboxBackdrop = useCallback((direction: 'in' | 'out') => {
     const el = document.getElementById('lightbox');
     if (!el) return { finished: Promise.resolve() };
     try {
@@ -127,7 +144,7 @@ export function useLightboxAnimations({
     }
   }, []);
 
-  const openLightbox = useCallback((index, thumbEl) => {
+  const openLightbox = useCallback((index: number, thumbEl?: HTMLElement) => {
     if (thumbEl) {
       const rect = thumbEl.getBoundingClientRect();
       pendingOpenStartRectRef.current = rect;
@@ -166,8 +183,8 @@ export function useLightboxAnimations({
         return;
       }
       const startRect = lightboxImg.getBoundingClientRect();
-      const escapedSrc = escapeForAttributeSelector(img.src);
-      let thumbElement = document.querySelector(`.gallery-grid .card img[src="${escapedSrc}"]`);
+      const escapedSrc = escapeForAttributeSelector(img.src || '');
+      let thumbElement = document.querySelector(`.gallery-grid .card img[src="${escapedSrc}"]`) as HTMLElement | null;
       if (!thumbElement && activeGridThumbRef.current && document.body.contains(activeGridThumbRef.current)) {
         thumbElement = activeGridThumbRef.current;
       }
@@ -192,10 +209,12 @@ export function useLightboxAnimations({
         { duration, easing: 'linear', fill: 'forwards' }
       );
       const backdropAnim = animateLightboxBackdrop('out');
-      try { thumbElement.style.opacity = '0'; } catch (styleErr) { /* ignore style assignment failures */ }
+      try { 
+        if (thumbElement) thumbElement.style.opacity = '0'; 
+      } catch (styleErr) { /* ignore style assignment failures */ }
       let thumbAnim;
       try {
-        thumbAnim = thumbElement.animate(
+        thumbAnim = thumbElement?.animate(
           [
             { opacity: 0, offset: 0 },
             { opacity: 0, offset: 0.6 },
@@ -271,10 +290,10 @@ export function useLightboxAnimations({
     if (!isLightboxOpen) return;
     const current = images[lightboxIndex];
     if (!current) return;
-    const selector = `.gallery-grid .card img[src="${escapeForAttributeSelector(current.src)}"]`;
-    const newThumb = document.querySelector(selector);
+    const selector = `.gallery-grid .card img[src="${escapeForAttributeSelector(current.src || '')}"]`;
+    const newThumb = document.querySelector(selector) as HTMLElement | null;
 
-    const animateOpacity = (el, to, ms) => {
+    const animateOpacity = (el: HTMLElement | null, to: number, ms: number) => {
       if (!el) return { finished: Promise.resolve() };
       try {
         const from = parseFloat(getComputedStyle(el).opacity || '1');
