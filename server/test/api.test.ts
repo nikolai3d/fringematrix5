@@ -114,7 +114,7 @@ describe('API contract', () => {
     it('returns DEV-LOCAL when build-info.json is missing (dev mode)', async () => {
       const originalExistsSync = fs.existsSync;
       const existsSpy = jest.spyOn(fs, 'existsSync').mockImplementation((p: fs.PathLike) => {
-        if (path.resolve(p.toString()) === path.resolve(buildInfoPath)) return false;
+        if (path.resolve(p) === path.resolve(buildInfoPath)) return false;
         return originalExistsSync(p);
       });
       const res = await request(app).get('/api/build-info');
