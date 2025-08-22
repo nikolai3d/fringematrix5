@@ -216,7 +216,7 @@ app.get('/api/campaigns', (_req: Request, res: Response): void => {
 app.get('/api/campaigns/:id/images', async (req: Request, res: Response): Promise<void> => {
   try {
     const campaigns = loadCampaigns();
-    const campaign = campaigns.find((c) => c['id'] === req.params['id']);
+    const campaign = campaigns.find((c) => c.id === req.params['id']);
     if (!campaign) {
       res.status(404).json({ error: 'Campaign not found' });
       return;
