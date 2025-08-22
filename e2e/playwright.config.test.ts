@@ -1,5 +1,5 @@
 import { defineConfig } from '@playwright/test';
-import baseConfig from './playwright.config.js';
+import baseConfig from './playwright.config.ts';
 
 // Extra conservative configuration for local testing when hitting rate limits
 export default defineConfig({
