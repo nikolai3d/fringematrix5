@@ -1,9 +1,39 @@
-import express from 'express';
+import express, { Request, Response, Application } from 'express';
 import path from 'path';
 import fs from 'fs';
 import yaml from 'js-yaml';
-import { list } from '@vercel/blob';
+import { list, ListBlobResultBlob } from '@vercel/blob';
 import { fileURLToPath } from 'url';
+
+interface Campaign {
+  id: string;
+  hashtag?: string;
+  icon_path?: string;
+  [key: string]: any;
+}
+
+interface ImageData {
+  src: string;
+  fileName: string;
+  blobPath: string;
+  size: number;
+}
+
+interface BuildInfo {
+  repoUrl: string | null;
+  commitHash: string | null;
+  builtAt: string | null;
+}
+
+interface BlobCacheEntry {
+  data: { blobs: ListBlobResultBlob[] };
+  timestamp: number;
+}
+
+interface ListBlobsOptions {
+  prefix?: string;
+  limit?: number;
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,7 +45,7 @@ if (fs.existsSync(ENV_LOCAL_PATH)) {
   const envVars = envContent
     .split('\n')
     .filter(line => line && !line.startsWith('#') && line.includes('='))
-    .reduce((acc, line) => {
+    .reduce((acc: Record<string, string>, line) => {
       const [key, ...valueParts] = line.split('=');
       const value = valueParts.join('=').replace(/^["']|["']$/g, ''); // Remove surrounding quotes
       acc[key.trim()] = value;
@@ -30,28 +60,27 @@ if (fs.existsSync(ENV_LOCAL_PATH)) {
   });
   
   console.log('📋 Loaded environment variables from .env.local');
-  console.log('🔑 BLOB_READ_WRITE_TOKEN:', process.env.BLOB_READ_WRITE_TOKEN ? 'FOUND' : 'MISSING');
+  console.log('🔑 BLOB_READ_WRITE_TOKEN:', process.env['BLOB_READ_WRITE_TOKEN'] ? 'FOUND' : 'MISSING');
 }
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const app: Application = express();
+const PORT = process.env['PORT'] || 3000;
 
 // Project root is one level up from this file (which lives in server/)
 const PROJECT_ROOT = path.join(__dirname, '..');
 const DATA_DIR = path.join(PROJECT_ROOT, 'data');
-const AVATARS_DIR = path.join(PROJECT_ROOT, 'avatars');
 const PUBLIC_DIR = path.join(PROJECT_ROOT, 'public');
 const CLIENT_DIST_DIR = path.join(PROJECT_ROOT, 'client', 'dist');
 const HAS_CLIENT_BUILD = fs.existsSync(path.join(CLIENT_DIST_DIR, 'index.html'));
 const BUILD_INFO_PATH = path.join(PROJECT_ROOT, 'build-info.json');
-const IS_DEV = process.env.NODE_ENV !== 'production';
+const IS_DEV = process.env['NODE_ENV'] !== 'production';
 
 // Simple cache for blob listings to reduce API calls during testing
-const blobCache = new Map();
+const blobCache = new Map<string, BlobCacheEntry>();
 const CACHE_TTL = 30000; // 30 seconds cache during development/testing
-const HAS_BLOB_TOKEN = !!process.env.BLOB_READ_WRITE_TOKEN;
+const HAS_BLOB_TOKEN = !!process.env['BLOB_READ_WRITE_TOKEN'];
 
-async function listBlobsWithCache(options) {
+async function listBlobsWithCache(options: ListBlobsOptions): Promise<{ blobs: ListBlobResultBlob[] }> {
   // If no blob token is available (e.g., in CI), return empty results
   if (!HAS_BLOB_TOKEN) {
     console.log('No BLOB_READ_WRITE_TOKEN found, returning empty blob list for testing');
@@ -69,7 +98,7 @@ async function listBlobsWithCache(options) {
     const result = await list(options);
     blobCache.set(cacheKey, { data: result, timestamp: Date.now() });
     return result;
-  } catch (error) {
+  } catch (error: any) {
     if (error.name === 'BlobServiceRateLimited') {
       // If we hit rate limits, return cached data if available, even if expired
       if (cached) {
@@ -92,10 +121,10 @@ async function listBlobsWithCache(options) {
   }
 }
 
-function loadCampaigns() {
+function loadCampaigns(): Campaign[] {
   const yamlPath = path.join(DATA_DIR, 'campaigns.yaml');
   const file = fs.readFileSync(yamlPath, 'utf8');
-  const data = yaml.load(file);
+  const data = yaml.load(file) as { campaigns?: any[] } | null;
   const campaigns = Array.isArray(data?.campaigns) ? data.campaigns : [];
   return campaigns.map((c) => ({
     ...c,
@@ -103,7 +132,7 @@ function loadCampaigns() {
   }));
 }
 
-function slugify(str) {
+function slugify(str: string): string {
   return String(str)
     .trim()
     .toLowerCase()
@@ -113,24 +142,24 @@ function slugify(str) {
 
 // walkDirectoryRecursive function removed - no longer needed with blob storage
 
-function isImageFile(pathname) {
+function isImageFile(pathname: string): boolean {
   const ext = path.extname(pathname).toLowerCase();
   return ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.bmp', '.svg'].includes(ext);
 }
 
 // Ensure a dev build-info.json exists locally for debugging locally
-function ensureDevBuildInfo() {
+function ensureDevBuildInfo(): void {
   try {
     const shouldCreateDevInfo = (!fs.existsSync(BUILD_INFO_PATH)) && (IS_DEV || !HAS_CLIENT_BUILD);
     if (shouldCreateDevInfo) {
-      const devInfo = {
+      const devInfo: BuildInfo = {
         repoUrl: null,
         commitHash: 'DEV-LOCAL',
         builtAt: new Date().toISOString()
       };
       fs.writeFileSync(BUILD_INFO_PATH, JSON.stringify(devInfo, null, 2), 'utf8');
     }
-  } catch (err) {
+  } catch (err: any) {
     console.warn('Could not create dev build-info.json:', err.message);
   }
 }
@@ -146,7 +175,7 @@ if (HAS_BLOB_TOKEN) {
 
 // Avatar redirect route for backward compatibility
 // Redirects /avatars/* requests to the CDN URLs
-app.get('/avatars/*', async (req, res) => {
+app.get('/avatars/*', async (req: Request, res: Response): Promise<void> => {
   try {
     const avatarPath = req.params[0]; // Get everything after /avatars/
     const blobPath = `avatars/${avatarPath}`;
@@ -161,34 +190,36 @@ app.get('/avatars/*', async (req, res) => {
     const blob = blobs.find(b => b.pathname === blobPath);
     
     if (!blob) {
-      return res.status(404).json({ error: 'Image not found' });
+      res.status(404).json({ error: 'Image not found' });
+      return;
     }
     
     // Redirect to the CDN URL
     res.redirect(302, blob.url);
-  } catch (err) {
+  } catch (err: any) {
     console.error('Avatar redirect error:', err);
     res.status(500).json({ error: 'Failed to serve avatar' });
   }
 });
 
 // API endpoints
-app.get('/api/campaigns', (req, res) => {
+app.get('/api/campaigns', (_req: Request, res: Response): void => {
   try {
     const campaigns = loadCampaigns();
     res.json({ campaigns });
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
     res.status(500).json({ error: 'Failed to load campaigns' });
   }
 });
 
-app.get('/api/campaigns/:id/images', async (req, res) => {
+app.get('/api/campaigns/:id/images', async (req: Request, res: Response): Promise<void> => {
   try {
     const campaigns = loadCampaigns();
-    const campaign = campaigns.find((c) => c.id === req.params.id);
+    const campaign = campaigns.find((c) => c.id === req.params['id']);
     if (!campaign) {
-      return res.status(404).json({ error: 'Campaign not found' });
+      res.status(404).json({ error: 'Campaign not found' });
+      return;
     }
 
     // Get the campaign's folder path for blob filtering
@@ -202,60 +233,62 @@ app.get('/api/campaigns/:id/images', async (req, res) => {
     });
 
     // Filter for image files and format response
-    const images = blobs
+    const images: ImageData[] = blobs
       .filter(blob => isImageFile(blob.pathname))
       .map(blob => ({
         src: blob.url, // Direct CDN URL
-        fileName: blob.pathname.split('/').pop(), // Extract filename from path
+        fileName: blob.pathname.split('/').pop() || '', // Extract filename from path
         // Optional: keep backward compatibility info
         blobPath: blob.pathname,
         size: blob.size,
       }));
 
     res.json({ images });
-  } catch (err) {
+  } catch (err: any) {
     console.error('Blob listing error:', err);
     res.status(500).json({ error: 'Failed to list images from CDN' });
   }
 });
 
 // Build info endpoint
-app.get('/api/build-info', (req, res) => {
+app.get('/api/build-info', (_req: Request, res: Response): void => {
   try {
     if (fs.existsSync(BUILD_INFO_PATH)) {
       const raw = fs.readFileSync(BUILD_INFO_PATH, 'utf8');
-      let data;
+      let data: any;
       try {
         data = JSON.parse(raw);
       } catch (_) {
         data = {};
       }
-      return res.json({
+      res.json({
         repoUrl: data.repoUrl || null,
         commitHash: data.commitHash || null,
         builtAt: data.builtAt || data.deployedAt || null // backward compatibility
       });
+      return;
     }
     if (IS_DEV || !HAS_CLIENT_BUILD) {
-      return res.json({ 
+      res.json({ 
         repoUrl: null, 
         commitHash: 'DEV-LOCAL', 
         builtAt: new Date().toISOString()
       });
+      return;
     }
-    return res.json({ 
+    res.json({ 
       repoUrl: null, 
       commitHash: null, 
       builtAt: null
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
     res.status(500).json({ error: 'Failed to load build info' });
   }
 });
 
 // Ensure unknown /api/* paths return JSON (not SPA HTML)
-app.all('/api/*', (req, res) => {
+app.all('/api/*', (_req: Request, res: Response): void => {
   res.status(404).json({ error: 'Not found' });
 });
 
@@ -267,7 +300,7 @@ if (HAS_CLIENT_BUILD) {
 }
 
 // SPA fallback
-app.get('*', (req, res) => {
+app.get('*', (_req: Request, res: Response): void => {
   if (HAS_CLIENT_BUILD) {
     res.sendFile(path.join(CLIENT_DIST_DIR, 'index.html'));
   } else {
