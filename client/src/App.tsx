@@ -3,32 +3,15 @@ import { useLightboxAnimations } from './hooks/useLightboxAnimations';
 import { fetchJSON } from './utils/fetchJSON';
 import { formatTimePacific } from './utils/formatTimePacific';
 import { gitRemoteToHttps } from './utils/gitRemoteToHttps';
-
-interface Campaign {
-  id: string;
-  hashtag: string;
-  episode: string;
-  episode_id: string;
-  date: string;
-  icon_path: string;
-  fringenuity_link?: string;
-  imdb_link?: string;
-  wiki_link?: string;
-}
-
-interface ImageData {
-  fileName: string;
-  src: string;
-  originalSrc?: string;
-  isLoading?: boolean;
-  loadedSrc?: string | null;
-}
-
-interface BuildInfo {
-  repoUrl: string | null;
-  commitHash: string | null;
-  builtAt: string | null;
-}
+import type { 
+  Campaign, 
+  ImageData,
+  ApiImageData,
+  BuildInfo,
+  CampaignsResponse,
+  CampaignImagesResponse,
+  BuildInfoResponse
+} from './types/api';
 
 export default function App() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -92,7 +75,7 @@ export default function App() {
     
     try {
       // Fetch image list for this campaign
-      const res = await fetchJSON(`/api/campaigns/${id}/images`);
+      const res = await fetchJSON<CampaignImagesResponse>(`/api/campaigns/${id}/images`);
       const campaignImages = res.images || [];
       
       setCampaignLoadTotal(campaignImages.length);
@@ -104,7 +87,7 @@ export default function App() {
       }
       
       // Create placeholder images immediately (gray squares)
-      const placeholderImages = campaignImages.map((img: ImageData) => ({
+      const placeholderImages = campaignImages.map((img: ApiImageData) => ({
         fileName: img.fileName,
         originalSrc: img.src, // Store original URL separately
         src: null, // Don't provide src until loaded
@@ -118,7 +101,7 @@ export default function App() {
       let hasError = false;
       
       // Load all images in parallel, but don't show any until all are complete
-      const loadPromises = campaignImages.map((img: ImageData) => 
+      const loadPromises = campaignImages.map((img: ApiImageData) => 
         new Promise<void>((resolve) => {
           const image = new Image();
           const done = () => {
@@ -142,7 +125,7 @@ export default function App() {
       }
       
       // ALL images are now loaded - show them all at once
-      const fullyLoadedImages = campaignImages.map((img: ImageData) => ({
+      const fullyLoadedImages = campaignImages.map((img: ApiImageData) => ({
         ...img,
         isLoading: false,
         loadedSrc: img.src
@@ -194,7 +177,7 @@ export default function App() {
     setIsShareOpen(false);
     if (!buildInfo) {
       try {
-        const data = await fetchJSON('/api/build-info');
+        const data = await fetchJSON<BuildInfoResponse>('/api/build-info');
         setBuildInfo(data);
       } catch (e) {
         console.error(e);
@@ -271,7 +254,7 @@ export default function App() {
         setPreloadLoaded(0);
         setPreloadTotal(0);
 
-        const data = await fetchJSON('/api/campaigns');
+        const data = await fetchJSON<CampaignsResponse>('/api/campaigns');
         if (!isMounted) return;
         setCampaigns(data.campaigns || []);
 
@@ -291,7 +274,7 @@ export default function App() {
           setCampaignLoadError(false);
           
           try {
-            const res = await fetchJSON(`/api/campaigns/${initial.id}/images`);
+            const res = await fetchJSON<CampaignImagesResponse>(`/api/campaigns/${initial.id}/images`);
             const campaignImages = res.images || [];
             
             setCampaignLoadTotal(campaignImages.length);
@@ -300,7 +283,7 @@ export default function App() {
               setImages([]);
             } else {
               // Create placeholder images
-              const placeholderImages = campaignImages.map((img: ImageData) => ({
+              const placeholderImages = campaignImages.map((img: ApiImageData) => ({
                 fileName: img.fileName,
                 originalSrc: img.src,
                 src: null,
@@ -313,7 +296,7 @@ export default function App() {
               let loadedCount = 0;
               let hasError = false;
               
-              const loadPromises = campaignImages.map((img: ImageData) => 
+              const loadPromises = campaignImages.map((img: ApiImageData) => 
                 new Promise<void>((resolve) => {
                   const image = new Image();
                   const done = () => {
@@ -337,7 +320,7 @@ export default function App() {
               }
               
               // Show all images at once
-              const fullyLoadedImages = campaignImages.map((img: ImageData) => ({
+              const fullyLoadedImages = campaignImages.map((img: ApiImageData) => ({
                 ...img,
                 isLoading: false,
                 loadedSrc: img.src
@@ -390,7 +373,7 @@ export default function App() {
 
   const handleShare = useCallback(async () => {
     const img = images[lightboxIndex];
-    if (!img) return;
+    if (!img || !img.src) return;
     const shareUrl = new URL(window.location.href);
     shareUrl.searchParams.set('img', img.src);
     if (navigator.share) {
@@ -570,7 +553,7 @@ export default function App() {
                   </div>
                 ) : (
                   <img 
-                    src={img.loadedSrc || img.src} 
+                    src={img.loadedSrc || img.src || ''} 
                     alt={img.fileName} 
                     loading="lazy" 
                     onClick={(e) => openLightbox(i, e.currentTarget)} 
@@ -663,7 +646,7 @@ export default function App() {
           <img
             id="lightbox-image"
             alt="Selected"
-            src={images[lightboxIndex]?.src}
+            src={images[lightboxIndex]?.src || ''}
             style={{ opacity: hideLightboxImage ? 0 : 1, transition: 'opacity .12s ease' }}
           />
           <div className="lightbox-actions">
