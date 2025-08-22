@@ -42,4 +42,4 @@ export interface CampaignImagesResponse {
   images: ApiImageData[];
 }
 
-export interface BuildInfoResponse extends BuildInfo {}
+export type BuildInfoResponse = BuildInfo;

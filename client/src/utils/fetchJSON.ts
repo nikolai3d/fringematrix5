@@ -1,4 +1,4 @@
-export async function fetchJSON<T = unknown>(url: string): Promise<T> {
+export async function fetchJSON<T = Record<string, unknown>>(url: string): Promise<T> {
   const res = await fetch(url, { headers: { Accept: 'application/json' } });
   if (!res.ok) {
     let body = '';
