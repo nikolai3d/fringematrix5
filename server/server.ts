@@ -48,7 +48,7 @@ if (fs.existsSync(ENV_LOCAL_PATH)) {
     .reduce((acc: Record<string, string>, line) => {
       const [key, ...valueParts] = line.split('=');
       const value = valueParts.join('=').replace(/^["']|["']$/g, ''); // Remove surrounding quotes
-      acc[key?.trim() || ''] = value;
+      acc[key.trim()] = value;
       return acc;
     }, {});
   
