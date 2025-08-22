@@ -1,6 +1,6 @@
-import { ordinalize } from './ordinalize.js';
+import { ordinalize } from './ordinalize';
 
-export function formatTimePacific(timestamp) {
+export function formatTimePacific(timestamp: string | null): string | null {
   if (!timestamp || typeof timestamp !== 'string' || timestamp === 'N/A') return timestamp;
   
   try {
@@ -28,7 +28,7 @@ export function formatTimePacific(timestamp) {
     }
     
     // Convert to Pacific time
-    const options = {
+    const options: Intl.DateTimeFormatOptions = {
       year: 'numeric',
       month: 'long', 
       day: 'numeric',

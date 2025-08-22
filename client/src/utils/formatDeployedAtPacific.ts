@@ -1,6 +1,6 @@
-import { ordinalize } from './ordinalize.js';
+import { ordinalize } from './ordinalize';
 
-export function formatDeployedAtPacific(ptString) {
+export function formatDeployedAtPacific(ptString: string | null): string | null {
   if (!ptString || typeof ptString !== 'string') return ptString;
   const match = ptString.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2}) (P[SD]T)$/);
   if (!match) return ptString;

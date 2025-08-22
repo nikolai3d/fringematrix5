@@ -1,4 +1,4 @@
-export function ordinalize(dayNumber) {
+export function ordinalize(dayNumber: number): string {
   const n = Number(dayNumber);
   const mod100 = n % 100;
   if (mod100 >= 11 && mod100 <= 13) return `${n}th`;

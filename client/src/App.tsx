@@ -1,35 +1,61 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { useLightboxAnimations } from './hooks/useLightboxAnimations.js';
-import { fetchJSON } from './utils/fetchJSON.js';
-import { formatTimePacific } from './utils/formatTimePacific.js';
-import { gitRemoteToHttps } from './utils/gitRemoteToHttps.js';
+import { useLightboxAnimations } from './hooks/useLightboxAnimations';
+import { fetchJSON } from './utils/fetchJSON';
+import { formatTimePacific } from './utils/formatTimePacific';
+import { gitRemoteToHttps } from './utils/gitRemoteToHttps';
+
+interface Campaign {
+  id: string;
+  hashtag: string;
+  episode: string;
+  episode_id: string;
+  date: string;
+  icon_path: string;
+  fringenuity_link?: string;
+  imdb_link?: string;
+  wiki_link?: string;
+}
+
+interface ImageData {
+  fileName: string;
+  src: string;
+  originalSrc?: string;
+  isLoading?: boolean;
+  loadedSrc?: string | null;
+}
+
+interface BuildInfo {
+  repoUrl: string | null;
+  commitHash: string | null;
+  builtAt: string | null;
+}
 
 export default function App() {
-  const [campaigns, setCampaigns] = useState([]);
-  const [activeCampaignId, setActiveCampaignId] = useState(null);
-  const [images, setImages] = useState([]);
-  const [imagesByCampaign, setImagesByCampaign] = useState({});
-  const [lightboxIndex, setLightboxIndex] = useState(0);
-  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-  const [hideLightboxImage, setHideLightboxImage] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isBuildInfoOpen, setIsBuildInfoOpen] = useState(false);
-  const [isShareOpen, setIsShareOpen] = useState(false);
-  const [buildInfo, setBuildInfo] = useState(null);
-  const [isPreloading, setIsPreloading] = useState(true);
-  const [loadingDots, setLoadingDots] = useState(0);
-  const [preloadLoaded, setPreloadLoaded] = useState(0);
-  const [preloadTotal, setPreloadTotal] = useState(0);
-  const [loadingError, setLoadingError] = useState(false);
-  const [isCampaignLoading, setIsCampaignLoading] = useState(false);
-  const [campaignLoadProgress, setCampaignLoadProgress] = useState(0);
-  const [campaignLoadTotal, setCampaignLoadTotal] = useState(0);
-  const [campaignLoadError, setCampaignLoadError] = useState(false);
-  const isCampaignLoadingRef = useRef(false);
-  const shareBtnRef = useRef(null);
-  const buildBtnRef = useRef(null);
-  const [shareStyle, setShareStyle] = useState({});
-  const [buildStyle, setBuildStyle] = useState({});
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
+  const [images, setImages] = useState<ImageData[]>([]);
+  const [imagesByCampaign, setImagesByCampaign] = useState<Record<string, ImageData[]>>({});
+  const [lightboxIndex, setLightboxIndex] = useState<number>(0);
+  const [isLightboxOpen, setIsLightboxOpen] = useState<boolean>(false);
+  const [hideLightboxImage, setHideLightboxImage] = useState<boolean>(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+  const [isBuildInfoOpen, setIsBuildInfoOpen] = useState<boolean>(false);
+  const [isShareOpen, setIsShareOpen] = useState<boolean>(false);
+  const [buildInfo, setBuildInfo] = useState<BuildInfo | null>(null);
+  const [isPreloading, setIsPreloading] = useState<boolean>(true);
+  const [loadingDots, setLoadingDots] = useState<number>(0);
+  const [preloadLoaded, setPreloadLoaded] = useState<number>(0);
+  const [preloadTotal, setPreloadTotal] = useState<number>(0);
+  const [loadingError, setLoadingError] = useState<boolean>(false);
+  const [isCampaignLoading, setIsCampaignLoading] = useState<boolean>(false);
+  const [campaignLoadProgress, setCampaignLoadProgress] = useState<number>(0);
+  const [campaignLoadTotal, setCampaignLoadTotal] = useState<number>(0);
+  const [campaignLoadError, setCampaignLoadError] = useState<boolean>(false);
+  const isCampaignLoadingRef = useRef<boolean>(false);
+  const shareBtnRef = useRef<HTMLButtonElement>(null);
+  const buildBtnRef = useRef<HTMLButtonElement>(null);
+  const [shareStyle, setShareStyle] = useState<React.CSSProperties>({});
+  const [buildStyle, setBuildStyle] = useState<React.CSSProperties>({});
 
   const repoHref = useMemo(
     () => gitRemoteToHttps(buildInfo?.repoUrl || ''),
@@ -46,7 +72,7 @@ export default function App() {
     isCampaignLoadingRef.current = isCampaignLoading;
   }, [isCampaignLoading]);
 
-  const selectCampaign = useCallback(async (id) => {
+  const selectCampaign = useCallback(async (id: string) => {
     if (isCampaignLoadingRef.current) return;
     
     setActiveCampaignId(id);
@@ -78,7 +104,7 @@ export default function App() {
       }
       
       // Create placeholder images immediately (gray squares)
-      const placeholderImages = campaignImages.map(img => ({
+      const placeholderImages = campaignImages.map((img: ImageData) => ({
         fileName: img.fileName,
         originalSrc: img.src, // Store original URL separately
         src: null, // Don't provide src until loaded
@@ -92,8 +118,8 @@ export default function App() {
       let hasError = false;
       
       // Load all images in parallel, but don't show any until all are complete
-      const loadPromises = campaignImages.map((img) => 
-        new Promise((resolve) => {
+      const loadPromises = campaignImages.map((img: ImageData) => 
+        new Promise<void>((resolve) => {
           const image = new Image();
           const done = () => {
             loadedCount++;
@@ -116,7 +142,7 @@ export default function App() {
       }
       
       // ALL images are now loaded - show them all at once
-      const fullyLoadedImages = campaignImages.map(img => ({
+      const fullyLoadedImages = campaignImages.map((img: ImageData) => ({
         ...img,
         isLoading: false,
         loadedSrc: img.src
@@ -190,7 +216,7 @@ export default function App() {
   }, []);
 
   // Stable, throttled scroll/resize handler setup
-  const scheduledFrameRef = useRef(null);
+  const scheduledFrameRef = useRef<number | null>(null);
   const latestOpenStateRef = useRef({ isShareOpen: false, isBuildInfoOpen: false });
 
   // Keep latest open-state in a ref so the handler can be stable
@@ -251,7 +277,7 @@ export default function App() {
 
         // Choose initial campaign and load its images
         const hash = window.location.hash.replace('#', '');
-        const initial = (data.campaigns || []).find((c) => c.id === hash) || (data.campaigns || [])[0];
+        const initial = (data.campaigns || []).find((c: Campaign) => c.id === hash) || (data.campaigns || [])[0];
         
         if (initial) {
           // Manually load the initial campaign without using selectCampaign to avoid dependency
@@ -274,7 +300,7 @@ export default function App() {
               setImages([]);
             } else {
               // Create placeholder images
-              const placeholderImages = campaignImages.map(img => ({
+              const placeholderImages = campaignImages.map((img: ImageData) => ({
                 fileName: img.fileName,
                 originalSrc: img.src,
                 src: null,
@@ -287,8 +313,8 @@ export default function App() {
               let loadedCount = 0;
               let hasError = false;
               
-              const loadPromises = campaignImages.map((img) => 
-                new Promise((resolve) => {
+              const loadPromises = campaignImages.map((img: ImageData) => 
+                new Promise<void>((resolve) => {
                   const image = new Image();
                   const done = () => {
                     loadedCount++;
@@ -311,7 +337,7 @@ export default function App() {
               }
               
               // Show all images at once
-              const fullyLoadedImages = campaignImages.map(img => ({
+              const fullyLoadedImages = campaignImages.map((img: ImageData) => ({
                 ...img,
                 isLoading: false,
                 loadedSrc: img.src
@@ -358,7 +384,7 @@ export default function App() {
     setHideLightboxImage,
   });
 
-  const nextImage = useCallback((delta) => {
+  const nextImage = useCallback((delta: number) => {
     setLightboxIndex((idx) => (images.length === 0 ? 0 : (idx + delta + images.length) % images.length));
   }, [images.length]);
 
@@ -379,7 +405,7 @@ export default function App() {
 
   useEffect(() => {
     if (!isLightboxOpen) return;
-    const onKey = (e) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeLightbox();
       else if (e.key === 'ArrowRight') nextImage(1);
       else if (e.key === 'ArrowLeft') nextImage(-1);
