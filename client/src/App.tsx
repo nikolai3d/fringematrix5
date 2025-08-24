@@ -386,6 +386,32 @@ export default function App() {
     }
   }, [images, lightboxIndex]);
 
+  const handleLightboxClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const lightboxImage = document.getElementById('lightbox-image') as HTMLImageElement;
+    if (!lightboxImage) return;
+
+    const imageRect = lightboxImage.getBoundingClientRect();
+    const clickX = e.clientX;
+    const clickY = e.clientY;
+
+    const isInsideImage = (
+      clickX >= imageRect.left &&
+      clickX <= imageRect.right &&
+      clickY >= imageRect.top &&
+      clickY <= imageRect.bottom
+    );
+
+    console.log('Lightbox click detected:');
+    console.log('  Click coordinates:', { x: clickX, y: clickY });
+    console.log('  Image bounds:', {
+      left: imageRect.left,
+      right: imageRect.right,
+      top: imageRect.top,
+      bottom: imageRect.bottom
+    });
+    console.log('  Click is inside image:', isInsideImage);
+  }, []);
+
   useEffect(() => {
     if (!isLightboxOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -641,7 +667,7 @@ export default function App() {
       </footer>
 
       {isLightboxOpen && (
-        <div id="lightbox" className="lightbox" aria-hidden={false}>
+        <div id="lightbox" className="lightbox" aria-hidden={false} onClick={handleLightboxClick}>
           <button className="lightbox-close" id="lightbox-close" aria-label="Close" onClick={closeLightbox}>✕</button>
           <img
             id="lightbox-image"
