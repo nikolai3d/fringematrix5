@@ -414,20 +414,20 @@ export default function App() {
       );
     }
 
-    console.log('Lightbox click detected:');
-    console.log('  Click coordinates:', { x: clickX, y: clickY });
-    console.log('  Image bounds:', {
-      left: imageRect.left,
-      right: imageRect.right,
-      top: imageRect.top,
-      bottom: imageRect.bottom
-    });
-    console.log('  Click is inside image:', isInsideImage);
-    console.log('  Click is in toolbar area:', isInToolbarArea);
+    // console.log('Lightbox click detected:');
+    // console.log('  Click coordinates:', { x: clickX, y: clickY });
+    // console.log('  Image bounds:', {
+    //   left: imageRect.left,
+    //   right: imageRect.right,
+    //   top: imageRect.top,
+    //   bottom: imageRect.bottom
+    // });
+    // console.log('  Click is inside image:', isInsideImage);
+    // console.log('  Click is in toolbar area:', isInToolbarArea);
 
     // Close lightbox if click is outside image AND not in toolbar area
     if (!isInsideImage && !isInToolbarArea) {
-      console.log('  Closing lightbox (outside click)');
+      // console.log('  Closing lightbox (outside click)');
       closeLightbox();
     }
   }, [closeLightbox]);
