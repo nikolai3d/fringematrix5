@@ -386,6 +386,52 @@ export default function App() {
     }
   }, [images, lightboxIndex]);
 
+  const handleLightboxClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const lightboxImage = document.getElementById('lightbox-image') as HTMLImageElement;
+    if (!lightboxImage) return;
+
+    const imageRect = lightboxImage.getBoundingClientRect();
+    const clickX = e.clientX;
+    const clickY = e.clientY;
+
+    const isInsideImage = (
+      clickX >= imageRect.left &&
+      clickX <= imageRect.right &&
+      clickY >= imageRect.top &&
+      clickY <= imageRect.bottom
+    );
+
+    // Check if click is within the toolbar area bounds
+    const toolbarElement = document.querySelector('.lightbox-actions') as HTMLElement;
+    let isInToolbarArea = false;
+    if (toolbarElement) {
+      const toolbarRect = toolbarElement.getBoundingClientRect();
+      isInToolbarArea = (
+        clickX >= toolbarRect.left &&
+        clickX <= toolbarRect.right &&
+        clickY >= toolbarRect.top &&
+        clickY <= toolbarRect.bottom
+      );
+    }
+
+    // console.log('Lightbox click detected:');
+    // console.log('  Click coordinates:', { x: clickX, y: clickY });
+    // console.log('  Image bounds:', {
+    //   left: imageRect.left,
+    //   right: imageRect.right,
+    //   top: imageRect.top,
+    //   bottom: imageRect.bottom
+    // });
+    // console.log('  Click is inside image:', isInsideImage);
+    // console.log('  Click is in toolbar area:', isInToolbarArea);
+
+    // Close lightbox if click is outside image AND not in toolbar area
+    if (!isInsideImage && !isInToolbarArea) {
+      // console.log('  Closing lightbox (outside click)');
+      closeLightbox();
+    }
+  }, [closeLightbox]);
+
   useEffect(() => {
     if (!isLightboxOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -641,7 +687,7 @@ export default function App() {
       </footer>
 
       {isLightboxOpen && (
-        <div id="lightbox" className="lightbox" aria-hidden={false}>
+        <div id="lightbox" className="lightbox" aria-hidden={false} onClick={handleLightboxClick}>
           <button className="lightbox-close" id="lightbox-close" aria-label="Close" onClick={closeLightbox}>✕</button>
           <img
             id="lightbox-image"
@@ -650,12 +696,12 @@ export default function App() {
             style={{ opacity: hideLightboxImage ? 0 : 1, transition: 'opacity .12s ease' }}
           />
           <div className="lightbox-actions">
-            <button id="prev-btn" className="nav-btn" aria-label="Previous" onClick={() => nextImage(-1)}>◀</button>
+            <button id="prev-btn" className="nav-btn" aria-label="Previous" onClick={(e) => { e.stopPropagation(); nextImage(-1); }}>◀</button>
             <div className="spacer"></div>
-            <a id="download-btn" className="action-btn" download href={images[lightboxIndex]?.src || '#'}>Download</a>
-            <button id="share-btn" className="action-btn" onClick={handleShare}>Share</button>
+            <a id="download-btn" className="action-btn" download href={images[lightboxIndex]?.src || '#'} onClick={(e) => e.stopPropagation()}>Download</a>
+            <button id="share-btn" className="action-btn" onClick={(e) => { e.stopPropagation(); handleShare(); }}>Share</button>
             <div className="spacer"></div>
-            <button id="next-btn" className="nav-btn" aria-label="Next" onClick={() => nextImage(1)}>▶</button>
+            <button id="next-btn" className="nav-btn" aria-label="Next" onClick={(e) => { e.stopPropagation(); nextImage(1); }}>▶</button>
           </div>
         </div>
       )}
