@@ -6,7 +6,7 @@ export default defineConfig({
   workers: process.env.CI ? 2 : 2, // Use 1 worker in CI, 2 for local development
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  timeout: process.env.CI ? 120_000 : 90_000, // Longer timeout in CI (2 minutes vs 90 seconds)
+  timeout: process.env.CI ? 120_000 : 20_000, // Longer timeout in CI (2 minutes vs 20 seconds)
   reporter: [['list'], ['html', { outputFolder: 'playwright-report' }]],
   outputDir: 'test-results',
   use: {
