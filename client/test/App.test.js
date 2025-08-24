@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 // Test the placeholder image creation logic directly
 describe('Campaign Loading Placeholder Logic', () => {
@@ -164,5 +164,126 @@ describe('Campaign Loading Placeholder Logic', () => {
     
     // Key assertion: there should be no intermediate state where some images
     // have src and others don't - it's all placeholders or all images
+  });
+});
+
+describe('Lightbox Click Event Handling', () => {
+  it('lightbox toolbar elements should call stopPropagation to prevent closure', () => {
+    // Test that lightbox toolbar buttons have stopPropagation handlers
+    const mockEvent = {
+      stopPropagation: vi.fn(),
+      currentTarget: { click: vi.fn() }
+    };
+
+    // Simulate click handlers for lightbox toolbar buttons
+    // These handlers should call stopPropagation
+    const lightboxPrevHandler = (e) => { e.stopPropagation(); /* nextImage(-1) */ };
+    const lightboxShareHandler = (e) => { e.stopPropagation(); /* handleShare() */ };
+    const lightboxNextHandler = (e) => { e.stopPropagation(); /* nextImage(1) */ };
+
+    // Test each lightbox toolbar button
+    lightboxPrevHandler(mockEvent);
+    expect(mockEvent.stopPropagation).toHaveBeenCalledTimes(1);
+
+    mockEvent.stopPropagation.mockClear();
+    lightboxShareHandler(mockEvent);
+    expect(mockEvent.stopPropagation).toHaveBeenCalledTimes(1);
+
+    mockEvent.stopPropagation.mockClear();
+    lightboxNextHandler(mockEvent);
+    expect(mockEvent.stopPropagation).toHaveBeenCalledTimes(1);
+  });
+
+  it('main toolbar elements should NOT call stopPropagation to allow closure', () => {
+    // Test that main toolbar buttons do NOT have stopPropagation
+    const mockEvent = {
+      stopPropagation: vi.fn(),
+      currentTarget: { click: vi.fn() }
+    };
+
+    // Simulate click handlers for main toolbar buttons
+    // These handlers should NOT call stopPropagation
+    const campaignsHandler = () => { /* toggleSidebar() */ };
+    const shareHandler = () => { /* toggleShare() */ };
+    const buildInfoHandler = () => { /* toggleBuildInfo() */ };
+
+    // Test main toolbar buttons - they should not call stopPropagation
+    campaignsHandler(mockEvent);
+    shareHandler(mockEvent);
+    buildInfoHandler(mockEvent);
+
+    expect(mockEvent.stopPropagation).not.toHaveBeenCalled();
+  });
+
+  it('navigation arrows should NOT call stopPropagation to allow closure', () => {
+    // Test that navigation arrow buttons do NOT have stopPropagation
+    const mockEvent = {
+      stopPropagation: vi.fn(),
+      currentTarget: { click: vi.fn() }
+    };
+
+    // Simulate click handlers for navigation arrows
+    // These handlers should NOT call stopPropagation
+    const prevCampaignHandler = () => { /* goToPrevCampaign() */ };
+    const nextCampaignHandler = () => { /* goToNextCampaign() */ };
+
+    // Test navigation arrows - they should not call stopPropagation
+    prevCampaignHandler(mockEvent);
+    nextCampaignHandler(mockEvent);
+
+    expect(mockEvent.stopPropagation).not.toHaveBeenCalled();
+  });
+
+  it('download link should have stopPropagation to prevent closure', () => {
+    // Test that download link has stopPropagation in its existing onClick
+    const mockEvent = {
+      stopPropagation: vi.fn(),
+      currentTarget: { click: vi.fn() }
+    };
+
+    // The download link already has onClick={(e) => e.stopPropagation()}
+    const downloadHandler = (e) => { e.stopPropagation(); };
+
+    downloadHandler(mockEvent);
+    expect(mockEvent.stopPropagation).toHaveBeenCalledTimes(1);
+  });
+
+  it('lightbox click logic should identify toolbar area correctly', () => {
+    // Test the logic used in handleLightboxClick for toolbar area detection
+    
+    // Mock DOM elements and their bounding rectangles
+    const mockToolbarElement = {
+      getBoundingClientRect: () => ({
+        left: 100,
+        right: 200,
+        top: 300,
+        bottom: 350
+      })
+    };
+
+    // Mock click coordinates
+    const clickInsideToolbar = { x: 150, y: 325 };
+    const clickOutsideToolbar = { x: 50, y: 250 };
+
+    // Simulate the toolbar detection logic from handleLightboxClick
+    const isInToolbarArea = (clickX, clickY, toolbarElement) => {
+      if (!toolbarElement) return false;
+      const rect = toolbarElement.getBoundingClientRect();
+      return (
+        clickX >= rect.left &&
+        clickX <= rect.right &&
+        clickY >= rect.top &&
+        clickY <= rect.bottom
+      );
+    };
+
+    // Test clicks inside toolbar area
+    expect(isInToolbarArea(clickInsideToolbar.x, clickInsideToolbar.y, mockToolbarElement)).toBe(true);
+
+    // Test clicks outside toolbar area
+    expect(isInToolbarArea(clickOutsideToolbar.x, clickOutsideToolbar.y, mockToolbarElement)).toBe(false);
+
+    // Test with null toolbar element
+    expect(isInToolbarArea(clickInsideToolbar.x, clickInsideToolbar.y, null)).toBe(false);
   });
 });

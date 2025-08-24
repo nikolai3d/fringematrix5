@@ -180,4 +180,68 @@ test.describe('Lightbox Outside Click Behavior', () => {
     await page.keyboard.press('Escape');
     await expect(lightbox).toBeHidden();
   });
+
+  test('should close when clicking on main toolbar buttons', async ({ page }) => {
+    const cards = page.locator('.gallery-grid .card img');
+    const count = await cards.count();
+    if (count === 0) test.skip(true, 'No images available to test lightbox');
+
+    const firstImg = cards.nth(0);
+    
+    // Open lightbox by clicking first image
+    await firstImg.click();
+
+    // Lightbox should be visible
+    const lightbox = page.locator('#lightbox');
+    await expect(lightbox).toBeVisible();
+
+    // Click on main toolbar 'Campaigns' button - should close lightbox
+    // Use force: true because lightbox overlay covers the button
+    await page.locator('button:has-text("Campaigns")').click({ force: true });
+    await expect(lightbox).toBeHidden();
+
+    // Open lightbox again
+    await firstImg.click();
+    await expect(lightbox).toBeVisible();
+
+    // Click on main toolbar 'Share' button - should close lightbox  
+    await page.locator('.toolbar button:has-text("Share")').click({ force: true });
+    await expect(lightbox).toBeHidden();
+
+    // Open lightbox again
+    await firstImg.click();
+    await expect(lightbox).toBeVisible();
+
+    // Click on main toolbar 'Build Info' button - should close lightbox
+    await page.locator('button:has-text("Build Info")').click({ force: true });
+    await expect(lightbox).toBeHidden();
+  });
+
+  test('should close when clicking on navigation arrows', async ({ page }) => {
+    const cards = page.locator('.gallery-grid .card img');
+    const count = await cards.count();
+    if (count === 0) test.skip(true, 'No images available to test lightbox');
+
+    const firstImg = cards.nth(0);
+    
+    // Open lightbox by clicking first image
+    await firstImg.click();
+
+    // Lightbox should be visible
+    const lightbox = page.locator('#lightbox');
+    await expect(lightbox).toBeVisible();
+
+    // Click on navigation arrow in top navbar - should close lightbox
+    // Use force: true because lightbox overlay covers the button
+    await page.locator('#top-navbar .nav-arrow').first().click({ force: true });
+    await expect(lightbox).toBeHidden();
+
+    // Open lightbox again and test bottom navbar
+    await firstImg.click();
+    await expect(lightbox).toBeVisible();
+
+    // Click on navigation arrow in bottom navbar - should close lightbox
+    await page.locator('#bottom-navbar .nav-arrow').first().click({ force: true });
+    await expect(lightbox).toBeHidden();
+  });
 });
