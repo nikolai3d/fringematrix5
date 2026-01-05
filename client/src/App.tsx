@@ -165,6 +165,15 @@ export default function App() {
 
   const toggleSidebar = useCallback(() => setIsSidebarOpen((v) => !v), []);
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
+
+  const goHome = useCallback(() => {
+    if (!campaigns.length) return;
+    const firstCampaign = campaigns[0];
+    // Clear the hash from the URL
+    window.history.replaceState({}, '', window.location.pathname);
+    // Select the first campaign
+    selectCampaign(firstCampaign.id);
+  }, [campaigns, selectCampaign]);
   const toggleBuildInfo = useCallback(async () => {
     setIsBuildInfoOpen((wasOpen) => {
       const next = !wasOpen;
@@ -473,6 +482,14 @@ export default function App() {
       {/* Top toolbar with primary actions */}
       <div className="toolbar" role="toolbar" aria-label="Primary actions">
         <div className="toolbar-inner">
+          <button
+            className="toolbar-button"
+            aria-label="Go to home"
+            onClick={goHome}
+            disabled={isCampaignLoading}
+          >
+            Home
+          </button>
           <button
             className="toolbar-button"
             aria-expanded={isSidebarOpen}
