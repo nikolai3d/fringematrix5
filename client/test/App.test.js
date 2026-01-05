@@ -1,72 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
-// Shared helper: goHome implementation (extracted logic from App.tsx)
-// NOTE: This mirrors the goHome callback in App.tsx (lines ~169-176).
-// If the actual implementation changes, update this helper to match.
-// Integration coverage is provided by e2e tests in e2e/app.spec.ts.
-const goHome = (campaigns, selectCampaign, replaceState, currentPathname) => {
-  if (!campaigns.length) return;
-  const firstCampaign = campaigns[0];
-  // Clear the hash from URL by using pathname only (if replaceState provided)
-  if (replaceState && currentPathname) {
-    replaceState({}, '', currentPathname);
-  }
-  // Select the first campaign
-  selectCampaign(firstCampaign.id);
-};
-
-describe('Home Button Logic', () => {
-  it('should call replaceState with pathname and select first campaign', () => {
-    // Test the goHome logic by verifying the correct arguments are passed
-    const campaigns = [
-      { id: 'campaign-1', hashtag: 'first' },
-      { id: 'campaign-2', hashtag: 'second' },
-      { id: 'campaign-3', hashtag: 'third' }
-    ];
-
-    // Mock the dependencies that goHome uses
-    const replaceStateMock = vi.fn();
-    const selectCampaignMock = vi.fn();
-    const pathname = '/app';
-
-    goHome(campaigns, selectCampaignMock, replaceStateMock, pathname);
-
-    // Verify URL is reset to pathname without hash
-    expect(replaceStateMock).toHaveBeenCalledWith({}, '', '/app');
-    // Verify first campaign is selected
-    expect(selectCampaignMock).toHaveBeenCalledWith('campaign-1');
-  });
-
-  it('should select the first campaign regardless of current campaign', () => {
-    const campaigns = [
-      { id: 'first-id', hashtag: 'First' },
-      { id: 'second-id', hashtag: 'Second' },
-      { id: 'third-id', hashtag: 'Third' }
-    ];
-
-    const selectCampaignMock = vi.fn();
-
-    // Simulate being on different campaigns
-    goHome(campaigns, selectCampaignMock);
-    expect(selectCampaignMock).toHaveBeenCalledWith('first-id');
-  });
-
-  it('should not call selectCampaign when campaigns array is empty', () => {
-    const campaigns = [];
-    const selectCampaignMock = vi.fn();
-
-    goHome(campaigns, selectCampaignMock);
-    expect(selectCampaignMock).not.toHaveBeenCalled();
-  });
-
-  it('should handle single campaign correctly', () => {
-    const campaigns = [{ id: 'only-campaign', hashtag: 'Only' }];
-    const selectCampaignMock = vi.fn();
-
-    goHome(campaigns, selectCampaignMock);
-    expect(selectCampaignMock).toHaveBeenCalledWith('only-campaign');
-  });
-});
+// Note: Home Button behavior is tested via e2e tests in e2e/app.spec.ts
+// which test the actual component behavior rather than duplicating implementation.
 
 // Test the placeholder image creation logic directly
 describe('Campaign Loading Placeholder Logic', () => {

@@ -13,6 +13,8 @@ async function waitForLightboxAnimationComplete(page: Page, timeout = 3000) {
     if (!el) return true;
     return getComputedStyle(el).display === 'none';
   }, { timeout });
+  // Buffer to ensure isAnimatingRef is also set to false after Promise.all resolves
+  await page.waitForTimeout(200);
 }
 
 test.beforeEach(async ({ page }) => {
