@@ -367,7 +367,7 @@ export default function App() {
   }, [isPreloading]);
 
   // Lightbox animations are provided by the useLightboxAnimations hook
-  const { openLightbox, closeLightbox } = useLightboxAnimations({
+  const { openLightbox, closeLightbox, isAnimatingRef } = useLightboxAnimations({
     images,
     isLightboxOpen,
     lightboxIndex,
@@ -396,6 +396,9 @@ export default function App() {
   }, [images, lightboxIndex]);
 
   const handleLightboxClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    // Ignore clicks during open/close animation to prevent interruption
+    if (isAnimatingRef.current) return;
+
     const lightboxImage = document.getElementById('lightbox-image') as HTMLImageElement;
     if (!lightboxImage) return;
 
