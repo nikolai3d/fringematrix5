@@ -1,5 +1,20 @@
 import { describe, it, expect, vi } from 'vitest';
 
+// Shared helper: goHome implementation (extracted logic from App.tsx)
+// NOTE: This mirrors the goHome callback in App.tsx (lines ~169-176).
+// If the actual implementation changes, update this helper to match.
+// Integration coverage is provided by e2e tests in e2e/app.spec.ts.
+const goHome = (campaigns, selectCampaign, replaceState, currentPathname) => {
+  if (!campaigns.length) return;
+  const firstCampaign = campaigns[0];
+  // Clear the hash from URL by using pathname only (if replaceState provided)
+  if (replaceState && currentPathname) {
+    replaceState({}, '', currentPathname);
+  }
+  // Select the first campaign
+  selectCampaign(firstCampaign.id);
+};
+
 describe('Home Button Logic', () => {
   it('should call replaceState with pathname and select first campaign', () => {
     // Test the goHome logic by verifying the correct arguments are passed
@@ -13,16 +28,6 @@ describe('Home Button Logic', () => {
     const replaceStateMock = vi.fn();
     const selectCampaignMock = vi.fn();
     const pathname = '/app';
-
-    // goHome implementation (extracted logic)
-    const goHome = (campaigns, selectCampaign, replaceState, currentPathname) => {
-      if (!campaigns.length) return;
-      const firstCampaign = campaigns[0];
-      // Clear the hash from URL by using pathname only
-      replaceState({}, '', currentPathname);
-      // Select the first campaign
-      selectCampaign(firstCampaign.id);
-    };
 
     goHome(campaigns, selectCampaignMock, replaceStateMock, pathname);
 
@@ -41,13 +46,6 @@ describe('Home Button Logic', () => {
 
     const selectCampaignMock = vi.fn();
 
-    // goHome should always select the first campaign
-    const goHome = (campaigns, selectCampaign) => {
-      if (!campaigns.length) return;
-      const firstCampaign = campaigns[0];
-      selectCampaign(firstCampaign.id);
-    };
-
     // Simulate being on different campaigns
     goHome(campaigns, selectCampaignMock);
     expect(selectCampaignMock).toHaveBeenCalledWith('first-id');
@@ -57,12 +55,6 @@ describe('Home Button Logic', () => {
     const campaigns = [];
     const selectCampaignMock = vi.fn();
 
-    const goHome = (campaigns, selectCampaign) => {
-      if (!campaigns.length) return;
-      const firstCampaign = campaigns[0];
-      selectCampaign(firstCampaign.id);
-    };
-
     goHome(campaigns, selectCampaignMock);
     expect(selectCampaignMock).not.toHaveBeenCalled();
   });
@@ -70,12 +62,6 @@ describe('Home Button Logic', () => {
   it('should handle single campaign correctly', () => {
     const campaigns = [{ id: 'only-campaign', hashtag: 'Only' }];
     const selectCampaignMock = vi.fn();
-
-    const goHome = (campaigns, selectCampaign) => {
-      if (!campaigns.length) return;
-      const firstCampaign = campaigns[0];
-      selectCampaign(firstCampaign.id);
-    };
 
     goHome(campaigns, selectCampaignMock);
     expect(selectCampaignMock).toHaveBeenCalledWith('only-campaign');
