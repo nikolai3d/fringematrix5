@@ -472,19 +472,33 @@ footer.navbar {
   position: sticky;
   top: 0;
   z-index: 30;
+  height: 52px; /* Fixed height for consistent layout */
   background: linear-gradient(180deg, rgba(11,17,26,0.98), rgba(11,17,26,0.85));
   backdrop-filter: blur(6px);
   border-bottom: 1px solid rgba(0,229,255,0.2);
+  overflow: hidden; /* Contain scrollable content */
 }
 .toolbar-inner {
   margin: 0 auto;
   max-width: 1200px;
-  display: grid;
-  grid-template-columns: repeat(3, max-content);
+  height: 100%;
+  display: flex;
+  flex-wrap: nowrap; /* Single row - never wrap */
+  align-items: center;
   gap: 10px;
   padding: 10px 12px;
+  overflow-x: auto; /* Horizontal scroll when needed */
+  overflow-y: hidden;
+  /* Hide scrollbar but keep functionality */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+.toolbar-inner::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Opera */
 }
 .toolbar-button {
+  flex-shrink: 0; /* Don't shrink buttons - scroll instead */
+  white-space: nowrap; /* Keep button text on single line */
   background: linear-gradient(135deg, rgba(0,229,255,0.18), rgba(124,77,255,0.18));
   color: var(--fg);
   border: 1px solid rgba(0,229,255,0.4);
