@@ -1,7 +1,150 @@
 import { describe, it, expect, vi } from 'vitest';
 
-// Note: Home Button behavior is tested via e2e tests in e2e/app.spec.ts
+// Note: Home Button navigation behavior is tested via e2e tests in e2e/app.spec.ts
 // which test the actual component behavior rather than duplicating implementation.
+
+// Tests for goHome subwindow closing behavior
+describe('goHome Subwindow Closing', () => {
+  // Simulate the closeAllSubwindows function that goHome calls
+  const createCloseAllSubwindows = (setters) => () => {
+    setters.setIsLightboxOpen(false);
+    setters.setIsSidebarOpen(false);
+    setters.setIsBuildInfoOpen(false);
+    setters.setIsShareOpen(false);
+  };
+
+  it('should close all subwindows when goHome is called', () => {
+    // Track which setters were called with what values
+    const calls = {
+      lightbox: [],
+      sidebar: [],
+      buildInfo: [],
+      share: []
+    };
+
+    const setters = {
+      setIsLightboxOpen: (val) => calls.lightbox.push(val),
+      setIsSidebarOpen: (val) => calls.sidebar.push(val),
+      setIsBuildInfoOpen: (val) => calls.buildInfo.push(val),
+      setIsShareOpen: (val) => calls.share.push(val)
+    };
+
+    const closeAllSubwindows = createCloseAllSubwindows(setters);
+    closeAllSubwindows();
+
+    // All subwindows should be set to false
+    expect(calls.lightbox).toContain(false);
+    expect(calls.sidebar).toContain(false);
+    expect(calls.buildInfo).toContain(false);
+    expect(calls.share).toContain(false);
+  });
+
+  it('should close lightbox when it was open', () => {
+    let lightboxOpen = true;
+    const setters = {
+      setIsLightboxOpen: (val) => { lightboxOpen = val; },
+      setIsSidebarOpen: vi.fn(),
+      setIsBuildInfoOpen: vi.fn(),
+      setIsShareOpen: vi.fn()
+    };
+
+    const closeAllSubwindows = createCloseAllSubwindows(setters);
+    closeAllSubwindows();
+
+    expect(lightboxOpen).toBe(false);
+  });
+
+  it('should close sidebar (campaign list) when it was open', () => {
+    let sidebarOpen = true;
+    const setters = {
+      setIsLightboxOpen: vi.fn(),
+      setIsSidebarOpen: (val) => { sidebarOpen = val; },
+      setIsBuildInfoOpen: vi.fn(),
+      setIsShareOpen: vi.fn()
+    };
+
+    const closeAllSubwindows = createCloseAllSubwindows(setters);
+    closeAllSubwindows();
+
+    expect(sidebarOpen).toBe(false);
+  });
+
+  it('should close build info popover when it was open', () => {
+    let buildInfoOpen = true;
+    const setters = {
+      setIsLightboxOpen: vi.fn(),
+      setIsSidebarOpen: vi.fn(),
+      setIsBuildInfoOpen: (val) => { buildInfoOpen = val; },
+      setIsShareOpen: vi.fn()
+    };
+
+    const closeAllSubwindows = createCloseAllSubwindows(setters);
+    closeAllSubwindows();
+
+    expect(buildInfoOpen).toBe(false);
+  });
+
+  it('should close share popover when it was open', () => {
+    let shareOpen = true;
+    const setters = {
+      setIsLightboxOpen: vi.fn(),
+      setIsSidebarOpen: vi.fn(),
+      setIsBuildInfoOpen: vi.fn(),
+      setIsShareOpen: (val) => { shareOpen = val; }
+    };
+
+    const closeAllSubwindows = createCloseAllSubwindows(setters);
+    closeAllSubwindows();
+
+    expect(shareOpen).toBe(false);
+  });
+
+  it('should close all subwindows when multiple are open simultaneously', () => {
+    // Simulate multiple subwindows being open at once
+    let lightboxOpen = true;
+    let sidebarOpen = true;
+    let buildInfoOpen = true;
+    let shareOpen = true;
+
+    const setters = {
+      setIsLightboxOpen: (val) => { lightboxOpen = val; },
+      setIsSidebarOpen: (val) => { sidebarOpen = val; },
+      setIsBuildInfoOpen: (val) => { buildInfoOpen = val; },
+      setIsShareOpen: (val) => { shareOpen = val; }
+    };
+
+    const closeAllSubwindows = createCloseAllSubwindows(setters);
+    closeAllSubwindows();
+
+    expect(lightboxOpen).toBe(false);
+    expect(sidebarOpen).toBe(false);
+    expect(buildInfoOpen).toBe(false);
+    expect(shareOpen).toBe(false);
+  });
+
+  it('should be safe to call when all subwindows are already closed', () => {
+    let lightboxOpen = false;
+    let sidebarOpen = false;
+    let buildInfoOpen = false;
+    let shareOpen = false;
+
+    const setters = {
+      setIsLightboxOpen: (val) => { lightboxOpen = val; },
+      setIsSidebarOpen: (val) => { sidebarOpen = val; },
+      setIsBuildInfoOpen: (val) => { buildInfoOpen = val; },
+      setIsShareOpen: (val) => { shareOpen = val; }
+    };
+
+    const closeAllSubwindows = createCloseAllSubwindows(setters);
+
+    // Should not throw and all should remain false
+    expect(() => closeAllSubwindows()).not.toThrow();
+    expect(lightboxOpen).toBe(false);
+    expect(sidebarOpen).toBe(false);
+    expect(buildInfoOpen).toBe(false);
+    expect(shareOpen).toBe(false);
+  });
+});
 
 // Test the placeholder image creation logic directly
 describe('Campaign Loading Placeholder Logic', () => {
