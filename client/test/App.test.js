@@ -868,7 +868,6 @@ describe('Modal Focus Management', () => {
 
   it('should not interfere with other keys', () => {
     const firstElement = { focus: vi.fn() };
-    const lastElement = { focus: vi.fn() };
 
     const mockEvent = {
       key: 'Enter',
