@@ -4,6 +4,7 @@ import { useLightboxAnimations } from './hooks/useLightboxAnimations';
 import { fetchJSON } from './utils/fetchJSON';
 import { formatTimePacific } from './utils/formatTimePacific';
 import { gitRemoteToHttps } from './utils/gitRemoteToHttps';
+import LoadingScreen from './components/LoadingScreen';
 import type {
   Campaign,
   ImageData,
@@ -29,9 +30,11 @@ export default function App() {
   const [isShareOpen, setIsShareOpen] = useState<boolean>(false);
   const [buildInfo, setBuildInfo] = useState<BuildInfo | null>(null);
   const [isPreloading, setIsPreloading] = useState<boolean>(true);
+  const [showLoadingScreen, setShowLoadingScreen] = useState<boolean>(true);
+  const [loadingCampaignCount, setLoadingCampaignCount] = useState<number | null>(null);
+  const [loadingImageCount, setLoadingImageCount] = useState<number | null>(null);
+  const [isDataReady, setIsDataReady] = useState<boolean>(false);
   const [loadingDots, setLoadingDots] = useState<number>(0);
-  const [preloadLoaded, setPreloadLoaded] = useState<number>(0);
-  const [preloadTotal, setPreloadTotal] = useState<number>(0);
   const [loadingError, setLoadingError] = useState<boolean>(false);
   const [isCampaignLoading, setIsCampaignLoading] = useState<boolean>(false);
   const [campaignLoadProgress, setCampaignLoadProgress] = useState<number>(0);
@@ -342,17 +345,24 @@ export default function App() {
     return `https://www.threads.net/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
   }, []);
 
+  // Handler for when user dismisses the loading screen
+  const handleLoadingComplete = useCallback(() => {
+    setShowLoadingScreen(false);
+    setIsPreloading(false);
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
     (async () => {
       try {
         setIsPreloading(true);
-        setPreloadLoaded(0);
-        setPreloadTotal(0);
 
         const data = await fetchJSON<CampaignsResponse>('/api/campaigns');
         if (!isMounted) return;
         setCampaigns(data.campaigns || []);
+
+        // Update loading screen with campaign count
+        setLoadingCampaignCount((data.campaigns || []).length);
 
         // Choose initial campaign and load its images
         const hash = window.location.hash.replace('#', '');
@@ -372,11 +382,15 @@ export default function App() {
           try {
             const res = await fetchJSON<CampaignImagesResponse>(`/api/campaigns/${initial.id}/images`);
             const campaignImages = res.images || [];
-            
+
             setCampaignLoadTotal(campaignImages.length);
-            
+            // Update loading screen with image count
+            setLoadingImageCount(campaignImages.length);
+
             if (campaignImages.length === 0) {
               setImages([]);
+              // Mark data as ready even with no images
+              setIsDataReady(true);
             } else {
               // Create placeholder images
               const placeholderImages = campaignImages.map((img: ApiImageData) => ({
@@ -421,26 +435,32 @@ export default function App() {
                 isLoading: false,
                 loadedSrc: img.src
               }));
-              
+
               setImages(fullyLoadedImages);
               setImagesByCampaign(prev => ({ ...prev, [initial.id]: campaignImages }));
+              // Mark data as ready for loading screen
+              if (isMounted) setIsDataReady(true);
             }
           } catch (error) {
             console.error('Failed to load initial campaign images:', error);
             setCampaignLoadError(true);
             setImages([]);
+            // Still mark as ready so user can proceed even with errors
+            if (isMounted) setIsDataReady(true);
           } finally {
             setIsCampaignLoading(false);
           }
+        } else {
+          // No initial campaign - still mark as ready
+          if (isMounted) setIsDataReady(true);
         }
-        
-        // Only hide the main loader after everything is ready
-        if (isMounted) setIsPreloading(false);
+
+        // Note: We no longer hide the loader here - the loading screen handles that
       } catch (e) {
         console.error(e);
         setLoadingError(true);
-        alert('Failed to initialize app. Check console for details.');
-        if (isMounted) setIsPreloading(false);
+        // Mark as ready even on error so user can see error message
+        if (isMounted) setIsDataReady(true);
       }
     })();
     return () => { isMounted = false; };
@@ -603,17 +623,15 @@ export default function App() {
 
   return (
     <div id="app">
-      {isPreloading && !loadingError && (
-        <div className="crt-overlay" role="dialog" aria-modal={true} aria-label="Loading">
-          <div className="crt-inner">
-            <div className="crt-text">
-              Fringe Matrix 5 Loading<span className="dots">{'.'.repeat(loadingDots)}</span>
-              <div className="crt-subtext">{preloadTotal ? `${preloadLoaded} / ${preloadTotal}` : ''}</div>
-            </div>
-          </div>
-        </div>
+      {showLoadingScreen && !loadingError && (
+        <LoadingScreen
+          campaignCount={loadingCampaignCount}
+          imageCount={loadingImageCount}
+          isDataReady={isDataReady}
+          onComplete={handleLoadingComplete}
+        />
       )}
-      {isPreloading && loadingError && (
+      {loadingError && (
         <div className="crt-overlay" role="alertdialog" aria-modal={true} aria-label="Loading failed">
           <div className="crt-inner">
             <div className="crt-text">

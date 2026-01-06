@@ -716,3 +716,227 @@ footer.navbar {
   45% { filter: drop-shadow(0 0 7px rgba(0,229,255,0.92)) drop-shadow(0 0 20px rgba(124,77,255,0.65)); }
 }
 
+/* Terminal-style Loading Screen */
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  background: #000;
+  cursor: pointer;
+  padding: 20px;
+}
+
+.loading-terminal {
+  width: min(95vw, 700px);
+  max-height: 90vh;
+  background: #0a0a0a;
+  border: 2px solid #1a3a1a;
+  border-radius: 8px;
+  box-shadow:
+    0 0 30px rgba(0, 255, 65, 0.15),
+    0 0 60px rgba(0, 255, 65, 0.08),
+    inset 0 0 100px rgba(0, 255, 65, 0.03);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.terminal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: linear-gradient(180deg, #1a2a1a 0%, #0d1a0d 100%);
+  border-bottom: 1px solid #1a3a1a;
+}
+
+.terminal-title {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: clamp(11px, 2.5vw, 14px);
+  font-weight: bold;
+  color: #00ff41;
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 8px rgba(0, 255, 65, 0.6);
+}
+
+.terminal-status {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 11px;
+  color: #00ff41;
+  padding: 2px 8px;
+  border: 1px solid #00ff41;
+  border-radius: 3px;
+  text-shadow: 0 0 6px rgba(0, 255, 65, 0.5);
+  animation: status-blink 2s ease-in-out infinite;
+}
+
+@keyframes status-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.terminal-body {
+  position: relative;
+  flex: 1;
+  min-height: 300px;
+  max-height: 60vh;
+  overflow: hidden;
+}
+
+.terminal-scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(0, 0, 0, 0.3) 2px,
+    rgba(0, 0, 0, 0.3) 4px
+  );
+  z-index: 2;
+  animation: scanline-move 8s linear infinite;
+}
+
+@keyframes scanline-move {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 100px; }
+}
+
+.terminal-body::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 255, 65, 0.05) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+.terminal-body::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  animation: terminal-flicker 0.15s infinite;
+  background: transparent;
+}
+
+@keyframes terminal-flicker {
+  0% { opacity: 0.97; }
+  50% { opacity: 1; }
+  100% { opacity: 0.98; }
+}
+
+.terminal-content {
+  padding: 20px;
+  overflow-y: auto;
+  max-height: calc(60vh - 20px);
+  position: relative;
+  z-index: 1;
+}
+
+.terminal-line {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: clamp(12px, 2.5vw, 15px);
+  line-height: 1.6;
+  color: #00ff41;
+  text-shadow:
+    0 0 4px rgba(0, 255, 65, 0.8),
+    0 0 8px rgba(0, 255, 65, 0.4);
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 1.6em;
+}
+
+.terminal-line.empty {
+  min-height: 0.8em;
+}
+
+.terminal-line.typing {
+  position: relative;
+}
+
+.terminal-cursor {
+  opacity: 0;
+  color: #00ff41;
+  text-shadow: 0 0 8px rgba(0, 255, 65, 0.9);
+  animation: none;
+}
+
+.terminal-cursor.visible {
+  opacity: 1;
+}
+
+.terminal-skip {
+  padding: 12px 16px;
+  text-align: center;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: clamp(11px, 2vw, 13px);
+  color: #00aa30;
+  background: linear-gradient(180deg, #0d1a0d 0%, #1a2a1a 100%);
+  border-top: 1px solid #1a3a1a;
+  text-shadow: 0 0 4px rgba(0, 255, 65, 0.4);
+  animation: skip-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skip-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+/* CRT screen curve effect */
+.loading-terminal::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 10;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 60%,
+    rgba(0, 0, 0, 0.3) 100%
+  );
+}
+
+/* Phosphor persistence effect on text */
+.terminal-line {
+  animation: phosphor-glow 0.1s ease-out;
+}
+
+@keyframes phosphor-glow {
+  0% {
+    text-shadow:
+      0 0 10px rgba(0, 255, 65, 1),
+      0 0 20px rgba(0, 255, 65, 0.8),
+      0 0 30px rgba(0, 255, 65, 0.5);
+  }
+  100% {
+    text-shadow:
+      0 0 4px rgba(0, 255, 65, 0.8),
+      0 0 8px rgba(0, 255, 65, 0.4);
+  }
+}
+
+/* Highlight [OK] status messages */
+.terminal-line:has(> *) {
+  /* This won't work, using JS-based approach instead */
+}
+
+/* Random flicker for extra authenticity */
+@keyframes random-flicker {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.8; }
+  94% { opacity: 1; }
+  97% { opacity: 0.9; }
+  98% { opacity: 1; }
+}
+
