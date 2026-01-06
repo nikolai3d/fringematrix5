@@ -168,9 +168,17 @@ describe('API contract', () => {
       expect(res.body).toEqual(expect.objectContaining({ error: 'Content page not found' }));
     });
 
-    it('returns 404 for empty page parameter', async () => {
-      const res = await request(app).get('/api/content/');
-      expect(res.status).toBe(404);
+    it('returns 404 for missing page parameter', async () => {
+      // Without trailing slash - matches catch-all /api/* route
+      const res1 = await request(app).get('/api/content');
+      expect(res1.status).toBe(404);
+      expect(res1.body).toEqual(expect.objectContaining({ error: 'Not found' }));
+
+      // With trailing slash - also matches catch-all /api/* route
+      // (Express treats empty string after slash as no parameter)
+      const res2 = await request(app).get('/api/content/');
+      expect(res2.status).toBe(404);
+      expect(res2.body).toEqual(expect.objectContaining({ error: 'Not found' }));
     });
 
     it('content contains HTML markup', async () => {
