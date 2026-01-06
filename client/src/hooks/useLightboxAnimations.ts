@@ -38,6 +38,11 @@ export function useLightboxAnimations({
    */
   const pendingOpenStartRectRef = useRef<Rect | null>(null);
   /**
+   * Ref to track whether an open/close animation is currently in progress.
+   * Used to prevent clicks from interrupting animations.
+   */
+  const isAnimatingRef = useRef<boolean>(false);
+  /**
    * Ref to the last thumbnail element that was opened in the lightbox.
    * Used to coordinate animation and state between grid and lightbox.
    */
@@ -145,6 +150,7 @@ export function useLightboxAnimations({
   }, []);
 
   const openLightbox = useCallback((index: number, thumbEl?: HTMLElement) => {
+    isAnimatingRef.current = true;
     if (thumbEl) {
       const rect = thumbEl.getBoundingClientRect();
       pendingOpenStartRectRef.current = rect;
@@ -172,6 +178,7 @@ export function useLightboxAnimations({
   }, [setHideLightboxImage, setIsLightboxOpen, setLightboxIndex]);
 
   const closeLightbox = useCallback(async () => {
+    isAnimatingRef.current = true;
     try {
       const img = images[lightboxIndex];
       const lightboxImg = document.getElementById('lightbox-image');
@@ -233,6 +240,7 @@ export function useLightboxAnimations({
     } finally {
       setIsLightboxOpen(false);
       setHideLightboxImage(false);
+      isAnimatingRef.current = false;
       const el = lastOpenedThumbElRef.current;
       if (el && document.body.contains(el)) {
         try { el.style.opacity = ''; } catch (styleErr) { /* ignore style assignment failures */ }
@@ -250,13 +258,15 @@ export function useLightboxAnimations({
       if (needBackdropIn) {
         const anim = animateLightboxBackdrop('in');
         backdropDimmedRef.current = true;
-        anim?.finished?.catch(() => {});
+        anim?.finished?.then(() => { isAnimatingRef.current = false; }).catch(() => { isAnimatingRef.current = false; });
+      } else {
+        isAnimatingRef.current = false;
       }
       return;
     }
     const rAF = requestAnimationFrame(async () => {
       const lightboxImg = document.getElementById('lightbox-image');
-      if (!lightboxImg) { setHideLightboxImage(false); pendingOpenStartRectRef.current = null; return; }
+      if (!lightboxImg) { setHideLightboxImage(false); pendingOpenStartRectRef.current = null; isAnimatingRef.current = false; return; }
       const endRect = lightboxImg.getBoundingClientRect();
       lightboxImg.style.opacity = '0';
       const duration = LIGHTBOX_ANIM_MS;
@@ -281,6 +291,7 @@ export function useLightboxAnimations({
       lightboxImg.style.opacity = '';
       setHideLightboxImage(false);
       pendingOpenStartRectRef.current = null;
+      isAnimatingRef.current = false;
     });
     return () => cancelAnimationFrame(rAF);
   }, [isLightboxOpen, lightboxIndex, animateLightboxBackdrop, runWireframeAnimation, setHideLightboxImage]);
@@ -347,7 +358,7 @@ export function useLightboxAnimations({
     };
   }, []);
 
-  return { openLightbox, closeLightbox, pendingOpenStartRectRef };
+  return { openLightbox, closeLightbox, pendingOpenStartRectRef, isAnimatingRef };
 }
 
 

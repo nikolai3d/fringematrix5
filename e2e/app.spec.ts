@@ -323,4 +323,53 @@ test('Lightbox opens and navigates images', async ({ page }) => {
   await expect(lightbox).toBeHidden();
 });
 
+test('Home button clears hash and navigates to first campaign', async ({ page }) => {
+  const loader = page.getByRole('dialog', { name: 'Loading' });
+  if (await loader.isVisible().catch(() => false)) {
+    await loader.waitFor({ state: 'detached' });
+  }
 
+  // Get the first campaign's hashtag for later comparison
+  const topNavbar = page.locator('#top-navbar');
+  const firstCampaignText = await topNavbar.locator('.current-campaign').textContent();
+
+  // Open sidebar and switch to a different campaign
+  await page.getByRole('button', { name: 'Campaigns' }).click();
+  const sidebar = page.locator('#campaign-sidebar');
+  await expect(sidebar).toHaveClass(/open/);
+
+  const sidebarButtons = sidebar.getByRole('button');
+  const buttonCount = await sidebarButtons.count();
+
+  if (buttonCount < 2) {
+    test.skip(true, 'Need at least 2 campaigns to test Home button');
+  }
+
+  // Click the second campaign
+  const secondButton = sidebarButtons.nth(1);
+  await secondButton.click();
+
+  // Wait for loader to finish after campaign switch
+  if (await loader.isVisible().catch(() => false)) {
+    await loader.waitFor({ state: 'detached' });
+  }
+
+  // Verify we're on a different campaign (hash should be set)
+  await expect(page).toHaveURL(/#/);
+  const currentCampaignText = await topNavbar.locator('.current-campaign').textContent();
+  expect(currentCampaignText).not.toBe(firstCampaignText);
+
+  // Wait for the Home button to be enabled, then click it
+  const homeButton = page.locator('button[aria-label="Go to home"]');
+  await expect(homeButton).toBeEnabled();
+  await homeButton.click({ force: true });
+
+  // Wait for loader to finish after going home
+  if (await loader.isVisible().catch(() => false)) {
+    await loader.waitFor({ state: 'detached' });
+  }
+
+  // Verify we're back on the first campaign
+  const finalCampaignText = await topNavbar.locator('.current-campaign').textContent();
+  expect(finalCampaignText).toBe(firstCampaignText);
+});

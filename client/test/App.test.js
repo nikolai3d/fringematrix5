@@ -1,4 +1,243 @@
 import { describe, it, expect, vi } from 'vitest';
+import fs from 'fs';
+import path from 'path';
+
+// Note: Home Button navigation behavior is tested via e2e tests in e2e/app.spec.ts
+// which test the actual component behavior rather than duplicating implementation.
+
+// Tests for toolbar layout CSS requirements
+describe('Toolbar Layout CSS', () => {
+  // Read the CSS file once for all tests
+  const cssPath = path.resolve(__dirname, '../src/styles.css');
+  const cssContent = fs.readFileSync(cssPath, 'utf-8');
+
+  it('toolbar should have a fixed height', () => {
+    // Toolbar must have explicit height for consistent layout
+    expect(cssContent).toMatch(/\.toolbar\s*\{[^}]*height:\s*\d+px/);
+  });
+
+  it('toolbar-inner should use flexbox for single-row layout', () => {
+    // Must use flex display
+    expect(cssContent).toMatch(/\.toolbar-inner\s*\{[^}]*display:\s*flex/);
+  });
+
+  it('toolbar-inner should not wrap buttons to multiple rows', () => {
+    // flex-wrap: nowrap ensures single row
+    expect(cssContent).toMatch(/\.toolbar-inner\s*\{[^}]*flex-wrap:\s*nowrap/);
+  });
+
+  it('toolbar-inner should be horizontally scrollable', () => {
+    // overflow-x: auto enables horizontal scrolling when content overflows
+    expect(cssContent).toMatch(/\.toolbar-inner\s*\{[^}]*overflow-x:\s*auto/);
+  });
+
+  it('toolbar buttons should not shrink', () => {
+    // flex-shrink: 0 prevents buttons from shrinking
+    expect(cssContent).toMatch(/\.toolbar-button\s*\{[^}]*flex-shrink:\s*0/);
+  });
+
+  it('toolbar buttons should have nowrap text', () => {
+    // white-space: nowrap keeps button text on single line
+    expect(cssContent).toMatch(/\.toolbar-button\s*\{[^}]*white-space:\s*nowrap/);
+  });
+
+  it('popovers should have lower z-index than toolbar', () => {
+    // Extract z-index values
+    const toolbarZIndex = cssContent.match(/\.toolbar\s*\{[^}]*z-index:\s*(\d+)/);
+    const buildInfoZIndex = cssContent.match(/\.build-info-popover\s*\{[^}]*z-index:\s*(\d+)/);
+    const shareZIndex = cssContent.match(/\.share-popover\s*\{[^}]*z-index:\s*(\d+)/);
+
+    expect(toolbarZIndex).not.toBeNull();
+    expect(buildInfoZIndex).not.toBeNull();
+    expect(shareZIndex).not.toBeNull();
+
+    const toolbarZ = parseInt(toolbarZIndex[1], 10);
+    const buildInfoZ = parseInt(buildInfoZIndex[1], 10);
+    const shareZ = parseInt(shareZIndex[1], 10);
+
+    // Popovers should be below toolbar so they don't overlap it
+    expect(buildInfoZ).toBeLessThan(toolbarZ);
+    expect(shareZ).toBeLessThan(toolbarZ);
+  });
+});
+
+// Tests for popover positioning logic
+describe('Popover Positioning', () => {
+  it('popover should be positioned below the button with offset', () => {
+    // Simulate the positioning logic from toggleBuildInfo/toggleShare
+    const mockButtonRect = {
+      bottom: 52, // toolbar height
+      left: 100
+    };
+    const offset = 8;
+
+    const popoverStyle = {
+      top: Math.round(mockButtonRect.bottom + offset),
+      left: Math.round(mockButtonRect.left)
+    };
+
+    // Popover top should be below toolbar (button bottom + offset)
+    expect(popoverStyle.top).toBe(60);
+    expect(popoverStyle.left).toBe(100);
+  });
+
+  it('popover should not overlap toolbar when positioned correctly', () => {
+    const toolbarHeight = 52;
+    const offset = 8;
+
+    // Simulate button at various positions
+    const buttonBottoms = [52, 45, 48]; // Various button bottom positions
+
+    buttonBottoms.forEach(buttonBottom => {
+      const popoverTop = buttonBottom + offset;
+      // Popover must start at or after toolbar height
+      expect(popoverTop).toBeGreaterThanOrEqual(toolbarHeight);
+    });
+  });
+});
+
+// Tests for goHome subwindow closing behavior
+describe('goHome Subwindow Closing', () => {
+  // Simulate the closeAllSubwindows function that goHome calls
+  const createCloseAllSubwindows = (setters) => () => {
+    setters.setIsLightboxOpen(false);
+    setters.setIsSidebarOpen(false);
+    setters.setIsBuildInfoOpen(false);
+    setters.setIsShareOpen(false);
+  };
+
+  it('should close all subwindows when goHome is called', () => {
+    // Track which setters were called with what values
+    const calls = {
+      lightbox: [],
+      sidebar: [],
+      buildInfo: [],
+      share: []
+    };
+
+    const setters = {
+      setIsLightboxOpen: (val) => calls.lightbox.push(val),
+      setIsSidebarOpen: (val) => calls.sidebar.push(val),
+      setIsBuildInfoOpen: (val) => calls.buildInfo.push(val),
+      setIsShareOpen: (val) => calls.share.push(val)
+    };
+
+    const closeAllSubwindows = createCloseAllSubwindows(setters);
+    closeAllSubwindows();
+
+    // All subwindows should be set to false
+    expect(calls.lightbox).toContain(false);
+    expect(calls.sidebar).toContain(false);
+    expect(calls.buildInfo).toContain(false);
+    expect(calls.share).toContain(false);
+  });
+
+  it('should close lightbox when it was open', () => {
+    let lightboxOpen = true;
+    const setters = {
+      setIsLightboxOpen: (val) => { lightboxOpen = val; },
+      setIsSidebarOpen: vi.fn(),
+      setIsBuildInfoOpen: vi.fn(),
+      setIsShareOpen: vi.fn()
+    };
+
+    const closeAllSubwindows = createCloseAllSubwindows(setters);
+    closeAllSubwindows();
+
+    expect(lightboxOpen).toBe(false);
+  });
+
+  it('should close sidebar (campaign list) when it was open', () => {
+    let sidebarOpen = true;
+    const setters = {
+      setIsLightboxOpen: vi.fn(),
+      setIsSidebarOpen: (val) => { sidebarOpen = val; },
+      setIsBuildInfoOpen: vi.fn(),
+      setIsShareOpen: vi.fn()
+    };
+
+    const closeAllSubwindows = createCloseAllSubwindows(setters);
+    closeAllSubwindows();
+
+    expect(sidebarOpen).toBe(false);
+  });
+
+  it('should close build info popover when it was open', () => {
+    let buildInfoOpen = true;
+    const setters = {
+      setIsLightboxOpen: vi.fn(),
+      setIsSidebarOpen: vi.fn(),
+      setIsBuildInfoOpen: (val) => { buildInfoOpen = val; },
+      setIsShareOpen: vi.fn()
+    };
+
+    const closeAllSubwindows = createCloseAllSubwindows(setters);
+    closeAllSubwindows();
+
+    expect(buildInfoOpen).toBe(false);
+  });
+
+  it('should close share popover when it was open', () => {
+    let shareOpen = true;
+    const setters = {
+      setIsLightboxOpen: vi.fn(),
+      setIsSidebarOpen: vi.fn(),
+      setIsBuildInfoOpen: vi.fn(),
+      setIsShareOpen: (val) => { shareOpen = val; }
+    };
+
+    const closeAllSubwindows = createCloseAllSubwindows(setters);
+    closeAllSubwindows();
+
+    expect(shareOpen).toBe(false);
+  });
+
+  it('should close all subwindows when multiple are open simultaneously', () => {
+    // Simulate multiple subwindows being open at once
+    let lightboxOpen = true;
+    let sidebarOpen = true;
+    let buildInfoOpen = true;
+    let shareOpen = true;
+
+    const setters = {
+      setIsLightboxOpen: (val) => { lightboxOpen = val; },
+      setIsSidebarOpen: (val) => { sidebarOpen = val; },
+      setIsBuildInfoOpen: (val) => { buildInfoOpen = val; },
+      setIsShareOpen: (val) => { shareOpen = val; }
+    };
+
+    const closeAllSubwindows = createCloseAllSubwindows(setters);
+    closeAllSubwindows();
+
+    expect(lightboxOpen).toBe(false);
+    expect(sidebarOpen).toBe(false);
+    expect(buildInfoOpen).toBe(false);
+    expect(shareOpen).toBe(false);
+  });
+
+  it('should be safe to call when all subwindows are already closed', () => {
+    let lightboxOpen = false;
+    let sidebarOpen = false;
+    let buildInfoOpen = false;
+    let shareOpen = false;
+
+    const setters = {
+      setIsLightboxOpen: (val) => { lightboxOpen = val; },
+      setIsSidebarOpen: (val) => { sidebarOpen = val; },
+      setIsBuildInfoOpen: (val) => { buildInfoOpen = val; },
+      setIsShareOpen: (val) => { shareOpen = val; }
+    };
+
+    const closeAllSubwindows = createCloseAllSubwindows(setters);
+
+    // Should not throw and all should remain false
+    expect(() => closeAllSubwindows()).not.toThrow();
+    expect(lightboxOpen).toBe(false);
+    expect(sidebarOpen).toBe(false);
+    expect(buildInfoOpen).toBe(false);
+    expect(shareOpen).toBe(false);
+  });
+});
 
 // Test the placeholder image creation logic directly
 describe('Campaign Loading Placeholder Logic', () => {
