@@ -681,29 +681,41 @@ describe('Content Modal CSS', () => {
   const cssPath = path.resolve(__dirname, '../src/styles.css');
   const cssContent = fs.readFileSync(cssPath, 'utf-8');
 
+  // Helper to extract a CSS rule block by selector
+  const getCssRule = (selector) => {
+    const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = cssContent.match(new RegExp(`${escapedSelector}\\s*\\{([^}]*)\\}`, 's'));
+    return match ? match[1] : '';
+  };
+
   it('modal overlay should cover entire screen', () => {
-    expect(cssContent).toMatch(/\.content-modal-overlay\s*\{[^}]*position:\s*fixed/);
-    expect(cssContent).toMatch(/\.content-modal-overlay\s*\{[^}]*inset:\s*0/);
+    const rule = getCssRule('.content-modal-overlay');
+    expect(rule).toMatch(/position:\s*fixed/);
+    expect(rule).toMatch(/inset:\s*0/);
   });
 
   it('modal should be centered', () => {
-    expect(cssContent).toMatch(/\.content-modal-overlay\s*\{[^}]*display:\s*grid/);
-    expect(cssContent).toMatch(/\.content-modal-overlay\s*\{[^}]*place-items:\s*center/);
+    const rule = getCssRule('.content-modal-overlay');
+    expect(rule).toMatch(/display:\s*grid/);
+    expect(rule).toMatch(/place-items:\s*center/);
   });
 
   it('modal should have high z-index for proper stacking', () => {
-    const modalZIndex = cssContent.match(/\.content-modal-overlay\s*\{[^}]*z-index:\s*(\d+)/);
-    expect(modalZIndex).not.toBeNull();
-    const zIndex = parseInt(modalZIndex[1], 10);
+    const rule = getCssRule('.content-modal-overlay');
+    const zIndexMatch = rule.match(/z-index:\s*(\d+)/);
+    expect(zIndexMatch).not.toBeNull();
+    const zIndex = parseInt(zIndexMatch[1], 10);
     // Should be above toolbar (z-index: 30) but could be below lightbox (z-index: 50)
     expect(zIndex).toBeGreaterThanOrEqual(30);
   });
 
   it('modal body should be scrollable', () => {
-    expect(cssContent).toMatch(/\.content-modal-body\s*\{[^}]*overflow-y:\s*auto/);
+    const rule = getCssRule('.content-modal-body');
+    expect(rule).toMatch(/overflow-y:\s*auto/);
   });
 
   it('modal should have max-height to prevent overflow', () => {
-    expect(cssContent).toMatch(/\.content-modal\s*\{[^}]*max-height:\s*85vh/);
+    const rule = getCssRule('.content-modal');
+    expect(rule).toMatch(/max-height:\s*85vh/);
   });
 });
