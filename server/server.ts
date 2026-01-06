@@ -81,6 +81,9 @@ const blobCache = new Map<string, BlobCacheEntry>();
 const CACHE_TTL = 30000; // 30 seconds cache during development/testing
 const HAS_BLOB_TOKEN = !!process.env['BLOB_READ_WRITE_TOKEN'];
 
+// Cache for content pages (History, Credits, Legal) - cached indefinitely until server restart
+const contentCache = new Map<string, string>();
+
 async function listBlobsWithCache(options: ListBlobsOptions): Promise<{ blobs: ListBlobResultBlob[] }> {
   // If no blob token is available (e.g., in CI), return empty results
   if (!HAS_BLOB_TOKEN) {
@@ -292,7 +295,7 @@ app.get('/api/build-info', (_req: Request, res: Response): void => {
 const VALID_CONTENT_PAGES = ['history', 'credits', 'legal'] as const;
 type ContentPage = typeof VALID_CONTENT_PAGES[number];
 
-app.get('/api/content/:page', (req: Request, res: Response): void => {
+app.get('/api/content/:page', async (req: Request, res: Response): Promise<void> => {
   const page = req.params['page'] as string;
 
   if (!VALID_CONTENT_PAGES.includes(page as ContentPage)) {
@@ -300,19 +303,27 @@ app.get('/api/content/:page', (req: Request, res: Response): void => {
     return;
   }
 
+  // Check cache first
+  const cached = contentCache.get(page);
+  if (cached) {
+    res.json({ content: cached, page });
+    return;
+  }
+
   const contentPath = path.join(CONTENT_DIR, `${page}.html`);
 
   try {
-    if (!fs.existsSync(contentPath)) {
-      res.status(404).json({ error: 'Content file not found' });
-      return;
-    }
-
-    const content = fs.readFileSync(contentPath, 'utf8');
+    const content = await fs.promises.readFile(contentPath, 'utf8');
+    // Cache the content for future requests
+    contentCache.set(page, content);
     res.json({ content, page });
   } catch (err: any) {
-    console.error('Content read error:', err);
-    res.status(500).json({ error: 'Failed to load content' });
+    if (err.code === 'ENOENT') {
+      res.status(404).json({ error: 'Content file not found' });
+    } else {
+      console.error('Content read error:', err);
+      res.status(500).json({ error: 'Failed to load content' });
+    }
   }
 });
 
