@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import DOMPurify from 'dompurify';
 import { useLightboxAnimations } from './hooks/useLightboxAnimations';
 import { fetchJSON } from './utils/fetchJSON';
 import { formatTimePacific } from './utils/formatTimePacific';
@@ -240,7 +241,9 @@ export default function App() {
       const data = await fetchJSON<ContentResponse>(`/api/content/${page}`);
       // Only update content if this is still the active modal (prevents race condition)
       if (activeModalRef.current === page) {
-        setModalContent(data.content);
+        // Sanitize HTML to prevent XSS attacks
+        const sanitizedContent = DOMPurify.sanitize(data.content);
+        setModalContent(sanitizedContent);
       }
     } catch (e) {
       console.error('Failed to load content:', e);
