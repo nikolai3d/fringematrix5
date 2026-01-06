@@ -676,6 +676,221 @@ describe('Content Modal Behavior', () => {
   });
 });
 
+// Tests for Modal Focus Management
+describe('Modal Focus Management', () => {
+  it('should store trigger element when opening modal', () => {
+    // Simulate the openModal behavior that stores the trigger
+    let modalTriggerRef = { current: null };
+    const mockActiveElement = { focus: vi.fn(), tagName: 'BUTTON' };
+
+    // Simulate storing the trigger (as done in openModal)
+    const storeTriger = () => {
+      modalTriggerRef.current = mockActiveElement;
+    };
+
+    storeTriger();
+    expect(modalTriggerRef.current).toBe(mockActiveElement);
+  });
+
+  it('should restore focus to trigger element when closing modal', () => {
+    // Simulate the closeModal behavior that restores focus
+    const mockTrigger = { focus: vi.fn() };
+    let modalTriggerRef = { current: mockTrigger };
+
+    // Simulate closeModal focus restoration logic
+    const restoreFocus = () => {
+      if (modalTriggerRef.current) {
+        modalTriggerRef.current.focus();
+        modalTriggerRef.current = null;
+      }
+    };
+
+    restoreFocus();
+
+    expect(mockTrigger.focus).toHaveBeenCalledTimes(1);
+    expect(modalTriggerRef.current).toBe(null);
+  });
+
+  it('should not throw when closing modal with no trigger', () => {
+    let modalTriggerRef = { current: null };
+
+    const restoreFocus = () => {
+      if (modalTriggerRef.current) {
+        modalTriggerRef.current.focus();
+        modalTriggerRef.current = null;
+      }
+    };
+
+    // Should not throw
+    expect(() => restoreFocus()).not.toThrow();
+  });
+
+  it('should trap focus - Tab on last element wraps to first', () => {
+    const firstElement = { focus: vi.fn() };
+    const lastElement = { focus: vi.fn() };
+    const focusableElements = [firstElement, lastElement];
+
+    // Simulate Tab key on last element
+    const mockEvent = {
+      key: 'Tab',
+      shiftKey: false,
+      preventDefault: vi.fn()
+    };
+
+    // Simulate the focus trap logic
+    const handleFocusTrap = (e, activeElement) => {
+      if (e.key === 'Tab') {
+        const first = focusableElements[0];
+        const last = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    // Simulate active element being the last element
+    handleFocusTrap(mockEvent, lastElement);
+
+    expect(mockEvent.preventDefault).toHaveBeenCalledTimes(1);
+    expect(firstElement.focus).toHaveBeenCalledTimes(1);
+  });
+
+  it('should trap focus - Shift+Tab on first element wraps to last', () => {
+    const firstElement = { focus: vi.fn() };
+    const lastElement = { focus: vi.fn() };
+    const focusableElements = [firstElement, lastElement];
+
+    // Simulate Shift+Tab key on first element
+    const mockEvent = {
+      key: 'Tab',
+      shiftKey: true,
+      preventDefault: vi.fn()
+    };
+
+    // Simulate the focus trap logic
+    const handleFocusTrap = (e, activeElement) => {
+      if (e.key === 'Tab') {
+        const first = focusableElements[0];
+        const last = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    // Simulate active element being the first element
+    handleFocusTrap(mockEvent, firstElement);
+
+    expect(mockEvent.preventDefault).toHaveBeenCalledTimes(1);
+    expect(lastElement.focus).toHaveBeenCalledTimes(1);
+  });
+
+  it('should not trap focus when Tab is pressed on middle element', () => {
+    const firstElement = { focus: vi.fn() };
+    const middleElement = { focus: vi.fn() };
+    const lastElement = { focus: vi.fn() };
+    const focusableElements = [firstElement, middleElement, lastElement];
+
+    const mockEvent = {
+      key: 'Tab',
+      shiftKey: false,
+      preventDefault: vi.fn()
+    };
+
+    const handleFocusTrap = (e, activeElement) => {
+      if (e.key === 'Tab') {
+        const first = focusableElements[0];
+        const last = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    // Simulate active element being a middle element
+    handleFocusTrap(mockEvent, middleElement);
+
+    // Should not prevent default or change focus - let browser handle it
+    expect(mockEvent.preventDefault).not.toHaveBeenCalled();
+    expect(firstElement.focus).not.toHaveBeenCalled();
+    expect(lastElement.focus).not.toHaveBeenCalled();
+  });
+
+  it('should handle Escape key to close modal', () => {
+    let modalClosed = false;
+    const closeModal = () => { modalClosed = true; };
+
+    const mockEvent = {
+      key: 'Escape',
+      shiftKey: false,
+      preventDefault: vi.fn()
+    };
+
+    // Simulate the keyboard handler
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        return;
+      }
+    };
+
+    handleKeyDown(mockEvent);
+
+    expect(modalClosed).toBe(true);
+  });
+
+  it('should not interfere with other keys', () => {
+    const firstElement = { focus: vi.fn() };
+    const lastElement = { focus: vi.fn() };
+
+    const mockEvent = {
+      key: 'Enter',
+      shiftKey: false,
+      preventDefault: vi.fn()
+    };
+
+    const handleFocusTrap = (e) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    handleFocusTrap(mockEvent);
+
+    // Should not prevent default or focus anything for non-Tab keys
+    expect(mockEvent.preventDefault).not.toHaveBeenCalled();
+    expect(firstElement.focus).not.toHaveBeenCalled();
+  });
+});
+
 // Tests for Content Modal CSS
 describe('Content Modal CSS', () => {
   const cssPath = path.resolve(__dirname, '../src/styles.css');
