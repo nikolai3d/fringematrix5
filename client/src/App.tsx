@@ -42,13 +42,27 @@ export default function App() {
   const buildBtnRef = useRef<HTMLButtonElement>(null);
   const [shareStyle, setShareStyle] = useState<React.CSSProperties>({});
   const [buildStyle, setBuildStyle] = useState<React.CSSProperties>({});
+  // =============================================================================
+  // Content Modal State (History, Credits, Legal)
+  //
+  // Focus Management Contract:
+  // 1. When modal opens, the trigger element (button that opened it) is stored
+  // 2. Focus moves to the close button when modal opens
+  // 3. Focus is trapped within the modal:
+  //    - Tab on last focusable element wraps to first
+  //    - Shift+Tab on first focusable element wraps to last
+  //    - Other keys are not intercepted
+  // 4. Escape key closes the modal
+  // 5. When modal closes, focus returns to the stored trigger element
+  // 6. If no trigger element exists, focus restoration is safely skipped
+  // =============================================================================
   const [activeModal, setActiveModal] = useState<ContentPage | null>(null);
   const [modalContent, setModalContent] = useState<string>('');
   const [isModalLoading, setIsModalLoading] = useState<boolean>(false);
-  const activeModalRef = useRef<ContentPage | null>(null);
-  const modalTriggerRef = useRef<HTMLElement | null>(null);
-  const modalCloseRef = useRef<HTMLButtonElement>(null);
-  const modalRef = useRef<HTMLDivElement>(null);
+  const activeModalRef = useRef<ContentPage | null>(null);  // Tracks which modal is loading (prevents race conditions)
+  const modalTriggerRef = useRef<HTMLElement | null>(null); // Stores element that opened modal for focus restoration
+  const modalCloseRef = useRef<HTMLButtonElement>(null);    // Close button ref for initial focus
+  const modalRef = useRef<HTMLDivElement>(null);            // Modal container ref for focus trapping
 
   const repoHref = useMemo(
     () => gitRemoteToHttps(buildInfo?.repoUrl || ''),
@@ -228,16 +242,19 @@ export default function App() {
     setIsBuildInfoOpen(false);
   }, []);
 
+  // Opens a content modal (History, Credits, or Legal)
+  // Focus Contract: Stores trigger element for later focus restoration (see contract item 1)
   const openModal = useCallback(async (page: ContentPage) => {
     // Close other popovers when opening modal
     setIsBuildInfoOpen(false);
     setIsShareOpen(false);
     setIsSidebarOpen(false);
 
-    // Store the trigger element for focus restoration when modal closes
+    // Focus Contract Item 1: Store the trigger element for focus restoration when modal closes
     modalTriggerRef.current = document.activeElement as HTMLElement;
 
     // Track which modal we're loading to prevent race conditions
+    // (if user clicks another modal button before content loads)
     activeModalRef.current = page;
     setActiveModal(page);
     setIsModalLoading(true);
@@ -263,11 +280,14 @@ export default function App() {
     }
   }, []);
 
+  // Closes the content modal and restores focus
+  // Focus Contract Items 5-6: Restores focus to trigger, safely handles null trigger
   const closeModal = useCallback(() => {
     activeModalRef.current = null;
     setActiveModal(null);
     setModalContent('');
-    // Restore focus to the element that triggered the modal
+    // Focus Contract Item 5: Restore focus to the element that triggered the modal
+    // Focus Contract Item 6: Safely skip if no trigger element exists
     if (modalTriggerRef.current) {
       modalTriggerRef.current.focus();
       modalTriggerRef.current = null;
@@ -523,21 +543,25 @@ export default function App() {
   }, [isLightboxOpen, closeLightbox, nextImage]);
 
   // Modal keyboard handler and focus management
+  // Implements Focus Contract Items 2, 3, and 4
   useEffect(() => {
     if (!activeModal) return;
 
-    // Focus the close button when modal opens
+    // Focus Contract Item 2: Focus moves to the close button when modal opens
+    // Using setTimeout to ensure DOM is ready after React render
     const focusTimer = setTimeout(() => {
       modalCloseRef.current?.focus();
     }, 0);
 
     const onKey = (e: KeyboardEvent) => {
+      // Focus Contract Item 4: Escape key closes the modal
       if (e.key === 'Escape') {
         closeModal();
         return;
       }
 
-      // Focus trapping - keep focus within the modal
+      // Focus Contract Item 3: Focus is trapped within the modal
+      // Only intercept Tab key; other keys pass through normally
       if (e.key === 'Tab' && modalRef.current) {
         const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
           'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -546,19 +570,22 @@ export default function App() {
         const lastElement = focusableElements[focusableElements.length - 1];
 
         if (e.shiftKey) {
-          // Shift+Tab: if on first element, wrap to last
+          // Focus Contract Item 3b: Shift+Tab on first element wraps to last
           if (document.activeElement === firstElement) {
             e.preventDefault();
             lastElement?.focus();
           }
+          // Otherwise, let browser handle normal Shift+Tab behavior
         } else {
-          // Tab: if on last element, wrap to first
+          // Focus Contract Item 3a: Tab on last element wraps to first
           if (document.activeElement === lastElement) {
             e.preventDefault();
             firstElement?.focus();
           }
+          // Otherwise, let browser handle normal Tab behavior (middle elements)
         }
       }
+      // Focus Contract Item 3c: Other keys are not intercepted
     };
 
     document.addEventListener('keydown', onKey);
