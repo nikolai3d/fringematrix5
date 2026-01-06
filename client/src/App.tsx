@@ -662,7 +662,6 @@ export default function App() {
           </button>
           <button
             className="toolbar-button"
-            aria-pressed={activeModal === 'history'}
             onClick={() => openModal('history')}
             disabled={isCampaignLoading}
           >
@@ -670,7 +669,6 @@ export default function App() {
           </button>
           <button
             className="toolbar-button"
-            aria-pressed={activeModal === 'credits'}
             onClick={() => openModal('credits')}
             disabled={isCampaignLoading}
           >
@@ -678,7 +676,6 @@ export default function App() {
           </button>
           <button
             className="toolbar-button"
-            aria-pressed={activeModal === 'legal'}
             onClick={() => openModal('legal')}
             disabled={isCampaignLoading}
           >
