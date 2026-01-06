@@ -46,6 +46,9 @@ export default function App() {
   const [modalContent, setModalContent] = useState<string>('');
   const [isModalLoading, setIsModalLoading] = useState<boolean>(false);
   const activeModalRef = useRef<ContentPage | null>(null);
+  const modalTriggerRef = useRef<HTMLElement | null>(null);
+  const modalCloseRef = useRef<HTMLButtonElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const repoHref = useMemo(
     () => gitRemoteToHttps(buildInfo?.repoUrl || ''),
@@ -231,6 +234,9 @@ export default function App() {
     setIsShareOpen(false);
     setIsSidebarOpen(false);
 
+    // Store the trigger element for focus restoration when modal closes
+    modalTriggerRef.current = document.activeElement as HTMLElement;
+
     // Track which modal we're loading to prevent race conditions
     activeModalRef.current = page;
     setActiveModal(page);
@@ -261,6 +267,11 @@ export default function App() {
     activeModalRef.current = null;
     setActiveModal(null);
     setModalContent('');
+    // Restore focus to the element that triggered the modal
+    if (modalTriggerRef.current) {
+      modalTriggerRef.current.focus();
+      modalTriggerRef.current = null;
+    }
   }, []);
 
   // Stable, throttled scroll/resize handler setup
@@ -511,14 +522,50 @@ export default function App() {
     return () => document.removeEventListener('keydown', onKey);
   }, [isLightboxOpen, closeLightbox, nextImage]);
 
-  // Modal keyboard handler
+  // Modal keyboard handler and focus management
   useEffect(() => {
     if (!activeModal) return;
+
+    // Focus the close button when modal opens
+    const focusTimer = setTimeout(() => {
+      modalCloseRef.current?.focus();
+    }, 0);
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeModal();
+      if (e.key === 'Escape') {
+        closeModal();
+        return;
+      }
+
+      // Focus trapping - keep focus within the modal
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          // Shift+Tab: if on first element, wrap to last
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement?.focus();
+          }
+        } else {
+          // Tab: if on last element, wrap to first
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement?.focus();
+          }
+        }
+      }
     };
+
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    return () => {
+      clearTimeout(focusTimer);
+      document.removeEventListener('keydown', onKey);
+    };
   }, [activeModal, closeModal]);
 
   // The hook manages the wireframe/backdrop animation timing on open/close
@@ -818,14 +865,15 @@ export default function App() {
 
       {/* Content Modal (History, Credits, Legal) */}
       {activeModal && (
-        <div className="content-modal-overlay" onClick={closeModal} role="dialog" aria-modal={true} aria-label={activeModal}>
-          <div className="content-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="content-modal-overlay" onClick={closeModal} role="dialog" aria-modal={true} aria-labelledby="modal-title">
+          <div className="content-modal" ref={modalRef} onClick={(e) => e.stopPropagation()}>
             <div className="content-modal-header">
-              <span className="content-modal-title">
+              <span className="content-modal-title" id="modal-title">
                 {activeModal.charAt(0).toUpperCase() + activeModal.slice(1)}
               </span>
               <button
                 className="content-modal-close"
+                ref={modalCloseRef}
                 aria-label="Close"
                 onClick={closeModal}
               >
