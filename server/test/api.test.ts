@@ -133,4 +133,52 @@ describe('API contract', () => {
       expect(res.body).toEqual(expect.objectContaining({ error: expect.any(String) }));
     });
   });
+
+  describe('GET /api/content/:page', () => {
+    it('returns history content', async () => {
+      const res = await request(app).get('/api/content/history');
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('content');
+      expect(res.body).toHaveProperty('page', 'history');
+      expect(typeof res.body.content).toBe('string');
+      expect(res.body.content.length).toBeGreaterThan(0);
+    });
+
+    it('returns credits content', async () => {
+      const res = await request(app).get('/api/content/credits');
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('content');
+      expect(res.body).toHaveProperty('page', 'credits');
+      expect(typeof res.body.content).toBe('string');
+      expect(res.body.content.length).toBeGreaterThan(0);
+    });
+
+    it('returns legal content', async () => {
+      const res = await request(app).get('/api/content/legal');
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('content');
+      expect(res.body).toHaveProperty('page', 'legal');
+      expect(typeof res.body.content).toBe('string');
+      expect(res.body.content.length).toBeGreaterThan(0);
+    });
+
+    it('returns 404 for invalid content page', async () => {
+      const res = await request(app).get('/api/content/invalid-page');
+      expect(res.status).toBe(404);
+      expect(res.body).toEqual(expect.objectContaining({ error: 'Content page not found' }));
+    });
+
+    it('returns 404 for empty page parameter', async () => {
+      const res = await request(app).get('/api/content/');
+      expect(res.status).toBe(404);
+    });
+
+    it('content contains HTML markup', async () => {
+      const res = await request(app).get('/api/content/history');
+      expect(res.status).toBe(200);
+      // Check that content contains some HTML tags
+      expect(res.body.content).toMatch(/<h[23]>/);
+      expect(res.body.content).toMatch(/<\/p>/);
+    });
+  });
 });

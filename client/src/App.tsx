@@ -3,14 +3,16 @@ import { useLightboxAnimations } from './hooks/useLightboxAnimations';
 import { fetchJSON } from './utils/fetchJSON';
 import { formatTimePacific } from './utils/formatTimePacific';
 import { gitRemoteToHttps } from './utils/gitRemoteToHttps';
-import type { 
-  Campaign, 
+import type {
+  Campaign,
   ImageData,
   ApiImageData,
   BuildInfo,
   CampaignsResponse,
   CampaignImagesResponse,
-  BuildInfoResponse
+  BuildInfoResponse,
+  ContentPage,
+  ContentResponse
 } from './types/api';
 
 export default function App() {
@@ -39,6 +41,9 @@ export default function App() {
   const buildBtnRef = useRef<HTMLButtonElement>(null);
   const [shareStyle, setShareStyle] = useState<React.CSSProperties>({});
   const [buildStyle, setBuildStyle] = useState<React.CSSProperties>({});
+  const [activeModal, setActiveModal] = useState<ContentPage | null>(null);
+  const [modalContent, setModalContent] = useState<string>('');
+  const [isModalLoading, setIsModalLoading] = useState<boolean>(false);
 
   const repoHref = useMemo(
     () => gitRemoteToHttps(buildInfo?.repoUrl || ''),
@@ -172,6 +177,7 @@ export default function App() {
     setIsSidebarOpen(false);
     setIsBuildInfoOpen(false);
     setIsShareOpen(false);
+    setActiveModal(null);
   }, []);
 
   const goHome = useCallback(() => {
@@ -215,6 +221,32 @@ export default function App() {
       return next;
     });
     setIsBuildInfoOpen(false);
+  }, []);
+
+  const openModal = useCallback(async (page: ContentPage) => {
+    // Close other popovers when opening modal
+    setIsBuildInfoOpen(false);
+    setIsShareOpen(false);
+    setIsSidebarOpen(false);
+
+    setActiveModal(page);
+    setIsModalLoading(true);
+    setModalContent('');
+
+    try {
+      const data = await fetchJSON<ContentResponse>(`/api/content/${page}`);
+      setModalContent(data.content);
+    } catch (e) {
+      console.error('Failed to load content:', e);
+      setModalContent('<p>Failed to load content. Please try again.</p>');
+    } finally {
+      setIsModalLoading(false);
+    }
+  }, []);
+
+  const closeModal = useCallback(() => {
+    setActiveModal(null);
+    setModalContent('');
   }, []);
 
   // Stable, throttled scroll/resize handler setup
@@ -465,6 +497,16 @@ export default function App() {
     return () => document.removeEventListener('keydown', onKey);
   }, [isLightboxOpen, closeLightbox, nextImage]);
 
+  // Modal keyboard handler
+  useEffect(() => {
+    if (!activeModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeModal();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [activeModal, closeModal]);
+
   // The hook manages the wireframe/backdrop animation timing on open/close
 
   // Grid thumbnail sync handled by hook
@@ -529,6 +571,30 @@ export default function App() {
             disabled={isCampaignLoading}
           >
             Build Info
+          </button>
+          <button
+            className="toolbar-button"
+            aria-pressed={activeModal === 'history'}
+            onClick={() => openModal('history')}
+            disabled={isCampaignLoading}
+          >
+            History
+          </button>
+          <button
+            className="toolbar-button"
+            aria-pressed={activeModal === 'credits'}
+            onClick={() => openModal('credits')}
+            disabled={isCampaignLoading}
+          >
+            Credits
+          </button>
+          <button
+            className="toolbar-button"
+            aria-pressed={activeModal === 'legal'}
+            onClick={() => openModal('legal')}
+            disabled={isCampaignLoading}
+          >
+            Legal
           </button>
         </div>
       </div>
@@ -732,6 +798,33 @@ export default function App() {
             <button id="share-btn" className="action-btn" onClick={(e) => { e.stopPropagation(); handleShare(); }}>Share</button>
             <div className="spacer"></div>
             <button id="next-btn" className="nav-btn" aria-label="Next" onClick={(e) => { e.stopPropagation(); nextImage(1); }}>▶</button>
+          </div>
+        </div>
+      )}
+
+      {/* Content Modal (History, Credits, Legal) */}
+      {activeModal && (
+        <div className="content-modal-overlay" onClick={closeModal} role="dialog" aria-modal={true} aria-label={activeModal}>
+          <div className="content-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="content-modal-header">
+              <span className="content-modal-title">
+                {activeModal.charAt(0).toUpperCase() + activeModal.slice(1)}
+              </span>
+              <button
+                className="content-modal-close"
+                aria-label="Close"
+                onClick={closeModal}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="content-modal-body">
+              {isModalLoading ? (
+                <div className="content-modal-loading">Loading...</div>
+              ) : (
+                <div dangerouslySetInnerHTML={{ __html: modalContent }} />
+              )}
+            </div>
           </div>
         </div>
       )}
