@@ -684,11 +684,11 @@ describe('Modal Focus Management', () => {
     const mockActiveElement = { focus: vi.fn(), tagName: 'BUTTON' };
 
     // Simulate storing the trigger (as done in openModal)
-    const storeTriger = () => {
+    const storeTrigger = () => {
       modalTriggerRef.current = mockActiveElement;
     };
 
-    storeTriger();
+    storeTrigger();
     expect(modalTriggerRef.current).toBe(mockActiveElement);
   });
 
