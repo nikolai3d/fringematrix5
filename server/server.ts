@@ -69,6 +69,7 @@ const PORT = process.env['PORT'] || 3000;
 // Project root is one level up from this file (which lives in server/)
 const PROJECT_ROOT = path.join(__dirname, '..');
 const DATA_DIR = path.join(PROJECT_ROOT, 'data');
+const CONTENT_DIR = path.join(PROJECT_ROOT, 'content');
 const PUBLIC_DIR = path.join(PROJECT_ROOT, 'public');
 const CLIENT_DIST_DIR = path.join(PROJECT_ROOT, 'client', 'dist');
 const HAS_CLIENT_BUILD = fs.existsSync(path.join(CLIENT_DIST_DIR, 'index.html'));
@@ -284,6 +285,34 @@ app.get('/api/build-info', (_req: Request, res: Response): void => {
   } catch (err: any) {
     console.error(err);
     res.status(500).json({ error: 'Failed to load build info' });
+  }
+});
+
+// Content pages (History, Credits, Legal)
+const VALID_CONTENT_PAGES = ['history', 'credits', 'legal'] as const;
+type ContentPage = typeof VALID_CONTENT_PAGES[number];
+
+app.get('/api/content/:page', (req: Request, res: Response): void => {
+  const page = req.params['page'] as string;
+
+  if (!VALID_CONTENT_PAGES.includes(page as ContentPage)) {
+    res.status(404).json({ error: 'Content page not found' });
+    return;
+  }
+
+  const contentPath = path.join(CONTENT_DIR, `${page}.html`);
+
+  try {
+    if (!fs.existsSync(contentPath)) {
+      res.status(404).json({ error: 'Content file not found' });
+      return;
+    }
+
+    const content = fs.readFileSync(contentPath, 'utf8');
+    res.json({ content, page });
+  } catch (err: any) {
+    console.error('Content read error:', err);
+    res.status(500).json({ error: 'Failed to load content' });
   }
 });
 
