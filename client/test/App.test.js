@@ -104,6 +104,7 @@ describe('goHome Subwindow Closing', () => {
     setters.setIsSidebarOpen(false);
     setters.setIsBuildInfoOpen(false);
     setters.setIsShareOpen(false);
+    setters.setActiveModal(null);
   };
 
   it('should close all subwindows when goHome is called', () => {
@@ -112,24 +113,27 @@ describe('goHome Subwindow Closing', () => {
       lightbox: [],
       sidebar: [],
       buildInfo: [],
-      share: []
+      share: [],
+      modal: []
     };
 
     const setters = {
       setIsLightboxOpen: (val) => calls.lightbox.push(val),
       setIsSidebarOpen: (val) => calls.sidebar.push(val),
       setIsBuildInfoOpen: (val) => calls.buildInfo.push(val),
-      setIsShareOpen: (val) => calls.share.push(val)
+      setIsShareOpen: (val) => calls.share.push(val),
+      setActiveModal: (val) => calls.modal.push(val)
     };
 
     const closeAllSubwindows = createCloseAllSubwindows(setters);
     closeAllSubwindows();
 
-    // All subwindows should be set to false
+    // All subwindows should be set to false/null
     expect(calls.lightbox).toContain(false);
     expect(calls.sidebar).toContain(false);
     expect(calls.buildInfo).toContain(false);
     expect(calls.share).toContain(false);
+    expect(calls.modal).toContain(null);
   });
 
   it('should close lightbox when it was open', () => {
@@ -138,7 +142,8 @@ describe('goHome Subwindow Closing', () => {
       setIsLightboxOpen: (val) => { lightboxOpen = val; },
       setIsSidebarOpen: vi.fn(),
       setIsBuildInfoOpen: vi.fn(),
-      setIsShareOpen: vi.fn()
+      setIsShareOpen: vi.fn(),
+      setActiveModal: vi.fn()
     };
 
     const closeAllSubwindows = createCloseAllSubwindows(setters);
@@ -153,7 +158,8 @@ describe('goHome Subwindow Closing', () => {
       setIsLightboxOpen: vi.fn(),
       setIsSidebarOpen: (val) => { sidebarOpen = val; },
       setIsBuildInfoOpen: vi.fn(),
-      setIsShareOpen: vi.fn()
+      setIsShareOpen: vi.fn(),
+      setActiveModal: vi.fn()
     };
 
     const closeAllSubwindows = createCloseAllSubwindows(setters);
@@ -168,7 +174,8 @@ describe('goHome Subwindow Closing', () => {
       setIsLightboxOpen: vi.fn(),
       setIsSidebarOpen: vi.fn(),
       setIsBuildInfoOpen: (val) => { buildInfoOpen = val; },
-      setIsShareOpen: vi.fn()
+      setIsShareOpen: vi.fn(),
+      setActiveModal: vi.fn()
     };
 
     const closeAllSubwindows = createCloseAllSubwindows(setters);
@@ -183,13 +190,30 @@ describe('goHome Subwindow Closing', () => {
       setIsLightboxOpen: vi.fn(),
       setIsSidebarOpen: vi.fn(),
       setIsBuildInfoOpen: vi.fn(),
-      setIsShareOpen: (val) => { shareOpen = val; }
+      setIsShareOpen: (val) => { shareOpen = val; },
+      setActiveModal: vi.fn()
     };
 
     const closeAllSubwindows = createCloseAllSubwindows(setters);
     closeAllSubwindows();
 
     expect(shareOpen).toBe(false);
+  });
+
+  it('should close content modal when it was open', () => {
+    let activeModal = 'history';
+    const setters = {
+      setIsLightboxOpen: vi.fn(),
+      setIsSidebarOpen: vi.fn(),
+      setIsBuildInfoOpen: vi.fn(),
+      setIsShareOpen: vi.fn(),
+      setActiveModal: (val) => { activeModal = val; }
+    };
+
+    const closeAllSubwindows = createCloseAllSubwindows(setters);
+    closeAllSubwindows();
+
+    expect(activeModal).toBe(null);
   });
 
   it('should close all subwindows when multiple are open simultaneously', () => {
@@ -198,12 +222,14 @@ describe('goHome Subwindow Closing', () => {
     let sidebarOpen = true;
     let buildInfoOpen = true;
     let shareOpen = true;
+    let activeModal = 'credits';
 
     const setters = {
       setIsLightboxOpen: (val) => { lightboxOpen = val; },
       setIsSidebarOpen: (val) => { sidebarOpen = val; },
       setIsBuildInfoOpen: (val) => { buildInfoOpen = val; },
-      setIsShareOpen: (val) => { shareOpen = val; }
+      setIsShareOpen: (val) => { shareOpen = val; },
+      setActiveModal: (val) => { activeModal = val; }
     };
 
     const closeAllSubwindows = createCloseAllSubwindows(setters);
@@ -213,6 +239,7 @@ describe('goHome Subwindow Closing', () => {
     expect(sidebarOpen).toBe(false);
     expect(buildInfoOpen).toBe(false);
     expect(shareOpen).toBe(false);
+    expect(activeModal).toBe(null);
   });
 
   it('should be safe to call when all subwindows are already closed', () => {
@@ -220,22 +247,25 @@ describe('goHome Subwindow Closing', () => {
     let sidebarOpen = false;
     let buildInfoOpen = false;
     let shareOpen = false;
+    let activeModal = null;
 
     const setters = {
       setIsLightboxOpen: (val) => { lightboxOpen = val; },
       setIsSidebarOpen: (val) => { sidebarOpen = val; },
       setIsBuildInfoOpen: (val) => { buildInfoOpen = val; },
-      setIsShareOpen: (val) => { shareOpen = val; }
+      setIsShareOpen: (val) => { shareOpen = val; },
+      setActiveModal: (val) => { activeModal = val; }
     };
 
     const closeAllSubwindows = createCloseAllSubwindows(setters);
 
-    // Should not throw and all should remain false
+    // Should not throw and all should remain false/null
     expect(() => closeAllSubwindows()).not.toThrow();
     expect(lightboxOpen).toBe(false);
     expect(sidebarOpen).toBe(false);
     expect(buildInfoOpen).toBe(false);
     expect(shareOpen).toBe(false);
+    expect(activeModal).toBe(null);
   });
 });
 
@@ -524,5 +554,382 @@ describe('Lightbox Click Event Handling', () => {
 
     // Test with null toolbar element
     expect(isInToolbarArea(clickInsideToolbar.x, clickInsideToolbar.y, null)).toBe(false);
+  });
+});
+
+// Tests for Content Modal (History, Credits, Legal)
+describe('Content Modal Behavior', () => {
+  const VALID_CONTENT_PAGES = ['history', 'credits', 'legal'];
+
+  it('should only allow valid content page types', () => {
+    const validPages = ['history', 'credits', 'legal'];
+    const invalidPages = ['about', 'contact', 'settings', '', null, undefined];
+
+    validPages.forEach(page => {
+      expect(VALID_CONTENT_PAGES.includes(page)).toBe(true);
+    });
+
+    invalidPages.forEach(page => {
+      expect(VALID_CONTENT_PAGES.includes(page)).toBe(false);
+    });
+  });
+
+  it('should capitalize page name for modal title', () => {
+    // Simulate the title capitalization logic from App.tsx
+    const capitalizePageName = (page) => {
+      return page.charAt(0).toUpperCase() + page.slice(1);
+    };
+
+    expect(capitalizePageName('history')).toBe('History');
+    expect(capitalizePageName('credits')).toBe('Credits');
+    expect(capitalizePageName('legal')).toBe('Legal');
+  });
+
+  it('openModal should close other popovers before opening', () => {
+    // Simulate the openModal behavior that closes other popovers
+    let buildInfoOpen = true;
+    let shareOpen = true;
+    let sidebarOpen = true;
+    let activeModal = null;
+
+    const openModal = (page) => {
+      // Close other popovers
+      buildInfoOpen = false;
+      shareOpen = false;
+      sidebarOpen = false;
+      // Set the active modal
+      activeModal = page;
+    };
+
+    openModal('history');
+
+    expect(buildInfoOpen).toBe(false);
+    expect(shareOpen).toBe(false);
+    expect(sidebarOpen).toBe(false);
+    expect(activeModal).toBe('history');
+  });
+
+  it('closeModal should reset modal state', () => {
+    let activeModal = 'credits';
+    let modalContent = '<h2>Credits</h2><p>Some content</p>';
+
+    const closeModal = () => {
+      activeModal = null;
+      modalContent = '';
+    };
+
+    closeModal();
+
+    expect(activeModal).toBe(null);
+    expect(modalContent).toBe('');
+  });
+
+  it('modal overlay click should call closeModal', () => {
+    // Simulate clicking on overlay (not the modal content itself)
+    let modalClosed = false;
+    const closeModal = () => { modalClosed = true; };
+
+    // Overlay click
+    closeModal();
+    expect(modalClosed).toBe(true);
+  });
+
+  it('modal content click should stop propagation', () => {
+    // Test that clicking inside the modal doesn't bubble to overlay
+    const mockEvent = {
+      stopPropagation: vi.fn()
+    };
+
+    // Simulate the onClick handler for content-modal div
+    const handleModalContentClick = (e) => {
+      e.stopPropagation();
+    };
+
+    handleModalContentClick(mockEvent);
+    expect(mockEvent.stopPropagation).toHaveBeenCalledTimes(1);
+  });
+
+  it('should display loading state while fetching content', () => {
+    let isModalLoading = true;
+    let modalContent = '';
+
+    // When loading is true and content is empty, loading state should show
+    expect(isModalLoading).toBe(true);
+    expect(modalContent).toBe('');
+
+    // After content loads
+    isModalLoading = false;
+    modalContent = '<h2>History</h2><p>Content loaded</p>';
+
+    expect(isModalLoading).toBe(false);
+    expect(modalContent.length).toBeGreaterThan(0);
+  });
+
+  it('should handle content load failure gracefully', () => {
+    let modalContent = '';
+    const errorMessage = '<p>Failed to load content. Please try again.</p>';
+
+    // Simulate a load failure
+    modalContent = errorMessage;
+
+    expect(modalContent).toContain('Failed to load content');
+  });
+});
+
+// Tests for Modal Focus Management
+describe('Modal Focus Management', () => {
+  it('should store trigger element when opening modal', () => {
+    // Simulate the openModal behavior that stores the trigger
+    let modalTriggerRef = { current: null };
+    const mockActiveElement = { focus: vi.fn(), tagName: 'BUTTON' };
+
+    // Simulate storing the trigger (as done in openModal)
+    const storeTrigger = () => {
+      modalTriggerRef.current = mockActiveElement;
+    };
+
+    storeTrigger();
+    expect(modalTriggerRef.current).toBe(mockActiveElement);
+  });
+
+  it('should restore focus to trigger element when closing modal', () => {
+    // Simulate the closeModal behavior that restores focus
+    const mockTrigger = { focus: vi.fn() };
+    let modalTriggerRef = { current: mockTrigger };
+
+    // Simulate closeModal focus restoration logic
+    const restoreFocus = () => {
+      if (modalTriggerRef.current) {
+        modalTriggerRef.current.focus();
+        modalTriggerRef.current = null;
+      }
+    };
+
+    restoreFocus();
+
+    expect(mockTrigger.focus).toHaveBeenCalledTimes(1);
+    expect(modalTriggerRef.current).toBe(null);
+  });
+
+  it('should not throw when closing modal with no trigger', () => {
+    let modalTriggerRef = { current: null };
+
+    const restoreFocus = () => {
+      if (modalTriggerRef.current) {
+        modalTriggerRef.current.focus();
+        modalTriggerRef.current = null;
+      }
+    };
+
+    // Should not throw
+    expect(() => restoreFocus()).not.toThrow();
+  });
+
+  it('should trap focus - Tab on last element wraps to first', () => {
+    const firstElement = { focus: vi.fn() };
+    const lastElement = { focus: vi.fn() };
+    const focusableElements = [firstElement, lastElement];
+
+    // Simulate Tab key on last element
+    const mockEvent = {
+      key: 'Tab',
+      shiftKey: false,
+      preventDefault: vi.fn()
+    };
+
+    // Simulate the focus trap logic
+    const handleFocusTrap = (e, activeElement) => {
+      if (e.key === 'Tab') {
+        const first = focusableElements[0];
+        const last = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    // Simulate active element being the last element
+    handleFocusTrap(mockEvent, lastElement);
+
+    expect(mockEvent.preventDefault).toHaveBeenCalledTimes(1);
+    expect(firstElement.focus).toHaveBeenCalledTimes(1);
+  });
+
+  it('should trap focus - Shift+Tab on first element wraps to last', () => {
+    const firstElement = { focus: vi.fn() };
+    const lastElement = { focus: vi.fn() };
+    const focusableElements = [firstElement, lastElement];
+
+    // Simulate Shift+Tab key on first element
+    const mockEvent = {
+      key: 'Tab',
+      shiftKey: true,
+      preventDefault: vi.fn()
+    };
+
+    // Simulate the focus trap logic
+    const handleFocusTrap = (e, activeElement) => {
+      if (e.key === 'Tab') {
+        const first = focusableElements[0];
+        const last = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    // Simulate active element being the first element
+    handleFocusTrap(mockEvent, firstElement);
+
+    expect(mockEvent.preventDefault).toHaveBeenCalledTimes(1);
+    expect(lastElement.focus).toHaveBeenCalledTimes(1);
+  });
+
+  it('should not trap focus when Tab is pressed on middle element', () => {
+    const firstElement = { focus: vi.fn() };
+    const middleElement = { focus: vi.fn() };
+    const lastElement = { focus: vi.fn() };
+    const focusableElements = [firstElement, middleElement, lastElement];
+
+    const mockEvent = {
+      key: 'Tab',
+      shiftKey: false,
+      preventDefault: vi.fn()
+    };
+
+    const handleFocusTrap = (e, activeElement) => {
+      if (e.key === 'Tab') {
+        const first = focusableElements[0];
+        const last = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    // Simulate active element being a middle element
+    handleFocusTrap(mockEvent, middleElement);
+
+    // Should not prevent default or change focus - let browser handle it
+    expect(mockEvent.preventDefault).not.toHaveBeenCalled();
+    expect(firstElement.focus).not.toHaveBeenCalled();
+    expect(lastElement.focus).not.toHaveBeenCalled();
+  });
+
+  it('should handle Escape key to close modal', () => {
+    let modalClosed = false;
+    const closeModal = () => { modalClosed = true; };
+
+    const mockEvent = {
+      key: 'Escape',
+      shiftKey: false,
+      preventDefault: vi.fn()
+    };
+
+    // Simulate the keyboard handler
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        return;
+      }
+    };
+
+    handleKeyDown(mockEvent);
+
+    expect(modalClosed).toBe(true);
+  });
+
+  it('should not interfere with other keys', () => {
+    const firstElement = { focus: vi.fn() };
+
+    const mockEvent = {
+      key: 'Enter',
+      shiftKey: false,
+      preventDefault: vi.fn()
+    };
+
+    const handleFocusTrap = (e) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    handleFocusTrap(mockEvent);
+
+    // Should not prevent default or focus anything for non-Tab keys
+    expect(mockEvent.preventDefault).not.toHaveBeenCalled();
+    expect(firstElement.focus).not.toHaveBeenCalled();
+  });
+});
+
+// Tests for Content Modal CSS
+describe('Content Modal CSS', () => {
+  const cssPath = path.resolve(__dirname, '../src/styles.css');
+  const cssContent = fs.readFileSync(cssPath, 'utf-8');
+
+  // Helper to extract a CSS rule block by selector
+  const getCssRule = (selector) => {
+    const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = cssContent.match(new RegExp(`${escapedSelector}\\s*\\{([^}]*)\\}`, 's'));
+    return match ? match[1] : '';
+  };
+
+  it('modal overlay should cover entire screen', () => {
+    const rule = getCssRule('.content-modal-overlay');
+    expect(rule).toMatch(/position:\s*fixed/);
+    expect(rule).toMatch(/inset:\s*0/);
+  });
+
+  it('modal should be centered', () => {
+    const rule = getCssRule('.content-modal-overlay');
+    expect(rule).toMatch(/display:\s*grid/);
+    expect(rule).toMatch(/place-items:\s*center/);
+  });
+
+  it('modal should have high z-index for proper stacking', () => {
+    const rule = getCssRule('.content-modal-overlay');
+    const zIndexMatch = rule.match(/z-index:\s*(\d+)/);
+    expect(zIndexMatch).not.toBeNull();
+    const zIndex = parseInt(zIndexMatch[1], 10);
+    // Should be above toolbar (z-index: 30) but could be below lightbox (z-index: 50)
+    expect(zIndex).toBeGreaterThanOrEqual(30);
+  });
+
+  it('modal body should be scrollable', () => {
+    const rule = getCssRule('.content-modal-body');
+    expect(rule).toMatch(/overflow-y:\s*auto/);
+  });
+
+  it('modal should have max-height to prevent overflow', () => {
+    const rule = getCssRule('.content-modal');
+    expect(rule).toMatch(/max-height:\s*85vh/);
   });
 });

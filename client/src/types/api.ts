@@ -43,3 +43,10 @@ export interface CampaignImagesResponse {
 }
 
 export type BuildInfoResponse = BuildInfo;
+
+export type ContentPage = 'history' | 'credits' | 'legal';
+
+export interface ContentResponse {
+  content: string;
+  page: ContentPage;
+}

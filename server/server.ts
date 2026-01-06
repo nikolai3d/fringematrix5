@@ -69,6 +69,7 @@ const PORT = process.env['PORT'] || 3000;
 // Project root is one level up from this file (which lives in server/)
 const PROJECT_ROOT = path.join(__dirname, '..');
 const DATA_DIR = path.join(PROJECT_ROOT, 'data');
+const CONTENT_DIR = path.join(PROJECT_ROOT, 'content');
 const PUBLIC_DIR = path.join(PROJECT_ROOT, 'public');
 const CLIENT_DIST_DIR = path.join(PROJECT_ROOT, 'client', 'dist');
 const HAS_CLIENT_BUILD = fs.existsSync(path.join(CLIENT_DIST_DIR, 'index.html'));
@@ -79,6 +80,9 @@ const IS_DEV = process.env['NODE_ENV'] !== 'production';
 const blobCache = new Map<string, BlobCacheEntry>();
 const CACHE_TTL = 30000; // 30 seconds cache during development/testing
 const HAS_BLOB_TOKEN = !!process.env['BLOB_READ_WRITE_TOKEN'];
+
+// Cache for content pages (History, Credits, Legal) - cached indefinitely until server restart
+const contentCache = new Map<string, string>();
 
 async function listBlobsWithCache(options: ListBlobsOptions): Promise<{ blobs: ListBlobResultBlob[] }> {
   // If no blob token is available (e.g., in CI), return empty results
@@ -284,6 +288,42 @@ app.get('/api/build-info', (_req: Request, res: Response): void => {
   } catch (err: any) {
     console.error(err);
     res.status(500).json({ error: 'Failed to load build info' });
+  }
+});
+
+// Content pages (History, Credits, Legal)
+const VALID_CONTENT_PAGES = ['history', 'credits', 'legal'] as const;
+type ContentPage = typeof VALID_CONTENT_PAGES[number];
+
+app.get('/api/content/:page', async (req: Request, res: Response): Promise<void> => {
+  const page = req.params['page'] as string;
+
+  if (!VALID_CONTENT_PAGES.includes(page as ContentPage)) {
+    res.status(404).json({ error: 'Content page not found' });
+    return;
+  }
+
+  // Check cache first
+  const cached = contentCache.get(page);
+  if (cached) {
+    res.json({ content: cached, page });
+    return;
+  }
+
+  const contentPath = path.join(CONTENT_DIR, `${page}.html`);
+
+  try {
+    const content = await fs.promises.readFile(contentPath, 'utf8');
+    // Cache the content for future requests
+    contentCache.set(page, content);
+    res.json({ content, page });
+  } catch (err: any) {
+    if (err.code === 'ENOENT') {
+      res.status(404).json({ error: 'Content file not found' });
+    } else {
+      console.error('Content read error:', err);
+      res.status(500).json({ error: 'Failed to load content' });
+    }
   }
 });
 

@@ -1,16 +1,19 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import DOMPurify from 'dompurify';
 import { useLightboxAnimations } from './hooks/useLightboxAnimations';
 import { fetchJSON } from './utils/fetchJSON';
 import { formatTimePacific } from './utils/formatTimePacific';
 import { gitRemoteToHttps } from './utils/gitRemoteToHttps';
-import type { 
-  Campaign, 
+import type {
+  Campaign,
   ImageData,
   ApiImageData,
   BuildInfo,
   CampaignsResponse,
   CampaignImagesResponse,
-  BuildInfoResponse
+  BuildInfoResponse,
+  ContentPage,
+  ContentResponse
 } from './types/api';
 
 export default function App() {
@@ -39,6 +42,27 @@ export default function App() {
   const buildBtnRef = useRef<HTMLButtonElement>(null);
   const [shareStyle, setShareStyle] = useState<React.CSSProperties>({});
   const [buildStyle, setBuildStyle] = useState<React.CSSProperties>({});
+  // =============================================================================
+  // Content Modal State (History, Credits, Legal)
+  //
+  // Focus Management Contract:
+  // 1. When modal opens, the trigger element (button that opened it) is stored
+  // 2. Focus moves to the close button when modal opens
+  // 3. Focus is trapped within the modal:
+  //    - Tab on last focusable element wraps to first
+  //    - Shift+Tab on first focusable element wraps to last
+  //    - Other keys are not intercepted
+  // 4. Escape key closes the modal
+  // 5. When modal closes, focus returns to the stored trigger element
+  // 6. If no trigger element exists, focus restoration is safely skipped
+  // =============================================================================
+  const [activeModal, setActiveModal] = useState<ContentPage | null>(null);
+  const [modalContent, setModalContent] = useState<string>('');
+  const [isModalLoading, setIsModalLoading] = useState<boolean>(false);
+  const activeModalRef = useRef<ContentPage | null>(null);  // Tracks which modal is loading (prevents race conditions)
+  const modalTriggerRef = useRef<HTMLElement | null>(null); // Stores element that opened modal for focus restoration
+  const modalCloseRef = useRef<HTMLButtonElement>(null);    // Close button ref for initial focus
+  const modalRef = useRef<HTMLDivElement>(null);            // Modal container ref for focus trapping
 
   const repoHref = useMemo(
     () => gitRemoteToHttps(buildInfo?.repoUrl || ''),
@@ -172,6 +196,7 @@ export default function App() {
     setIsSidebarOpen(false);
     setIsBuildInfoOpen(false);
     setIsShareOpen(false);
+    setActiveModal(null);
   }, []);
 
   const goHome = useCallback(() => {
@@ -215,6 +240,58 @@ export default function App() {
       return next;
     });
     setIsBuildInfoOpen(false);
+  }, []);
+
+  // Opens a content modal (History, Credits, or Legal)
+  // Focus Contract: Stores trigger element for later focus restoration (see contract item 1)
+  const openModal = useCallback(async (page: ContentPage) => {
+    // Close other popovers when opening modal
+    setIsBuildInfoOpen(false);
+    setIsShareOpen(false);
+    setIsSidebarOpen(false);
+
+    // Focus Contract Item 1: Store the trigger element for focus restoration when modal closes
+    modalTriggerRef.current = document.activeElement as HTMLElement;
+
+    // Track which modal we're loading to prevent race conditions
+    // (if user clicks another modal button before content loads)
+    activeModalRef.current = page;
+    setActiveModal(page);
+    setIsModalLoading(true);
+    setModalContent('');
+
+    try {
+      const data = await fetchJSON<ContentResponse>(`/api/content/${page}`);
+      // Only update content if this is still the active modal (prevents race condition)
+      if (activeModalRef.current === page) {
+        // Sanitize HTML to prevent XSS attacks
+        const sanitizedContent = DOMPurify.sanitize(data.content);
+        setModalContent(sanitizedContent);
+      }
+    } catch (e) {
+      console.error('Failed to load content:', e);
+      if (activeModalRef.current === page) {
+        setModalContent('<p>Failed to load content. Please try again.</p>');
+      }
+    } finally {
+      if (activeModalRef.current === page) {
+        setIsModalLoading(false);
+      }
+    }
+  }, []);
+
+  // Closes the content modal and restores focus
+  // Focus Contract Items 5-6: Restores focus to trigger, safely handles null trigger
+  const closeModal = useCallback(() => {
+    activeModalRef.current = null;
+    setActiveModal(null);
+    setModalContent('');
+    // Focus Contract Item 5: Restore focus to the element that triggered the modal
+    // Focus Contract Item 6: Safely skip if no trigger element exists
+    if (modalTriggerRef.current) {
+      modalTriggerRef.current.focus();
+      modalTriggerRef.current = null;
+    }
   }, []);
 
   // Stable, throttled scroll/resize handler setup
@@ -465,6 +542,59 @@ export default function App() {
     return () => document.removeEventListener('keydown', onKey);
   }, [isLightboxOpen, closeLightbox, nextImage]);
 
+  // Modal keyboard handler and focus management
+  // Implements Focus Contract Items 2, 3, and 4
+  useEffect(() => {
+    if (!activeModal) return;
+
+    // Focus Contract Item 2: Focus moves to the close button when modal opens
+    // Using setTimeout to ensure DOM is ready after React render
+    const focusTimer = setTimeout(() => {
+      modalCloseRef.current?.focus();
+    }, 0);
+
+    const onKey = (e: KeyboardEvent) => {
+      // Focus Contract Item 4: Escape key closes the modal
+      if (e.key === 'Escape') {
+        closeModal();
+        return;
+      }
+
+      // Focus Contract Item 3: Focus is trapped within the modal
+      // Only intercept Tab key; other keys pass through normally
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          // Focus Contract Item 3b: Shift+Tab on first element wraps to last
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement?.focus();
+          }
+          // Otherwise, let browser handle normal Shift+Tab behavior
+        } else {
+          // Focus Contract Item 3a: Tab on last element wraps to first
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement?.focus();
+          }
+          // Otherwise, let browser handle normal Tab behavior (middle elements)
+        }
+      }
+      // Focus Contract Item 3c: Other keys are not intercepted
+    };
+
+    document.addEventListener('keydown', onKey);
+    return () => {
+      clearTimeout(focusTimer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [activeModal, closeModal]);
+
   // The hook manages the wireframe/backdrop animation timing on open/close
 
   // Grid thumbnail sync handled by hook
@@ -529,6 +659,27 @@ export default function App() {
             disabled={isCampaignLoading}
           >
             Build Info
+          </button>
+          <button
+            className="toolbar-button"
+            onClick={() => openModal('history')}
+            disabled={isCampaignLoading}
+          >
+            History
+          </button>
+          <button
+            className="toolbar-button"
+            onClick={() => openModal('credits')}
+            disabled={isCampaignLoading}
+          >
+            Credits
+          </button>
+          <button
+            className="toolbar-button"
+            onClick={() => openModal('legal')}
+            disabled={isCampaignLoading}
+          >
+            Legal
           </button>
         </div>
       </div>
@@ -732,6 +883,34 @@ export default function App() {
             <button id="share-btn" className="action-btn" onClick={(e) => { e.stopPropagation(); handleShare(); }}>Share</button>
             <div className="spacer"></div>
             <button id="next-btn" className="nav-btn" aria-label="Next" onClick={(e) => { e.stopPropagation(); nextImage(1); }}>▶</button>
+          </div>
+        </div>
+      )}
+
+      {/* Content Modal (History, Credits, Legal) */}
+      {activeModal && (
+        <div className="content-modal-overlay" onClick={closeModal} role="dialog" aria-modal={true} aria-labelledby="modal-title">
+          <div className="content-modal" ref={modalRef} onClick={(e) => e.stopPropagation()}>
+            <div className="content-modal-header">
+              <span className="content-modal-title" id="modal-title">
+                {activeModal.charAt(0).toUpperCase() + activeModal.slice(1)}
+              </span>
+              <button
+                className="content-modal-close"
+                ref={modalCloseRef}
+                aria-label="Close"
+                onClick={closeModal}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="content-modal-body">
+              {isModalLoading ? (
+                <div className="content-modal-loading">Loading...</div>
+              ) : (
+                <div dangerouslySetInnerHTML={{ __html: modalContent }} />
+              )}
+            </div>
           </div>
         </div>
       )}
