@@ -75,9 +75,16 @@ export default function LoadingScreen({
 
   const [steps, setSteps] = useState<LoadingStep[]>([]);
 
-  // Update steps when data becomes available
+  // Update steps when data becomes available and reset typing state
   useEffect(() => {
-    setSteps(getLoadingSteps());
+    const newSteps = getLoadingSteps();
+    setSteps(newSteps);
+    // Restart the typing animation whenever the steps sequence changes
+    setVisibleLines([]);
+    setCurrentLineIndex(0);
+    setCurrentCharIndex(0);
+    setIsTyping(false);
+    setSequenceComplete(false);
   }, [getLoadingSteps]);
 
   // Cursor blink effect
@@ -189,7 +196,7 @@ export default function LoadingScreen({
       role="dialog"
       aria-modal={true}
       aria-label="Loading"
-      onClick={handleSkip}
+      onClick={canSkip ? handleSkip : undefined}
     >
       <div className="loading-terminal">
         <div className="terminal-header">
@@ -198,9 +205,9 @@ export default function LoadingScreen({
         </div>
         <div className="terminal-body">
           <div className="terminal-scanlines"></div>
-          <div className="terminal-content">
+          <div className="terminal-content" aria-live="polite" aria-atomic="true">
             {visibleLines.map((line, index) => (
-              <div key={index} className={`terminal-line ${line === '' ? 'empty' : ''}`}>
+              <div key={`${index}-${line}`} className={`terminal-line ${line === '' ? 'empty' : ''}`}>
                 {line}
               </div>
             ))}
@@ -219,7 +226,7 @@ export default function LoadingScreen({
         </div>
         {canSkip && (
           <div className="terminal-skip">
-            Press ENTER or click anywhere to continue...
+            Press ENTER, SPACE, or click anywhere to continue...
           </div>
         )}
       </div>

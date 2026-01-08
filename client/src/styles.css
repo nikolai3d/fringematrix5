@@ -925,18 +925,3 @@ footer.navbar {
   }
 }
 
-/* Highlight [OK] status messages */
-.terminal-line:has(> *) {
-  /* This won't work, using JS-based approach instead */
-}
-
-/* Random flicker for extra authenticity */
-@keyframes random-flicker {
-  0%, 100% { opacity: 1; }
-  92% { opacity: 1; }
-  93% { opacity: 0.8; }
-  94% { opacity: 1; }
-  97% { opacity: 0.9; }
-  98% { opacity: 1; }
-}
-
