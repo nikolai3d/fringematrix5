@@ -205,7 +205,7 @@ export default function LoadingScreen({
         </div>
         <div className="terminal-body">
           <div className="terminal-scanlines"></div>
-          <div className="terminal-content" aria-live="polite" aria-atomic="false">
+          <div className="terminal-content" aria-live="polite" aria-atomic="true">
             {visibleLines.map((line, index) => (
               <div key={`${index}-${line}`} className={`terminal-line ${line === '' ? 'empty' : ''}`}>
                 {line}
