@@ -14,10 +14,11 @@
  *   node assets/migrate-to-blob.mjs [--dry-run] [--campaign=Season4]
  * 
  * Options:
- *   --dry-run      Show what would be uploaded without actually uploading
- *   --campaign     Upload only a specific campaign (e.g., Season4, Season5)
- *   --force        Overwrite existing blobs (by default, skips existing)
- *   --help         Show this help message
+ *   --dry-run        Show what would be uploaded without actually uploading
+ *   --campaign       Upload only a specific campaign (e.g., Season4, Season5)
+ *   --force          Overwrite existing blobs (by default, skips existing)
+ *   --list-existing  List all existing blobs without uploading
+ *   --help           Show this help message
  */
 
 import fs from 'fs';
@@ -64,7 +65,8 @@ function parseArgs() {
     dryRun: false,
     campaign: null,
     force: false,
-    help: false
+    help: false,
+    listExisting: false
   };
 
   for (const arg of args) {
@@ -76,6 +78,8 @@ function parseArgs() {
       options.force = true;
     } else if (arg === '--help' || arg === '-h') {
       options.help = true;
+    } else if (arg === '--list-existing') {
+      options.listExisting = true;
     }
   }
 
@@ -96,6 +100,7 @@ Options:
   --dry-run              Show what would be uploaded without uploading
   --campaign=CAMPAIGN    Upload only specific campaign (e.g., Season4)
   --force               Overwrite existing blobs 
+  --list-existing       List all existing blobs without uploading
   --help, -h            Show this help
 
 Prerequisites:
@@ -106,6 +111,7 @@ Examples:
   node assets/migrate-to-blob.mjs --dry-run
   node assets/migrate-to-blob.mjs --campaign=Season4
   node assets/migrate-to-blob.mjs --force
+  node assets/migrate-to-blob.mjs --list-existing
 `);
   process.exit(0);
 }
@@ -159,12 +165,38 @@ function formatFileSize(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// Get existing blobs to avoid duplicates
+// Normalize pathname for comparison (remove leading slash, ensure consistent format)
+function normalizePathname(pathname) {
+  return pathname.replace(/^\/+/, ''); // Remove leading slashes
+}
+
+// Get existing blobs to avoid duplicates (with pagination support)
 async function getExistingBlobs() {
   try {
     console.log('📋 Checking existing blobs...');
-    const { blobs } = await list({ prefix: 'avatars/', limit: 10000 });
-    const existing = new Set(blobs.map(blob => blob.pathname));
+    const existing = new Set();
+    let cursor = undefined;
+    let pageCount = 0;
+    
+    do {
+      const result = await list({ 
+        prefix: 'avatars/', 
+        limit: 1000,
+        cursor 
+      });
+      
+      for (const blob of result.blobs) {
+        existing.add(normalizePathname(blob.pathname));
+      }
+      
+      cursor = result.cursor;
+      pageCount++;
+      
+      if (cursor) {
+        console.log(`📋 Fetched page ${pageCount} (${existing.size} blobs so far)...`);
+      }
+    } while (cursor);
+    
     console.log(`📋 Found ${existing.size} existing blobs`);
     return existing;
   } catch (error) {
@@ -218,6 +250,42 @@ async function migrate() {
     process.exit(1);
   }
 
+  // Handle --list-existing mode
+  if (options.listExisting) {
+    console.log('📋 Listing existing blobs in Vercel Blob Storage...\n');
+    try {
+      const allBlobs = [];
+      let cursor = undefined;
+      let totalSize = 0;
+      
+      do {
+        const result = await list({ 
+          prefix: 'avatars/', 
+          limit: 1000,
+          cursor 
+        });
+        allBlobs.push(...result.blobs);
+        cursor = result.cursor;
+      } while (cursor);
+      
+      if (allBlobs.length === 0) {
+        console.log('ℹ️  No blobs found with prefix "avatars/"');
+      } else {
+        console.log(`Found ${allBlobs.length} existing blobs:\n`);
+        for (const blob of allBlobs) {
+          const size = formatFileSize(blob.size);
+          totalSize += blob.size;
+          console.log(`  ${blob.pathname} (${size})`);
+        }
+        console.log(`\n📊 Total: ${allBlobs.length} blobs (${formatFileSize(totalSize)})`);
+      }
+    } catch (error) {
+      console.error('❌ Failed to list blobs:', error.message);
+      process.exit(1);
+    }
+    return;
+  }
+
   console.log('🚀 Starting Vercel Blob migration...');
   console.log(`📂 Source directory: ${AVATARS_DIR}`);
   if (options.campaign) {
@@ -264,12 +332,13 @@ async function migrate() {
     // Convert to blob path
     const relativePath = path.relative(AVATARS_DIR, filePath);
     const blobPath = `avatars/${relativePath.split(path.sep).join('/')}`;
+    const normalizedBlobPath = normalizePathname(blobPath);
     
     // Progress indicator
     const progress = `[${index + 1}/${imageFiles.length}]`;
     
     // Check if already exists
-    if (existingBlobs.has(blobPath)) {
+    if (existingBlobs.has(normalizedBlobPath)) {
       console.log(`⏭️  ${progress} Skipping existing: ${blobPath}`);
       skipCount++;
       continue;
