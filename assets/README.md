@@ -59,6 +59,7 @@ node assets/migrate-to-blob.mjs [options]
 - `--dry-run` - Show what would be uploaded without actually uploading
 - `--campaign=CAMPAIGN` - Upload only a specific campaign (e.g., Season4, Season5)  
 - `--force` - Overwrite existing blobs (by default, skips existing files)
+- `--list-existing` - List all existing blobs in storage without uploading
 - `--help, -h` - Show help message
 
 **Examples**:
@@ -71,6 +72,9 @@ node assets/migrate-to-blob.mjs --campaign=Season4
 
 # Force re-upload everything (overwrite existing)
 node assets/migrate-to-blob.mjs --force
+
+# List all existing blobs in storage
+node assets/migrate-to-blob.mjs --list-existing
 
 # Upload everything (skips existing files)
 node assets/migrate-to-blob.mjs
@@ -181,6 +185,7 @@ node assets/migrate-to-blob.mjs --dry-run
 
 - **Dry Run Mode**: Preview uploads without making changes
 - **Duplicate Detection**: Skips files that already exist in blob storage
+- **List Existing**: View all blobs already in storage with `--list-existing`
 - **Error Handling**: Continues on individual file errors, reports summary
 - **Progress Tracking**: Shows current file and overall progress
 - **File Size Reporting**: Displays upload sizes and totals
