@@ -192,7 +192,7 @@ async function getExistingBlobs() {
       cursor = result.cursor;
       pageCount++;
       
-      if (result.hasMore) {
+      if (cursor) {
         console.log(`📋 Fetched page ${pageCount} (${existing.size} blobs so far)...`);
       }
     } while (cursor);
