@@ -165,12 +165,38 @@ function formatFileSize(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// Get existing blobs to avoid duplicates
+// Normalize pathname for comparison (remove leading slash, ensure consistent format)
+function normalizePathname(pathname) {
+  return pathname.replace(/^\/+/, ''); // Remove leading slashes
+}
+
+// Get existing blobs to avoid duplicates (with pagination support)
 async function getExistingBlobs() {
   try {
     console.log('📋 Checking existing blobs...');
-    const { blobs } = await list({ prefix: 'avatars/', limit: 10000 });
-    const existing = new Set(blobs.map(blob => blob.pathname));
+    const existing = new Set();
+    let cursor = undefined;
+    let pageCount = 0;
+    
+    do {
+      const result = await list({ 
+        prefix: 'avatars/', 
+        limit: 1000,
+        cursor 
+      });
+      
+      for (const blob of result.blobs) {
+        existing.add(normalizePathname(blob.pathname));
+      }
+      
+      cursor = result.cursor;
+      pageCount++;
+      
+      if (result.hasMore) {
+        console.log(`📋 Fetched page ${pageCount} (${existing.size} blobs so far)...`);
+      }
+    } while (cursor);
+    
     console.log(`📋 Found ${existing.size} existing blobs`);
     return existing;
   } catch (error) {
@@ -228,16 +254,30 @@ async function migrate() {
   if (options.listExisting) {
     console.log('📋 Listing existing blobs in Vercel Blob Storage...\n');
     try {
-      const { blobs } = await list({ prefix: 'avatars/', limit: 10000 });
-      if (blobs.length === 0) {
+      const allBlobs = [];
+      let cursor = undefined;
+      let totalSize = 0;
+      
+      do {
+        const result = await list({ 
+          prefix: 'avatars/', 
+          limit: 1000,
+          cursor 
+        });
+        allBlobs.push(...result.blobs);
+        cursor = result.cursor;
+      } while (cursor);
+      
+      if (allBlobs.length === 0) {
         console.log('ℹ️  No blobs found with prefix "avatars/"');
       } else {
-        console.log(`Found ${blobs.length} existing blobs:\n`);
-        for (const blob of blobs) {
+        console.log(`Found ${allBlobs.length} existing blobs:\n`);
+        for (const blob of allBlobs) {
           const size = formatFileSize(blob.size);
+          totalSize += blob.size;
           console.log(`  ${blob.pathname} (${size})`);
         }
-        console.log(`\n📊 Total: ${blobs.length} blobs`);
+        console.log(`\n📊 Total: ${allBlobs.length} blobs (${formatFileSize(totalSize)})`);
       }
     } catch (error) {
       console.error('❌ Failed to list blobs:', error.message);
@@ -292,12 +332,13 @@ async function migrate() {
     // Convert to blob path
     const relativePath = path.relative(AVATARS_DIR, filePath);
     const blobPath = `avatars/${relativePath.split(path.sep).join('/')}`;
+    const normalizedBlobPath = normalizePathname(blobPath);
     
     // Progress indicator
     const progress = `[${index + 1}/${imageFiles.length}]`;
     
     // Check if already exists
-    if (existingBlobs.has(blobPath)) {
+    if (existingBlobs.has(normalizedBlobPath)) {
       console.log(`⏭️  ${progress} Skipping existing: ${blobPath}`);
       skipCount++;
       continue;
