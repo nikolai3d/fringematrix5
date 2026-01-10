@@ -49,6 +49,7 @@ export default function FringeGlyphLoadingSpinner({
   
   const timerRef = useRef<number | null>(null);
   const imageIndexRef = useRef(0); // tracks current position in sequence
+  const activeSlotRef = useRef<0 | 1>(0); // tracks active slot without triggering re-renders
 
   // Fetch glyphs on mount
   useEffect(() => {
@@ -61,11 +62,12 @@ export default function FringeGlyphLoadingSpinner({
         const data = await response.json();
         
         if (!cancelled && data.glyphs && data.glyphs.length > 0) {
-          const shuffled = shuffleArray(data.glyphs);
+          const shuffled = shuffleArray<string>(data.glyphs);
           setGlyphs(shuffled);
           setSlot0ImageIndex(0);
           setSlot1ImageIndex(shuffled.length > 1 ? 1 : 0);
           setActiveSlot(0);
+          activeSlotRef.current = 0;
           imageIndexRef.current = 0;
         }
       } catch (error) {
@@ -116,6 +118,7 @@ export default function FringeGlyphLoadingSpinner({
   }, [imagesLoaded]);
 
   // Image cycling logic with proper two-slot cross-dissolve
+  // Uses refs for activeSlot to avoid recreating callback on every transition
   const advanceToNextImage = useCallback(() => {
     if (glyphs.length <= 1) return;
 
@@ -136,21 +139,24 @@ export default function FringeGlyphLoadingSpinner({
       
       // The slot that just faded out needs to load the next-next image
       // Then we swap which slot is active
-      if (activeSlot === 0) {
+      // Read from ref to avoid dependency on state
+      if (activeSlotRef.current === 0) {
         // Slot 0 faded out, slot 1 is now showing
         // Load next-next image into slot 0 (for the subsequent transition)
         setSlot0ImageIndex(nextNextIndex);
         setActiveSlot(1);
+        activeSlotRef.current = 1;
       } else {
         // Slot 1 faded out, slot 0 is now showing
         // Load next-next image into slot 1
         setSlot1ImageIndex(nextNextIndex);
         setActiveSlot(0);
+        activeSlotRef.current = 0;
       }
       
       setIsTransitioning(false);
     }, crossDissolveDuration);
-  }, [glyphs.length, crossDissolveDuration, activeSlot]);
+  }, [glyphs.length, crossDissolveDuration]);
 
   // Main display timer
   useEffect(() => {
