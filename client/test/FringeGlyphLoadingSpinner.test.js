@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // =============================================================================
 // FringeGlyphLoadingSpinner Component Tests
@@ -124,9 +124,6 @@ describe('FringeGlyphLoadingSpinner - Two-Slot Cross-Dissolve System', () => {
   // Simulate the advanceToNextImage logic
   const advanceToNextImage = (state, numGlyphs) => {
     if (numGlyphs <= 1) return state;
-
-    // Start transition
-    const transitioning = { ...state, isTransitioning: true };
 
     // After transition completes (simulated)
     const nextImageIndex = (state.imageIndexRef + 1) % numGlyphs;
@@ -327,14 +324,20 @@ describe('FringeGlyphLoadingSpinner - z-index Layering', () => {
 
   it('should swap z-index when active slot changes', () => {
     // Before swap: slot 0 is active
-    let activeSlot = 0;
-    let slot0OnTop = activeSlot === 0;
-    expect(slot0OnTop ? 2 : 1).toBe(2);
+    const activeSlot0 = 0;
+    const slot0OnTopBefore = activeSlot0 === 0;
+    const slot0ZIndexBefore = slot0OnTopBefore ? 2 : 1;
+    const slot1ZIndexBefore = slot0OnTopBefore ? 1 : 2;
+    expect(slot0ZIndexBefore).toBe(2); // slot 0 on top
+    expect(slot1ZIndexBefore).toBe(1); // slot 1 behind
 
     // After swap: slot 1 is active
-    activeSlot = 1;
-    slot0OnTop = activeSlot === 0;
-    expect(slot0OnTop ? 2 : 1).toBe(1); // slot 0 now has z-index 1
+    const activeSlot1 = 1;
+    const slot0OnTopAfter = activeSlot1 === 0;
+    const slot0ZIndexAfter = slot0OnTopAfter ? 2 : 1;
+    const slot1ZIndexAfter = slot0OnTopAfter ? 1 : 2;
+    expect(slot0ZIndexAfter).toBe(1); // slot 0 now behind
+    expect(slot1ZIndexAfter).toBe(2); // slot 1 now on top
   });
 });
 

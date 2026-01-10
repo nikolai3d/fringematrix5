@@ -81,6 +81,7 @@ export default function FringeGlyphLoadingSpinner({
   useEffect(() => {
     if (glyphs.length === 0) return;
 
+    let mounted = true;
     let loadedCount = 0;
     const totalImages = glyphs.length;
 
@@ -88,18 +89,20 @@ export default function FringeGlyphLoadingSpinner({
       const img = new Image();
       img.onload = () => {
         loadedCount++;
-        if (loadedCount === totalImages) {
+        if (mounted && loadedCount === totalImages) {
           setImagesLoaded(true);
         }
       };
       img.onerror = () => {
         loadedCount++;
-        if (loadedCount === totalImages) {
+        if (mounted && loadedCount === totalImages) {
           setImagesLoaded(true);
         }
       };
       img.src = src;
     });
+
+    return () => { mounted = false; };
   }, [glyphs]);
 
   // Trigger component fade-in after images loaded
@@ -115,6 +118,12 @@ export default function FringeGlyphLoadingSpinner({
   // Image cycling logic with proper two-slot cross-dissolve
   const advanceToNextImage = useCallback(() => {
     if (glyphs.length <= 1) return;
+
+    // Clear any pending timeout to prevent orphaned callbacks
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
 
     // Start the cross-dissolve: active slot fades out
     setIsTransitioning(true);
