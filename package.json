@@ -23,6 +23,7 @@
     "test:e2e": "playwright test --config e2e/playwright.config.ts",
     "test:e2e:headed": "playwright test --config e2e/playwright.config.ts --headed",
     "test:e2e:conservative": "playwright test --config e2e/playwright.config.test.ts",
+    "test:e2e:loading-screens": "bash e2e/test-loading-screens.sh",
     "test:e2e:report": "playwright show-report e2e/playwright-report",
     "lint": "echo 'No linter configured'",
     "typecheck": "cd client && tsc --noEmit"

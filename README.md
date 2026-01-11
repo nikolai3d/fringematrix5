@@ -163,6 +163,9 @@ npm run test:e2e:headed
 # Run conservative e2e tests (reduced rate limiting)
 npm run test:e2e:conservative
 
+# Test all loading screen variants
+npm run test:e2e:loading-screens
+
 # View test report
 npm run test:e2e:report
 ```
@@ -185,6 +188,8 @@ npm start
 ```
 
 **Note**: E2E tests require `BLOB_READ_WRITE_TOKEN` for full functionality. Without it, tests run with empty image data (fallback mode).
+
+**Loading Screen Testing**: See `e2e/LOADING_SCREENS_TESTING.md` for detailed information on testing all three loading screen variants.
 
 See `e2e/README.md` for detailed testing documentation.
 
