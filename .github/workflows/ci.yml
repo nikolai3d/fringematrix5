@@ -44,7 +44,7 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm ci
-          
+
       - name: Build client
         run: npm run build
 
@@ -61,6 +61,49 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
+          path: e2e/playwright-report
+
+  loading-screens:
+    runs-on: ubuntu-latest
+    needs: [server-tests, client-tests]
+    strategy:
+      fail-fast: false
+      matrix:
+        loading-screen: [terminal, legacy, glyphs]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build client with ${{ matrix.loading-screen }} loading screen
+        run: VITE_LOADING_SCREEN=${{ matrix.loading-screen }} npm run build:client
+        env:
+          VITE_LOADING_SCREEN: ${{ matrix.loading-screen }}
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: Run loading screen tests for ${{ matrix.loading-screen }}
+        run: |
+          if [ "${{ matrix.loading-screen }}" = "terminal" ]; then
+            npm run test:e2e -- loading-screens.spec.ts --grep "Terminal"
+          elif [ "${{ matrix.loading-screen }}" = "legacy" ]; then
+            npm run test:e2e -- loading-screens.spec.ts --grep "Legacy" --grep-invert "skip"
+          else
+            npm run test:e2e -- loading-screens.spec.ts --grep "Glyphs" --grep-invert "skip"
+          fi
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+
+      - name: Upload Playwright report for ${{ matrix.loading-screen }}
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-loading-${{ matrix.loading-screen }}
           path: e2e/playwright-report
 
   # Auto-deploy to Vercel happens automatically on push/PR

@@ -123,16 +123,48 @@ The test file `loading-screens.spec.ts` contains:
 
 ## CI/CD Testing
 
-For CI/CD pipelines, you can set the environment variable before the build step:
+The GitHub Actions CI pipeline automatically tests all three loading screen variants in parallel using a matrix strategy.
+
+### How CI Tests Loading Screens
+
+The `.github/workflows/ci.yml` includes a `loading-screens` job that:
+1. Runs in parallel with other e2e tests
+2. Tests all three variants (terminal, legacy, glyphs) in separate matrix jobs
+3. Builds each variant with the appropriate `VITE_LOADING_SCREEN` value
+4. Runs only the relevant tests for that variant
+5. Uploads separate test reports for each variant
+
+### CI Job Configuration
 
 ```yaml
-# Example GitHub Actions workflow
-- name: Build with specific loading screen
-  run: VITE_LOADING_SCREEN=terminal npm run build
+loading-screens:
+  runs-on: ubuntu-latest
+  strategy:
+    fail-fast: false
+    matrix:
+      loading-screen: [terminal, legacy, glyphs]
+  steps:
+    - name: Build client with ${{ matrix.loading-screen }} loading screen
+      run: VITE_LOADING_SCREEN=${{ matrix.loading-screen }} npm run build:client
 
-- name: Run e2e tests
-  run: npm run test:e2e
+    - name: Run loading screen tests for ${{ matrix.loading-screen }}
+      run: |
+        if [ "${{ matrix.loading-screen }}" = "terminal" ]; then
+          npm run test:e2e -- loading-screens.spec.ts --grep "Terminal"
+        elif [ "${{ matrix.loading-screen }}" = "legacy" ]; then
+          npm run test:e2e -- loading-screens.spec.ts --grep "Legacy" --grep-invert "skip"
+        else
+          npm run test:e2e -- loading-screens.spec.ts --grep "Glyphs" --grep-invert "skip"
+        fi
 ```
+
+### Benefits of Matrix Strategy
+
+- ✅ All three variants tested on every PR and push
+- ✅ Tests run in parallel (faster CI)
+- ✅ Individual test reports for each variant
+- ✅ Failures in one variant don't block testing of others (`fail-fast: false`)
+- ✅ Clear indication of which variant failed
 
 ## Manual Testing
 

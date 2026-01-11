@@ -95,6 +95,11 @@ VITE_LOADING_SCREEN=terminal
 - Tests will still run successfully but without real avatar images
 - Server logs will show: `⚪ Blob API: Disabled (no token - using fallback for testing)`
 
+**Loading Screen Testing:**
+- CI automatically tests all three loading screen variants (terminal, legacy, glyphs) in parallel
+- Uses matrix strategy to build and test each variant separately
+- See `e2e/LOADING_SCREENS_TESTING.md` for detailed testing documentation
+
 ## Available Commands
 
 ### Development Commands

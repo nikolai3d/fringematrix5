@@ -218,7 +218,7 @@ test.describe('Loading Screen - Glyphs variant', () => {
   });
 });
 
-test.describe('Loading Screen - Configuration', () => {
+test.describe('Loading Screen - Configuration (runs for all variants)', () => {
   test('loading screen eventually completes and shows main app', async ({ page }) => {
     await page.goto('/');
 
