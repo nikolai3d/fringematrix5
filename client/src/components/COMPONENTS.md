@@ -18,6 +18,7 @@ The component is always square and can be positioned anywhere in the viewport.
 | `y` | `number` | `0` | Y position in pixels (from top) |
 | `size` | `number` | `100` | Width and height in pixels |
 | `opacity` | `number` | `1` | Overall component opacity (0-1) |
+| `borderRadius` | `number` | `8` | Border radius in pixels (0 for square corners) |
 | `fadeInDuration` | `number` | `500` | Component fade-in duration in ms |
 | `displayDuration` | `number` | `1500` | How long each image displays in ms |
 | `crossDissolveDuration` | `number` | `500` | Cross-dissolve transition time in ms |
@@ -36,6 +37,7 @@ import FringeGlyphLoadingSpinner from './components/FringeGlyphLoadingSpinner';
   y={100}
   size={200}
   opacity={0.8}
+  borderRadius={16}
   fadeInDuration={1000}
   displayDuration={2000}
   crossDissolveDuration={800}

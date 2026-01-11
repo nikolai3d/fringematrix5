@@ -83,6 +83,7 @@ export default function GlyphSpinnerDebug() {
   const [y, setY] = useState(100);
   const [size, setSize] = useState(200);
   const [opacity, setOpacity] = useState(1);
+  const [borderRadius, setBorderRadius] = useState(8);
   const [fadeInDuration, setFadeInDuration] = useState(500);
   const [displayDuration, setDisplayDuration] = useState(1500);
   const [crossDissolveDuration, setCrossDissolveDuration] = useState(500);
@@ -108,6 +109,7 @@ export default function GlyphSpinnerDebug() {
           <h3 style={sectionTitleStyle}>Appearance</h3>
           <ControlSlider label="Size" value={size} min={50} max={400} onChange={setSize} unit="px" />
           <ControlSlider label="Opacity" value={opacity} min={0} max={1} step={0.05} onChange={setOpacity} />
+          <ControlSlider label="Border Radius" value={borderRadius} min={0} max={100} onChange={setBorderRadius} unit="px" />
         </div>
 
         <div style={sectionStyle}>
@@ -135,6 +137,7 @@ export default function GlyphSpinnerDebug() {
           y={y}
           size={size}
           opacity={opacity}
+          borderRadius={borderRadius}
           fadeInDuration={fadeInDuration}
           displayDuration={displayDuration}
           crossDissolveDuration={crossDissolveDuration}
@@ -147,6 +150,7 @@ export default function GlyphSpinnerDebug() {
           top: y,
           width: size,
           height: size,
+          borderRadius,
         }} />
       </div>
     </div>
@@ -227,6 +231,5 @@ const displayAreaStyle: React.CSSProperties = {
 const positionIndicatorStyle: React.CSSProperties = {
   position: 'absolute',
   border: '1px dashed rgba(100, 217, 255, 0.25)',
-  borderRadius: '8px',
   pointerEvents: 'none',
 };

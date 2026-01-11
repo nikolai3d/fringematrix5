@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { shuffleArray } from '../utils/array';
 
 export interface FringeGlyphLoadingSpinnerProps {
   /** X position in pixels */
@@ -9,6 +10,8 @@ export interface FringeGlyphLoadingSpinnerProps {
   size?: number;
   /** Overall component opacity (0-1) */
   opacity?: number;
+  /** Border radius in pixels (0 for square corners) */
+  borderRadius?: number;
   /** Duration of component fade-in in milliseconds */
   fadeInDuration?: number;
   /** Duration each image is displayed in milliseconds */
@@ -17,21 +20,12 @@ export interface FringeGlyphLoadingSpinnerProps {
   crossDissolveDuration?: number;
 }
 
-// Fisher-Yates shuffle
-function shuffleArray<T>(array: T[]): T[] {
-  const shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-}
-
 export default function FringeGlyphLoadingSpinner({
   x = 0,
   y = 0,
   size = 100,
   opacity = 1,
+  borderRadius = 8,
   fadeInDuration = 500,
   displayDuration = 1500,
   crossDissolveDuration = 500,
@@ -61,15 +55,31 @@ export default function FringeGlyphLoadingSpinner({
         if (!response.ok) throw new Error('Failed to fetch glyphs');
         const data = await response.json();
         
-        if (!cancelled && data.glyphs && data.glyphs.length > 0) {
-          const shuffled = shuffleArray<string>(data.glyphs);
-          setGlyphs(shuffled);
-          setSlot0ImageIndex(0);
-          setSlot1ImageIndex(shuffled.length > 1 ? 1 : 0);
-          setActiveSlot(0);
-          activeSlotRef.current = 0;
-          imageIndexRef.current = 0;
+        if (cancelled) return;
+
+        // Validate that data.glyphs is an array
+        if (!Array.isArray(data.glyphs)) {
+          console.error('Invalid glyphs data: expected array, got', typeof data.glyphs);
+          return;
         }
+
+        // Filter to only valid non-empty strings
+        const validGlyphs = data.glyphs.filter(
+          (item: unknown): item is string => 
+            typeof item === 'string' && item.length > 0
+        );
+
+        if (validGlyphs.length === 0) {
+          return;
+        }
+
+        const shuffled = shuffleArray<string>(validGlyphs);
+        setGlyphs(shuffled);
+        setSlot0ImageIndex(0);
+        setSlot1ImageIndex(shuffled.length > 1 ? 1 : 0);
+        setActiveSlot(0);
+        activeSlotRef.current = 0;
+        imageIndexRef.current = 0;
       } catch (error) {
         console.error('Error fetching glyphs:', error);
       }
@@ -177,6 +187,19 @@ export default function FringeGlyphLoadingSpinner({
     return null;
   }
 
+  // Validate indices are within bounds
+  const slot0Src = slot0ImageIndex >= 0 && slot0ImageIndex < glyphs.length 
+    ? glyphs[slot0ImageIndex] 
+    : undefined;
+  const slot1Src = slot1ImageIndex >= 0 && slot1ImageIndex < glyphs.length 
+    ? glyphs[slot1ImageIndex] 
+    : undefined;
+
+  // Don't render if we don't have valid images
+  if (!slot0Src || !slot1Src) {
+    return null;
+  }
+
   const containerStyle: React.CSSProperties = {
     position: 'absolute',
     left: x,
@@ -186,7 +209,7 @@ export default function FringeGlyphLoadingSpinner({
     opacity: componentVisible ? opacity : 0,
     transition: `opacity ${fadeInDuration}ms ease-in-out`,
     overflow: 'hidden',
-    borderRadius: '8px',
+    borderRadius,
   };
 
   const imageStyle: React.CSSProperties = {
@@ -207,7 +230,7 @@ export default function FringeGlyphLoadingSpinner({
     <div style={containerStyle}>
       {/* Slot 0 */}
       <img
-        src={glyphs[slot0ImageIndex]}
+        src={slot0Src}
         alt=""
         style={{
           ...imageStyle,
@@ -218,7 +241,7 @@ export default function FringeGlyphLoadingSpinner({
       />
       {/* Slot 1 */}
       <img
-        src={glyphs[slot1ImageIndex]}
+        src={slot1Src}
         alt=""
         style={{
           ...imageStyle,
