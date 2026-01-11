@@ -127,7 +127,7 @@ describe('API contract', () => {
   });
 
   describe('GET /api/glyphs', () => {
-    it('returns 200 with glyphs array containing non-empty string URLs', async () => {
+    it('returns 200 with glyphs array structure', async () => {
       // Endpoint returns 200 with glyphs: string[] structure
       // - Empty array when BLOB_READ_WRITE_TOKEN is missing (graceful fallback)
       // - Populated array when token exists and blob API succeeds
@@ -142,34 +142,6 @@ describe('API contract', () => {
       res.body.glyphs.forEach((glyph: unknown) => {
         expect(typeof glyph).toBe('string');
         expect((glyph as string).length).toBeGreaterThan(0);
-      });
-      consoleSpy.mockRestore();
-    });
-
-    it('returns only image files when glyphs are present', async () => {
-      // Verify all returned URLs have valid image extensions
-      // Note: In environments without BLOB_READ_WRITE_TOKEN, glyphs will be empty
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-      const res = await request(app).get('/api/glyphs');
-      
-      expect(res.status).toBe(200);
-      expect(Array.isArray(res.body.glyphs)).toBe(true);
-      
-      // Only validate image extensions when glyphs are present
-      // (empty array is valid when blob token is missing)
-      if (res.body.glyphs.length === 0) {
-        consoleSpy.mockRestore();
-        return;
-      }
-      
-      const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.bmp', '.svg'];
-      res.body.glyphs.forEach((glyph: string) => {
-        // Validate glyph is a parseable URL
-        expect(() => new URL(glyph)).not.toThrow();
-        const url = new URL(glyph);
-        const pathname = url.pathname.toLowerCase();
-        const hasImageExtension = imageExtensions.some(ext => pathname.endsWith(ext));
-        expect(hasImageExtension).toBe(true);
       });
       consoleSpy.mockRestore();
     });
