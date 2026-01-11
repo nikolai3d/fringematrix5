@@ -127,38 +127,18 @@ describe('API contract', () => {
   });
 
   describe('GET /api/glyphs', () => {
-    it('returns glyphs array with correct structure', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      const res = await request(app).get('/api/glyphs');
-      
-      // Could be 200 (with or without blob token) or 500 (if blob API fails)
-      expect([200, 500]).toContain(res.status);
-      
-      if (res.status === 200) {
-        expect(res.body).toHaveProperty('glyphs');
-        expect(Array.isArray(res.body.glyphs)).toBe(true);
-        
-        // If glyphs are returned, each should be a string URL
-        if (res.body.glyphs.length > 0) {
-          res.body.glyphs.forEach((glyph: unknown) => {
-            expect(typeof glyph).toBe('string');
-            expect((glyph as string).length).toBeGreaterThan(0);
-          });
-        }
-      }
-      consoleSpy.mockRestore();
-    });
-
-    it('returns 200 with glyphs array structure', async () => {
-      // Verify endpoint always returns 200 with proper glyphs array structure
-      // Array will be empty when no blob token is available, or populated with URLs when token exists
+    it('returns 200 with glyphs array containing non-empty string URLs', async () => {
+      // Endpoint returns 200 with glyphs: string[] structure
+      // - Empty array when BLOB_READ_WRITE_TOKEN is missing (graceful fallback)
+      // - Populated array when token exists and blob API succeeds
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
       const res = await request(app).get('/api/glyphs');
       
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('glyphs');
       expect(Array.isArray(res.body.glyphs)).toBe(true);
-      // Each glyph should be a non-empty string URL (if any exist)
+      
+      // Each glyph (if any) should be a non-empty string URL
       res.body.glyphs.forEach((glyph: unknown) => {
         expect(typeof glyph).toBe('string');
         expect((glyph as string).length).toBeGreaterThan(0);
@@ -166,12 +146,14 @@ describe('API contract', () => {
       consoleSpy.mockRestore();
     });
 
-    it('filters only image files from blob listing', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    it('returns only image files when glyphs are present', async () => {
+      // Verify all returned URLs have valid image extensions
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
       const res = await request(app).get('/api/glyphs');
       
-      if (res.status === 200 && res.body.glyphs.length > 0) {
-        // All returned URLs should end with image extensions
+      expect(res.status).toBe(200);
+      
+      if (res.body.glyphs.length > 0) {
         const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.bmp', '.svg'];
         res.body.glyphs.forEach((glyph: string) => {
           const url = new URL(glyph);
@@ -179,22 +161,6 @@ describe('API contract', () => {
           const hasImageExtension = imageExtensions.some(ext => pathname.endsWith(ext));
           expect(hasImageExtension).toBe(true);
         });
-      }
-      consoleSpy.mockRestore();
-    });
-
-    it('returns 500 with error message on blob API failure', async () => {
-      // This test documents the error handling behavior
-      // When blob API fails, endpoint returns 500 with error message
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      
-      // We can't easily mock the blob API, but we verify the error response format
-      // by checking that if a 500 is returned, it has the expected shape
-      const res = await request(app).get('/api/glyphs');
-      
-      if (res.status === 500) {
-        expect(res.body).toHaveProperty('error');
-        expect(typeof res.body.error).toBe('string');
       }
       consoleSpy.mockRestore();
     });

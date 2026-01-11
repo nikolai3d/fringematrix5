@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, CSSProperties } from 'react';
 import { shuffleArray } from '../utils/array';
 
 export interface FringeGlyphLoadingSpinnerProps {
@@ -209,7 +209,7 @@ export default function FringeGlyphLoadingSpinner({
     return null;
   }
 
-  const containerStyle: React.CSSProperties = {
+  const containerStyle: CSSProperties = {
     position: 'absolute',
     left: x,
     top: y,
@@ -221,7 +221,7 @@ export default function FringeGlyphLoadingSpinner({
     borderRadius,
   };
 
-  const imageStyle: React.CSSProperties = {
+  const imageStyle: CSSProperties = {
     position: 'absolute',
     top: 0,
     left: 0,
