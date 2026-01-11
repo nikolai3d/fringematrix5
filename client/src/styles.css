@@ -925,3 +925,61 @@ footer.navbar {
   }
 }
 
+/* Legacy Loading Screen */
+.loading-screen.legacy {
+  background: #000;
+}
+
+.legacy-loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.legacy-loading-text {
+  font-family: Orbitron, Inter, sans-serif;
+  font-size: clamp(32px, 6vw, 56px);
+  letter-spacing: 0.05em;
+  color: var(--crt-glow);
+  text-shadow:
+    0 0 8px var(--crt-glow),
+    0 0 20px rgba(0, 229, 255, 0.5),
+    0 0 40px rgba(0, 229, 255, 0.3);
+  animation: crt-flicker 2.2s infinite steps(30, end);
+}
+
+.legacy-skip-hint {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: clamp(12px, 2vw, 14px);
+  color: rgba(207, 255, 255, 0.7);
+  text-shadow: 0 0 4px rgba(0, 229, 255, 0.3);
+  animation: skip-pulse 1.5s ease-in-out infinite;
+}
+
+/* Glyphs Loading Screen */
+.loading-screen.glyphs {
+  background: #000;
+}
+
+.glyphs-loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 40px;
+}
+
+.glyphs-spinner-wrapper {
+  position: relative;
+  width: 200px;
+  height: 200px;
+}
+
+.glyphs-skip-hint {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: clamp(12px, 2vw, 14px);
+  color: rgba(207, 255, 255, 0.7);
+  text-shadow: 0 0 4px rgba(0, 229, 255, 0.3);
+  animation: skip-pulse 1.5s ease-in-out infinite;
+}
+

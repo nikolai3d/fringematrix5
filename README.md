@@ -68,6 +68,19 @@ Create a `.env.local` file in the project root:
 BLOB_READ_WRITE_TOKEN=your-vercel-blob-token
 ```
 
+### Optional Environment Variables
+
+```env
+# Loading Screen Selection (defaults to 'terminal')
+# Options: 'legacy', 'terminal', 'glyphs'
+VITE_LOADING_SCREEN=terminal
+```
+
+**Loading Screen Options:**
+- `legacy` - Simple "Fringe Matrix 5 Loading..." message (original style)
+- `terminal` - Terminal-style boot sequence with typing animation (default)
+- `glyphs` - Fringe glyphs rotating on black background (minimalist)
+
 ### For CI/CD (GitHub Actions)
 
 **Required Repository Secret:**
