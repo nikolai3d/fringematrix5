@@ -35,6 +35,16 @@ Base URL: `http://localhost:3000`
 - Error 500:
   - Body: `{ error: "Failed to load build info" }`
 
+### GET `/api/glyphs`
+- Description: Returns list of glyph image URLs from `avatars/_images/Glyphs/small/` for use in the loading spinner component.
+- Success 200 response:
+  - Body: `{ glyphs: Array<string> }`
+  - Each string is a CDN URL pointing to a glyph image
+  - Only image files are included (extensions: `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif`, `.bmp`, `.svg`)
+  - Returns empty array if no blob token is configured or no images exist
+- Error 500:
+  - Body: `{ error: "Failed to list glyphs" }`
+
 ### Fallback `/api/*`
 - Any other `/api/*` path responds with 404 JSON: `{ error: "Not found" }`
 

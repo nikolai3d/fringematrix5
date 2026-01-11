@@ -126,6 +126,27 @@ describe('API contract', () => {
     });
   });
 
+  describe('GET /api/glyphs', () => {
+    it('returns 200 with glyphs array structure', async () => {
+      // Endpoint returns 200 with glyphs: string[] structure
+      // - Empty array when BLOB_READ_WRITE_TOKEN is missing (graceful fallback)
+      // - Populated array when token exists and blob API succeeds
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      const res = await request(app).get('/api/glyphs');
+      
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('glyphs');
+      expect(Array.isArray(res.body.glyphs)).toBe(true);
+      
+      // Each glyph (if any) should be a non-empty string URL
+      res.body.glyphs.forEach((glyph: unknown) => {
+        expect(typeof glyph).toBe('string');
+        expect((glyph as string).length).toBeGreaterThan(0);
+      });
+      consoleSpy.mockRestore();
+    });
+  });
+
   describe('fallback /api/*', () => {
     it('returns 404 JSON for unknown endpoints', async () => {
       const res = await request(app).get('/api/unknown-endpoint');

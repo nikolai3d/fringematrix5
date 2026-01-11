@@ -327,6 +327,28 @@ app.get('/api/content/:page', async (req: Request, res: Response): Promise<void>
   }
 });
 
+// Glyphs endpoint for loading spinner
+app.get('/api/glyphs', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const blobPrefix = 'avatars/_images/Glyphs/small/';
+    
+    const { blobs } = await listBlobsWithCache({
+      prefix: blobPrefix,
+      limit: 100,
+    });
+
+    // Filter for image files and return URLs
+    const glyphs = blobs
+      .filter(blob => isImageFile(blob.pathname))
+      .map(blob => blob.url);
+
+    res.json({ glyphs });
+  } catch (err: any) {
+    console.error('Glyphs listing error:', err);
+    res.status(500).json({ error: 'Failed to list glyphs' });
+  }
+});
+
 // Ensure unknown /api/* paths return JSON (not SPA HTML)
 app.all('/api/*', (_req: Request, res: Response): void => {
   res.status(404).json({ error: 'Not found' });
