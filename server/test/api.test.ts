@@ -152,16 +152,18 @@ describe('API contract', () => {
       const res = await request(app).get('/api/glyphs');
       
       expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.glyphs)).toBe(true);
+      expect(res.body.glyphs.length).toBeGreaterThan(0);
       
-      if (res.body.glyphs.length > 0) {
-        const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.bmp', '.svg'];
-        res.body.glyphs.forEach((glyph: string) => {
-          const url = new URL(glyph);
-          const pathname = url.pathname.toLowerCase();
-          const hasImageExtension = imageExtensions.some(ext => pathname.endsWith(ext));
-          expect(hasImageExtension).toBe(true);
-        });
-      }
+      const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.bmp', '.svg'];
+      res.body.glyphs.forEach((glyph: string) => {
+        // Validate glyph is a parseable URL
+        expect(() => new URL(glyph)).not.toThrow();
+        const url = new URL(glyph);
+        const pathname = url.pathname.toLowerCase();
+        const hasImageExtension = imageExtensions.some(ext => pathname.endsWith(ext));
+        expect(hasImageExtension).toBe(true);
+      });
       consoleSpy.mockRestore();
     });
   });

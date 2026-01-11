@@ -44,6 +44,20 @@ export default function FringeGlyphLoadingSpinner({
   const timerRef = useRef<number | null>(null);
   const imageIndexRef = useRef(0); // tracks current position in sequence
   const activeSlotRef = useRef<0 | 1>(0); // tracks active slot without triggering re-renders
+  const mountedRef = useRef(true); // tracks if component is mounted
+
+  // Track mount state to prevent state updates after unmount
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      // Clear any pending timeout on unmount
+      if (timerRef.current) {
+        window.clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, []);
 
   // Fetch glyphs on mount
   useEffect(() => {
@@ -130,7 +144,7 @@ export default function FringeGlyphLoadingSpinner({
   // Image cycling logic with proper two-slot cross-dissolve
   // Uses refs for activeSlot to avoid recreating callback on every transition
   const advanceToNextImage = useCallback(() => {
-    if (glyphs.length <= 1) return;
+    if (glyphs.length <= 1 || !mountedRef.current) return;
 
     // Clear any pending timeout to prevent orphaned callbacks
     if (timerRef.current) {
@@ -143,6 +157,9 @@ export default function FringeGlyphLoadingSpinner({
 
     // After the cross-dissolve completes
     timerRef.current = window.setTimeout(() => {
+      // Guard against state updates after unmount
+      if (!mountedRef.current) return;
+
       // Move to next image in sequence
       imageIndexRef.current = (imageIndexRef.current + 1) % glyphs.length;
       const nextNextIndex = (imageIndexRef.current + 1) % glyphs.length;
