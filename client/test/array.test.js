@@ -33,18 +33,33 @@ describe('shuffleArray', () => {
     expect(result).toEqual(['only']);
   });
 
-  it('should produce different orderings over multiple runs (probabilistic)', () => {
-    const original = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    const results = new Set();
-
-    // Run shuffle 20 times and collect unique orderings
-    for (let i = 0; i < 20; i++) {
-      results.add(JSON.stringify(shuffleArray(original)));
+  it('should produce deterministic output with seeded rng', () => {
+    // Mulberry32 seeded PRNG for deterministic testing
+    function createSeededRng(seed) {
+      let state = seed;
+      return () => {
+        state |= 0;
+        state = (state + 0x6d2b79f5) | 0;
+        let t = Math.imul(state ^ (state >>> 15), 1 | state);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
     }
 
-    // With 10 elements, probability of getting same order twice is very low
-    // We should see multiple different orderings
-    expect(results.size).toBeGreaterThan(1);
+    const original = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    const rng = createSeededRng(12345);
+    const shuffled = shuffleArray(original, rng);
+
+    // With seed 12345, Fisher-Yates produces this exact permutation
+    expect(shuffled).toEqual([7, 5, 9, 1, 2, 8, 6, 4, 3, 10]);
+
+    // Verify same seed produces same result
+    const rng2 = createSeededRng(12345);
+    expect(shuffleArray(original, rng2)).toEqual([7, 5, 9, 1, 2, 8, 6, 4, 3, 10]);
+
+    // Different seed produces different result
+    const rng3 = createSeededRng(99999);
+    expect(shuffleArray(original, rng3)).not.toEqual([7, 5, 9, 1, 2, 8, 6, 4, 3, 10]);
   });
 
   it('should work with different types', () => {

@@ -149,17 +149,20 @@ describe('API contract', () => {
       consoleSpy.mockRestore();
     });
 
-    it('returns empty array when no blob token is available', async () => {
-      // When BLOB_READ_WRITE_TOKEN is missing, endpoint returns empty glyphs array
-      // This test verifies the graceful fallback behavior
+    it('returns 200 with glyphs array structure', async () => {
+      // Verify endpoint always returns 200 with proper glyphs array structure
+      // Array will be empty when no blob token is available, or populated with URLs when token exists
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
       const res = await request(app).get('/api/glyphs');
       
-      if (res.status === 200) {
-        expect(res.body).toHaveProperty('glyphs');
-        expect(Array.isArray(res.body.glyphs)).toBe(true);
-        // In CI/test environment without token, should be empty
-      }
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('glyphs');
+      expect(Array.isArray(res.body.glyphs)).toBe(true);
+      // Each glyph should be a non-empty string URL (if any exist)
+      res.body.glyphs.forEach((glyph: unknown) => {
+        expect(typeof glyph).toBe('string');
+        expect((glyph as string).length).toBeGreaterThan(0);
+      });
       consoleSpy.mockRestore();
     });
 

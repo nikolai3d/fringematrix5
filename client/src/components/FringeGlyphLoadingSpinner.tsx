@@ -173,12 +173,21 @@ export default function FringeGlyphLoadingSpinner({
     if (!componentVisible || glyphs.length <= 1) return;
 
     const intervalTime = displayDuration + crossDissolveDuration;
-    const interval = window.setInterval(advanceToNextImage, intervalTime);
+    let interval: number | null = null;
+
+    // First transition after displayDuration, then interval for subsequent
+    timerRef.current = window.setTimeout(() => {
+      advanceToNextImage();
+      interval = window.setInterval(advanceToNextImage, intervalTime);
+    }, displayDuration);
 
     return () => {
-      window.clearInterval(interval);
       if (timerRef.current) {
         window.clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      if (interval) {
+        window.clearInterval(interval);
       }
     };
   }, [componentVisible, glyphs.length, displayDuration, crossDissolveDuration, advanceToNextImage]);
