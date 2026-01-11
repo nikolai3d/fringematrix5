@@ -13,6 +13,8 @@ interface LegacyLoadingScreenProps {
  * This was the original loading screen style
  */
 export default function LegacyLoadingScreen({
+  campaignCount: _campaignCount,
+  imageCount: _imageCount,
   isDataReady,
   onComplete,
 }: LegacyLoadingScreenProps) {

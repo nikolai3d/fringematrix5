@@ -1,10 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-
-export interface LoadingStep {
-  text: string;
-  delay: number; // ms to wait before showing this step
-  typeSpeed?: number; // ms per character (default 30)
-}
+import type { LoadingStep } from '../config/loadingScreen';
 
 interface TerminalLoadingScreenProps {
   campaignCount: number | null;
@@ -212,7 +207,7 @@ export default function TerminalLoadingScreen({
           <div className="terminal-scanlines"></div>
           <div className="terminal-content" aria-live="polite" aria-atomic="true">
             {visibleLines.map((line, index) => (
-              <div key={`${index}-${line}`} className={`terminal-line ${line === '' ? 'empty' : ''}`}>
+              <div key={index} className={`terminal-line ${line === '' ? 'empty' : ''}`}>
                 {line}
               </div>
             ))}

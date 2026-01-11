@@ -90,10 +90,9 @@ test.describe('Loading Screen - Terminal (default)', () => {
     const isLoaderVisible = await loader.isVisible().catch(() => false);
 
     if (isLoaderVisible) {
-      // Wait a bit for data to load (skip hint appears when data is ready)
-      await page.waitForTimeout(1000);
-
+      // Wait for skip hint to appear (indicates data is ready)
       const skipHint = loader.locator('.terminal-skip');
+      await skipHint.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
       const isSkipVisible = await skipHint.isVisible().catch(() => false);
 
       if (isSkipVisible) {
@@ -122,10 +121,9 @@ test.describe('Loading Screen - Terminal (default)', () => {
     const isLoaderVisible = await loader.isVisible().catch(() => false);
 
     if (isLoaderVisible) {
-      // Wait for data to be ready
-      await page.waitForTimeout(1500);
-
+      // Wait for skip hint to appear (indicates data is ready)
       const skipHint = loader.locator('.terminal-skip');
+      await skipHint.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
       const isSkipVisible = await skipHint.isVisible().catch(() => false);
 
       if (isSkipVisible) {
@@ -164,9 +162,9 @@ test.describe('Loading Screen - Legacy variant', () => {
       // Should NOT have terminal elements
       await expect(loader.locator('.loading-terminal')).not.toBeVisible();
 
-      // Wait for skip hint to appear
-      await page.waitForTimeout(1000);
+      // Wait for skip hint to appear (indicates data is ready)
       const skipHint = loader.locator('.legacy-skip-hint');
+      await skipHint.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
       if (await skipHint.isVisible().catch(() => false)) {
         await expect(skipHint).toContainText('Press ENTER, SPACE, or click');
       }
@@ -204,9 +202,9 @@ test.describe('Loading Screen - Glyphs variant', () => {
       // Should NOT have legacy elements
       await expect(loader.locator('.legacy-loading-content')).not.toBeVisible();
 
-      // Wait for skip hint to appear
-      await page.waitForTimeout(1000);
+      // Wait for skip hint to appear (indicates data is ready)
       const skipHint = loader.locator('.glyphs-skip-hint');
+      await skipHint.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
       if (await skipHint.isVisible().catch(() => false)) {
         await expect(skipHint).toContainText('Press ENTER, SPACE, or click');
       }

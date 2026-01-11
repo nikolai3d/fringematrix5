@@ -14,6 +14,8 @@ interface GlyphsLoadingScreenProps {
  * Minimalist and visually striking
  */
 export default function GlyphsLoadingScreen({
+  campaignCount: _campaignCount,
+  imageCount: _imageCount,
   isDataReady,
   onComplete,
 }: GlyphsLoadingScreenProps) {

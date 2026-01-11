@@ -80,7 +80,7 @@ jobs:
         run: npm ci
 
       - name: Build client with ${{ matrix.loading-screen }} loading screen
-        run: VITE_LOADING_SCREEN=${{ matrix.loading-screen }} npm run build:client
+        run: npm run build:client
         env:
           VITE_LOADING_SCREEN: ${{ matrix.loading-screen }}
 

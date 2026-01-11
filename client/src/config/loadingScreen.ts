@@ -12,5 +12,37 @@
 
 export type LoadingScreenType = 'legacy' | 'terminal' | 'glyphs';
 
+/**
+ * Represents a step in the terminal loading screen sequence
+ */
+export interface LoadingStep {
+  text: string;
+  delay: number; // ms to wait before showing this step
+  typeSpeed?: number; // ms per character (default 30)
+}
+
+const VALID_LOADING_SCREENS: LoadingScreenType[] = ['legacy', 'terminal', 'glyphs'];
+
+/**
+ * Validates and returns a safe loading screen type.
+ * Falls back to 'terminal' if the environment variable is invalid.
+ */
+function validateLoadingScreenType(value: string | undefined): LoadingScreenType {
+  if (!value) {
+    return 'terminal';
+  }
+
+  if (VALID_LOADING_SCREENS.includes(value as LoadingScreenType)) {
+    return value as LoadingScreenType;
+  }
+
+  console.warn(
+    `Invalid VITE_LOADING_SCREEN value: "${value}". ` +
+    `Valid options are: ${VALID_LOADING_SCREENS.join(', ')}. ` +
+    `Falling back to 'terminal'.`
+  );
+  return 'terminal';
+}
+
 export const LOADING_SCREEN_TYPE: LoadingScreenType =
-  (import.meta.env.VITE_LOADING_SCREEN as LoadingScreenType) || 'terminal';
+  validateLoadingScreenType(import.meta.env.VITE_LOADING_SCREEN);

@@ -3,12 +3,6 @@ import LegacyLoadingScreen from './LegacyLoadingScreen';
 import TerminalLoadingScreen from './TerminalLoadingScreen';
 import GlyphsLoadingScreen from './GlyphsLoadingScreen';
 
-export interface LoadingStep {
-  text: string;
-  delay: number;
-  typeSpeed?: number;
-}
-
 interface LoadingScreenProps {
   campaignCount: number | null;
   imageCount: number | null;
