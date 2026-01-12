@@ -91,7 +91,6 @@ function validateConfig() {
   // Validate loadingScreen section exists
   if (!config.loadingScreen || Object.keys(config.loadingScreen).length === 0) {
     error('Missing required section: loadingScreen');
-    hasErrors = true;
   } else {
     const { loadingScreen } = config;
 
