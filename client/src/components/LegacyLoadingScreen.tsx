@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { LOADING_SCREEN_AUTO_FADE_DELAY_MS } from '../config/loadingScreen';
 
 interface LegacyLoadingScreenProps {
   campaignCount: number | null;
@@ -47,7 +48,7 @@ export default function LegacyLoadingScreen({
     if (isDataReady && canSkip) {
       const timer = setTimeout(() => {
         onComplete();
-      }, 800);
+      }, LOADING_SCREEN_AUTO_FADE_DELAY_MS);
       return () => clearTimeout(timer);
     }
   }, [isDataReady, canSkip, onComplete]);
