@@ -43,9 +43,15 @@ function parseSimpleYaml(yamlContent) {
     // Skip comments and empty lines
     if (trimmed.startsWith('#') || trimmed === '') continue;
 
-    // Check for loadingScreen section
-    if (trimmed === 'loadingScreen:') {
-      currentSection = 'loadingScreen';
+    // Detect top-level keys (no leading whitespace, ends with colon)
+    if (!line.startsWith(' ') && trimmed.match(/^(\w+):$/)) {
+      // Check if it's the loadingScreen section
+      if (trimmed === 'loadingScreen:') {
+        currentSection = 'loadingScreen';
+      } else {
+        // Reset currentSection for any other top-level key
+        currentSection = null;
+      }
       continue;
     }
 
