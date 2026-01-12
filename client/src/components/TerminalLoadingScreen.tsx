@@ -194,7 +194,7 @@ export default function TerminalLoadingScreen({
     <div
       className="loading-screen"
       role="dialog"
-      aria-modal={true}
+      aria-modal="true"
       aria-label="Loading"
       onClick={canSkip ? handleSkip : undefined}
     >
