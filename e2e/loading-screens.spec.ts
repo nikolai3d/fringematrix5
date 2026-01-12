@@ -181,7 +181,7 @@ test.describe('Loading Screen - Glyphs variant', () => {
     /**
      * To run this test:
      * 1. Build with glyphs loading screen: VITE_LOADING_SCREEN=glyphs npm run build:client
-     * 2. Run this test: npm run test:e2e -- loading-screens.spec.ts --grep "glyphs"
+     * 2. Run this test: npm run test:e2e -- loading-screens.spec.ts --grep "Glyphs"
      */
     await page.goto('/');
 
