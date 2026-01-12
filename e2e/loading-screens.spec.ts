@@ -204,70 +204,26 @@ test.describe('Loading Screen - Glyphs (default)', () => {
       // Should NOT have legacy elements
       await expect(loader.locator('.legacy-loading-content')).not.toBeVisible();
 
-      // Wait for skip hint to appear (indicates data is ready)
-      const skipHint = loader.locator('.glyphs-skip-hint');
-      await skipHint.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
-      if (await skipHint.isVisible().catch(() => false)) {
-        await expect(skipHint).toContainText('Press ENTER, SPACE, or click');
-      }
-
+      // Glyphs loading screen auto-fades (no skip functionality)
       await loader.waitFor({ state: 'detached', timeout: 30000 });
     }
 
     await expect(page.getByRole('toolbar', { name: 'Primary actions' })).toBeVisible();
   });
 
-  test('glyphs loading screen can be skipped when data is ready', async ({ page }) => {
+  test('glyphs loading screen auto-completes when data is ready', async ({ page }) => {
     await page.goto('/');
 
     const loader = page.getByRole('dialog', { name: 'Loading' });
     const isLoaderVisible = await loader.isVisible().catch(() => false);
 
     if (isLoaderVisible) {
-      // Wait for skip hint to appear (indicates data is ready)
-      const skipHint = loader.locator('.glyphs-skip-hint');
-      await skipHint.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
-      const isSkipVisible = await skipHint.isVisible().catch(() => false);
-
-      if (isSkipVisible) {
-        // Verify skip hint text
-        await expect(skipHint).toContainText('Press ENTER, SPACE, or click');
-
-        // Test clicking to skip
-        await loader.click();
-
-        // Loader should disappear quickly after clicking
-        await expect(loader).not.toBeVisible({ timeout: 2000 });
-      } else {
-        // If skip hint not visible, loader should auto-complete
-        await loader.waitFor({ state: 'detached', timeout: 30000 });
-      }
+      // Glyphs loading screen should auto-fade without user interaction
+      await loader.waitFor({ state: 'detached', timeout: 30000 });
     }
 
     // Verify app is functional
     await expect(page.getByRole('toolbar', { name: 'Primary actions' })).toBeVisible();
-  });
-
-  test('glyphs loading screen responds to keyboard skip (Enter key)', async ({ page }) => {
-    await page.goto('/');
-
-    const loader = page.getByRole('dialog', { name: 'Loading' });
-    const isLoaderVisible = await loader.isVisible().catch(() => false);
-
-    if (isLoaderVisible) {
-      // Wait for skip hint to appear (indicates data is ready)
-      const skipHint = loader.locator('.glyphs-skip-hint');
-      await skipHint.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
-      const isSkipVisible = await skipHint.isVisible().catch(() => false);
-
-      if (isSkipVisible) {
-        // Press Enter to skip
-        await page.keyboard.press('Enter');
-
-        // Loader should disappear quickly
-        await expect(loader).not.toBeVisible({ timeout: 2000 });
-      }
-    }
   });
 });
 

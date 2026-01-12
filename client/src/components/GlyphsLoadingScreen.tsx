@@ -13,10 +13,11 @@ interface GlyphsLoadingScreenProps {
  * Glyphs Loading Screen
  * Features Fringe glyphs rotating in the center on a black background
  * Minimalist and visually striking - auto-fades when loading completes
+ *
+ * Note: campaignCount and imageCount props are not used by this component,
+ * but are part of the interface for consistency with other loading screens.
  */
 export default function GlyphsLoadingScreen({
-  campaignCount: _campaignCount,
-  imageCount: _imageCount,
   isDataReady,
   onComplete,
 }: GlyphsLoadingScreenProps) {

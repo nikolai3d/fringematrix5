@@ -52,7 +52,8 @@ jobs:
         run: npx playwright install --with-deps
 
       - name: Run Playwright tests
-        run: npm run test:e2e -- --grep-invert "Loading Screen - Terminal|Loading Screen - Legacy"
+        # Exclude loading screen variant tests (tested separately in loading-screens job)
+        run: npm run test:e2e -- --grep-invert "Loading Screen - (Terminal|Legacy) variant"
         env:
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
 
@@ -89,12 +90,14 @@ jobs:
 
       - name: Run loading screen tests for ${{ matrix.loading-screen }}
         run: |
+          # Run tests specific to the loading screen variant being tested
           if [ "${{ matrix.loading-screen }}" = "terminal" ]; then
-            npm run test:e2e -- loading-screens.spec.ts --grep "Terminal"
+            npm run test:e2e -- loading-screens.spec.ts --grep "Terminal variant"
           elif [ "${{ matrix.loading-screen }}" = "legacy" ]; then
-            npm run test:e2e -- loading-screens.spec.ts --grep "Legacy"
+            npm run test:e2e -- loading-screens.spec.ts --grep "Legacy variant"
           else
-            npm run test:e2e -- loading-screens.spec.ts --grep "Glyphs|Configuration"
+            # Glyphs is the default, also run configuration tests
+            npm run test:e2e -- loading-screens.spec.ts --grep "Glyphs.*default|Configuration"
           fi
         env:
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}

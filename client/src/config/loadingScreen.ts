@@ -74,9 +74,43 @@ function getLoadingScreenType(): LoadingScreenType {
 export const LOADING_SCREEN_TYPE: LoadingScreenType = getLoadingScreenType();
 
 /**
+ * Validates and returns a safe auto-fade delay value.
+ * Falls back to 300ms if the value is invalid.
+ * Valid range: 0-10000ms (0-10 seconds)
+ */
+function validateAutoFadeDelay(value: number | undefined): number {
+  const DEFAULT_DELAY = 300;
+  const MIN_DELAY = 0;
+  const MAX_DELAY = 10000;
+
+  if (value === undefined || value === null) {
+    return DEFAULT_DELAY;
+  }
+
+  if (typeof value !== 'number' || isNaN(value)) {
+    console.warn(
+      `Invalid autoFadeDelayMs: "${value}" (not a number). ` +
+      `Using default ${DEFAULT_DELAY}ms.`
+    );
+    return DEFAULT_DELAY;
+  }
+
+  if (value < MIN_DELAY || value > MAX_DELAY) {
+    console.warn(
+      `Invalid autoFadeDelayMs: ${value}ms (must be between ${MIN_DELAY}-${MAX_DELAY}ms). ` +
+      `Using default ${DEFAULT_DELAY}ms.`
+    );
+    return DEFAULT_DELAY;
+  }
+
+  return value;
+}
+
+/**
  * Delay in milliseconds before the loading screen auto-fades to the main content.
  * This is the time between when data is ready and when the transition begins.
  * Configured in client/config.yaml under loadingScreen.autoFadeDelayMs
+ * Valid range: 0-10000ms. Default: 300ms.
  */
 export const LOADING_SCREEN_AUTO_FADE_DELAY_MS: number =
-  config.loadingScreen?.autoFadeDelayMs ?? 300;
+  validateAutoFadeDelay(config.loadingScreen?.autoFadeDelayMs);

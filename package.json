@@ -6,9 +6,10 @@
   "type": "module",
   "main": "server/server.ts",
   "scripts": {
-    "build": "npm run generate:build-info && npm run build:client",
+    "build": "npm run generate:build-info && npm run validate:config && npm run build:client",
     "build:client": "cd client && vite build",
     "generate:build-info": "node scripts/generate-build-info.js",
+    "validate:config": "node scripts/validate-config.js",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "tsx server/server.ts",
     "dev:client": "cd client && vite",

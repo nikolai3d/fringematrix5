@@ -7,8 +7,8 @@
 export type LoadingScreenType = 'legacy' | 'terminal' | 'glyphs';
 
 export interface AppConfig {
-  loadingScreen: {
-    type: LoadingScreenType;
-    autoFadeDelayMs: number;
+  loadingScreen?: {
+    type?: LoadingScreenType;
+    autoFadeDelayMs?: number;
   };
 }

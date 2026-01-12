@@ -33,6 +33,11 @@ npm run test:e2e:headed      # E2E with visible browser
 npm run test:e2e:conservative # E2E with 1 worker (rate-limit safe)
 ```
 
+**Note on jsdom version:**
+- Using jsdom v24.1.0 (not latest v27+) due to ESM compatibility issues with Vitest
+- v25+ introduced breaking changes in ESM module resolution that cause import failures in client tests
+- v24.1.0 is the last stable version with full ESM compatibility in this project's configuration
+
 Run a single test file:
 ```bash
 npx playwright test app.spec.ts           # Single e2e test file
@@ -98,11 +103,14 @@ data/
 **Loading Screens:**
 - Three loading screen options configurable in `client/config.yaml`:
   - `legacy` - Simple "Fringe Matrix 5 Loading..." message (original style)
+    - User can skip by pressing Enter/Space/click when data is ready
   - `terminal` - Terminal-style boot sequence with typing animation
+    - User can skip by pressing Enter/Space/click when data is ready
   - `glyphs` - Fringe glyphs rotating on black background (default)
+    - Auto-fades only (no manual skip) for a cleaner, uninterrupted visual experience
 - Configuration settings in `client/config.yaml`:
   - `loadingScreen.type` - Which loading screen to display
-  - `loadingScreen.autoFadeDelayMs` - Delay before auto-fading to main content (default: 300ms)
+  - `loadingScreen.autoFadeDelayMs` - Delay before auto-fading to main content (default: 300ms, valid range: 0-10000ms)
 - Individual components in `client/src/components/` (LegacyLoadingScreen, TerminalLoadingScreen, GlyphsLoadingScreen)
 
 **Build Info:**
