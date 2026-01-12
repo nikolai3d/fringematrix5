@@ -65,7 +65,7 @@ export default function GlyphsLoadingScreen({
     <div
       className="loading-screen glyphs"
       role="dialog"
-      aria-modal={true}
+      aria-modal="true"
       aria-label="Loading"
       onClick={canSkip ? handleSkip : undefined}
     >
