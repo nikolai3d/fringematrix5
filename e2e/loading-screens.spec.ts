@@ -142,7 +142,7 @@ test.describe('Loading Screen - Legacy variant', () => {
     /**
      * To run this test:
      * 1. Build with legacy loading screen: VITE_LOADING_SCREEN=legacy npm run build:client
-     * 2. Run this test: npm run test:e2e -- loading-screens.spec.ts --grep "legacy"
+     * 2. Run this test: npm run test:e2e -- loading-screens.spec.ts --grep "Legacy"
      */
     await page.goto('/');
 
