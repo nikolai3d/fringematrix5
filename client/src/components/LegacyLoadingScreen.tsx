@@ -76,7 +76,7 @@ export default function LegacyLoadingScreen({
     <div
       className="loading-screen legacy"
       role="dialog"
-      aria-modal={true}
+      aria-modal="true"
       aria-label="Loading"
       onClick={canSkip ? handleSkip : undefined}
     >
