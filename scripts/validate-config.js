@@ -53,7 +53,15 @@ function parseSimpleYaml(yamlContent) {
     if (currentSection === 'loadingScreen' && line.startsWith('  ')) {
       const match = trimmed.match(/^(\w+):\s*(.+)$/);
       if (match) {
-        const [, key, value] = match;
+        const [, key, rawValue] = match;
+
+        // Strip surrounding quotes (single or double) from value
+        let value = rawValue.trim();
+        if ((value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith("'") && value.endsWith("'"))) {
+          value = value.slice(1, -1);
+        }
+
         // Try to parse as number
         const numValue = Number(value);
         config.loadingScreen[key] = isNaN(numValue) ? value : numValue;
