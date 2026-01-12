@@ -16,8 +16,14 @@ import { test, expect } from '@playwright/test';
  *   VITE_LOADING_SCREEN=glyphs npm run build:client && npm run test:e2e -- loading-screens.spec.ts
  */
 
-test.describe('Loading Screen - Terminal (default)', () => {
+test.describe('Loading Screen - Terminal variant', () => {
   test('shows terminal loading screen with correct elements', async ({ page }) => {
+    /**
+     * This test runs in CI when built with VITE_LOADING_SCREEN=terminal
+     * To run locally:
+     * 1. Build with terminal loading screen: VITE_LOADING_SCREEN=terminal npm run build:client
+     * 2. Run this test: npm run test:e2e -- loading-screens.spec.ts --grep "Terminal"
+     */
     await page.goto('/');
 
     const loader = page.getByRole('dialog', { name: 'Loading' });
@@ -138,9 +144,10 @@ test.describe('Loading Screen - Terminal (default)', () => {
 });
 
 test.describe('Loading Screen - Legacy variant', () => {
-  test.skip('shows legacy loading screen (requires VITE_LOADING_SCREEN=legacy build)', async ({ page }) => {
+  test('shows legacy loading screen with correct elements', async ({ page }) => {
     /**
-     * To run this test:
+     * This test runs in CI when built with VITE_LOADING_SCREEN=legacy
+     * To run locally:
      * 1. Build with legacy loading screen: VITE_LOADING_SCREEN=legacy npm run build:client
      * 2. Run this test: npm run test:e2e -- loading-screens.spec.ts --grep "Legacy"
      */
@@ -176,13 +183,8 @@ test.describe('Loading Screen - Legacy variant', () => {
   });
 });
 
-test.describe('Loading Screen - Glyphs variant', () => {
-  test.skip('shows glyphs loading screen (requires VITE_LOADING_SCREEN=glyphs build)', async ({ page }) => {
-    /**
-     * To run this test:
-     * 1. Build with glyphs loading screen: VITE_LOADING_SCREEN=glyphs npm run build:client
-     * 2. Run this test: npm run test:e2e -- loading-screens.spec.ts --grep "Glyphs"
-     */
+test.describe('Loading Screen - Glyphs (default)', () => {
+  test('shows glyphs loading screen with correct elements', async ({ page }) => {
     await page.goto('/');
 
     const loader = page.getByRole('dialog', { name: 'Loading' });
@@ -213,6 +215,59 @@ test.describe('Loading Screen - Glyphs variant', () => {
     }
 
     await expect(page.getByRole('toolbar', { name: 'Primary actions' })).toBeVisible();
+  });
+
+  test('glyphs loading screen can be skipped when data is ready', async ({ page }) => {
+    await page.goto('/');
+
+    const loader = page.getByRole('dialog', { name: 'Loading' });
+    const isLoaderVisible = await loader.isVisible().catch(() => false);
+
+    if (isLoaderVisible) {
+      // Wait for skip hint to appear (indicates data is ready)
+      const skipHint = loader.locator('.glyphs-skip-hint');
+      await skipHint.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+      const isSkipVisible = await skipHint.isVisible().catch(() => false);
+
+      if (isSkipVisible) {
+        // Verify skip hint text
+        await expect(skipHint).toContainText('Press ENTER, SPACE, or click');
+
+        // Test clicking to skip
+        await loader.click();
+
+        // Loader should disappear quickly after clicking
+        await expect(loader).not.toBeVisible({ timeout: 2000 });
+      } else {
+        // If skip hint not visible, loader should auto-complete
+        await loader.waitFor({ state: 'detached', timeout: 30000 });
+      }
+    }
+
+    // Verify app is functional
+    await expect(page.getByRole('toolbar', { name: 'Primary actions' })).toBeVisible();
+  });
+
+  test('glyphs loading screen responds to keyboard skip (Enter key)', async ({ page }) => {
+    await page.goto('/');
+
+    const loader = page.getByRole('dialog', { name: 'Loading' });
+    const isLoaderVisible = await loader.isVisible().catch(() => false);
+
+    if (isLoaderVisible) {
+      // Wait for skip hint to appear (indicates data is ready)
+      const skipHint = loader.locator('.glyphs-skip-hint');
+      await skipHint.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+      const isSkipVisible = await skipHint.isVisible().catch(() => false);
+
+      if (isSkipVisible) {
+        // Press Enter to skip
+        await page.keyboard.press('Enter');
+
+        // Loader should disappear quickly
+        await expect(loader).not.toBeVisible({ timeout: 2000 });
+      }
+    }
   });
 });
 

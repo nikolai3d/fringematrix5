@@ -1,7 +1,10 @@
 /**
  * Loading Screen Configuration
  *
- * Configuration is loaded from client/config.yaml.
+ * Configuration priority:
+ * 1. VITE_LOADING_SCREEN environment variable (for CI/testing)
+ * 2. client/config.yaml loadingScreen.type
+ * 3. Default: 'glyphs'
  *
  * Available loading screen types:
  * - 'legacy': Simple "Fringe Matrix 5 Loading..." message
@@ -30,7 +33,7 @@ const VALID_LOADING_SCREENS: LoadingScreenType[] = ['legacy', 'terminal', 'glyph
 
 /**
  * Validates and returns a safe loading screen type.
- * Falls back to 'glyphs' if the config value is invalid.
+ * Falls back to 'glyphs' if the value is invalid.
  */
 function validateLoadingScreenType(value: string | undefined): LoadingScreenType {
   if (!value) {
@@ -42,7 +45,7 @@ function validateLoadingScreenType(value: string | undefined): LoadingScreenType
   }
 
   console.warn(
-    `Invalid loadingScreen.type value in config.yaml: "${value}". ` +
+    `Invalid loading screen type: "${value}". ` +
     `Valid options are: ${VALID_LOADING_SCREENS.join(', ')}. ` +
     `Falling back to 'glyphs'.`
   );
@@ -50,11 +53,25 @@ function validateLoadingScreenType(value: string | undefined): LoadingScreenType
 }
 
 /**
- * The currently configured loading screen type.
- * Configured in client/config.yaml under loadingScreen.type
+ * Get the loading screen type from environment variable or config.
+ * VITE_LOADING_SCREEN env var takes precedence over config.yaml.
  */
-export const LOADING_SCREEN_TYPE: LoadingScreenType =
-  validateLoadingScreenType(config.loadingScreen?.type);
+function getLoadingScreenType(): LoadingScreenType {
+  // Check environment variable first (for CI/testing)
+  const envValue = import.meta.env.VITE_LOADING_SCREEN;
+  if (envValue) {
+    return validateLoadingScreenType(envValue);
+  }
+
+  // Fall back to config.yaml
+  return validateLoadingScreenType(config.loadingScreen?.type);
+}
+
+/**
+ * The currently configured loading screen type.
+ * Priority: VITE_LOADING_SCREEN env var > config.yaml > 'glyphs' default
+ */
+export const LOADING_SCREEN_TYPE: LoadingScreenType = getLoadingScreenType();
 
 /**
  * Delay in milliseconds before the loading screen auto-fades to the main content.

@@ -52,7 +52,7 @@ jobs:
         run: npx playwright install --with-deps
 
       - name: Run Playwright tests
-        run: npm run test:e2e
+        run: npm run test:e2e -- --grep-invert "Loading Screen - Terminal|Loading Screen - Legacy"
         env:
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
 
@@ -92,9 +92,9 @@ jobs:
           if [ "${{ matrix.loading-screen }}" = "terminal" ]; then
             npm run test:e2e -- loading-screens.spec.ts --grep "Terminal"
           elif [ "${{ matrix.loading-screen }}" = "legacy" ]; then
-            npm run test:e2e -- loading-screens.spec.ts --grep "Legacy" --grep-invert "skip"
+            npm run test:e2e -- loading-screens.spec.ts --grep "Legacy"
           else
-            npm run test:e2e -- loading-screens.spec.ts --grep "Glyphs" --grep-invert "skip"
+            npm run test:e2e -- loading-screens.spec.ts --grep "Glyphs|Configuration"
           fi
         env:
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
