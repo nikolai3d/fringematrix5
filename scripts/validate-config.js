@@ -51,12 +51,16 @@ function parseSimpleYaml(yamlContent) {
 
     // Parse key-value pairs under loadingScreen
     if (currentSection === 'loadingScreen' && line.startsWith('  ')) {
-      const match = trimmed.match(/^(\w+):\s*(.+)$/);
+      const match = trimmed.match(/^(\w+):\s*(.*)$/);
       if (match) {
         const [, key, rawValue] = match;
 
         // Strip surrounding quotes (single or double) from value
         let value = rawValue.trim();
+        if (value === '') {
+          error(`Missing value for loadingScreen.${key}`);
+          continue;
+        }
         if ((value.startsWith('"') && value.endsWith('"')) ||
             (value.startsWith("'") && value.endsWith("'"))) {
           value = value.slice(1, -1);
