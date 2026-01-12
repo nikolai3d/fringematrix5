@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect } from 'react';
 import FringeGlyphLoadingSpinner from './FringeGlyphLoadingSpinner';
+import { LOADING_SCREEN_AUTO_FADE_DELAY_MS } from '../config/loadingScreen';
 
 interface GlyphsLoadingScreenProps {
   campaignCount: number | null;
@@ -11,7 +12,7 @@ interface GlyphsLoadingScreenProps {
 /**
  * Glyphs Loading Screen
  * Features Fringe glyphs rotating in the center on a black background
- * Minimalist and visually striking
+ * Minimalist and visually striking - auto-fades when loading completes
  */
 export default function GlyphsLoadingScreen({
   campaignCount: _campaignCount,
@@ -19,47 +20,15 @@ export default function GlyphsLoadingScreen({
   isDataReady,
   onComplete,
 }: GlyphsLoadingScreenProps) {
-  const [canSkip, setCanSkip] = useState(false);
-
-  // Enable skip when data is ready
+  // Auto-complete when data is ready after configured delay
   useEffect(() => {
     if (isDataReady) {
       const timer = setTimeout(() => {
-        setCanSkip(true);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [isDataReady]);
-
-  // Auto-complete when data is ready
-  useEffect(() => {
-    if (isDataReady && canSkip) {
-      const timer = setTimeout(() => {
         onComplete();
-      }, 800);
+      }, LOADING_SCREEN_AUTO_FADE_DELAY_MS);
       return () => clearTimeout(timer);
     }
-  }, [isDataReady, canSkip, onComplete]);
-
-  // Handle skip
-  const handleSkip = useCallback(() => {
-    if (canSkip) {
-      onComplete();
-    }
-  }, [canSkip, onComplete]);
-
-  // Skip on click or key press
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (canSkip && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape')) {
-        e.preventDefault();
-        handleSkip();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [canSkip, handleSkip]);
+  }, [isDataReady, onComplete]);
 
   return (
     <div
@@ -67,7 +36,6 @@ export default function GlyphsLoadingScreen({
       role="dialog"
       aria-modal="true"
       aria-label="Loading"
-      onClick={canSkip ? handleSkip : undefined}
     >
       <div className="glyphs-loading-container">
         {/* Center the glyph spinner */}
@@ -83,11 +51,6 @@ export default function GlyphsLoadingScreen({
             crossDissolveDuration={600}
           />
         </div>
-        {canSkip && (
-          <div className="glyphs-skip-hint">
-            Press ENTER, SPACE, or click anywhere to continue...
-          </div>
-        )}
       </div>
     </div>
   );

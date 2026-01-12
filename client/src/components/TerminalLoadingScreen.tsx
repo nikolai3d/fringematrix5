@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { LOADING_SCREEN_AUTO_FADE_DELAY_MS } from '../config/loadingScreen';
 import type { LoadingStep } from '../config/loadingScreen';
 
 interface TerminalLoadingScreenProps {
@@ -159,7 +160,7 @@ export default function TerminalLoadingScreen({
     if (sequenceComplete && isDataReady) {
       const timer = setTimeout(() => {
         onComplete();
-      }, 800);
+      }, LOADING_SCREEN_AUTO_FADE_DELAY_MS);
       return () => clearTimeout(timer);
     }
   }, [sequenceComplete, isDataReady, onComplete]);

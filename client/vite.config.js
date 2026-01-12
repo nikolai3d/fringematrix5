@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import yaml from '@modyfi/vite-plugin-yaml';
 import { resolve } from 'path';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), yaml()],
   server: {
     port: 5173,
     proxy: {

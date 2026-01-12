@@ -1,0 +1,9 @@
+# Client Application Configuration
+# Edit this file to customize app behavior without modifying code
+
+loadingScreen:
+  # Type of loading screen: 'legacy', 'terminal', or 'glyphs'
+  type: glyphs
+
+  # Delay (ms) before auto-fading to main content after data is ready
+  autoFadeDelayMs: 300

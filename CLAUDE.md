@@ -89,14 +89,20 @@ data/
 
 **Environment Variables:**
 - `BLOB_READ_WRITE_TOKEN` - Required for production, optional for development
-- `VITE_LOADING_SCREEN` - Loading screen selection: 'legacy', 'terminal' (default), or 'glyphs'
+
+**Client Configuration:**
+- Centralized configuration in `client/config.yaml`
+- Edit this file to customize app behavior without modifying code
+- Configuration is loaded at build time via vite-plugin-yaml
 
 **Loading Screens:**
-- Three loading screen options available via `VITE_LOADING_SCREEN` environment variable
-- `legacy` - Simple "Fringe Matrix 5 Loading..." message (original style)
-- `terminal` - Terminal-style boot sequence with typing animation (default, current)
-- `glyphs` - Fringe glyphs rotating on black background (minimalist)
-- Configuration in `client/src/config/loadingScreen.ts`
+- Three loading screen options configurable in `client/config.yaml`:
+  - `legacy` - Simple "Fringe Matrix 5 Loading..." message (original style)
+  - `terminal` - Terminal-style boot sequence with typing animation
+  - `glyphs` - Fringe glyphs rotating on black background (default)
+- Configuration settings in `client/config.yaml`:
+  - `loadingScreen.type` - Which loading screen to display
+  - `loadingScreen.autoFadeDelayMs` - Delay before auto-fading to main content (default: 300ms)
 - Individual components in `client/src/components/` (LegacyLoadingScreen, TerminalLoadingScreen, GlyphsLoadingScreen)
 
 **Build Info:**
