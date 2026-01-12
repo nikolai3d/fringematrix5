@@ -68,6 +68,19 @@ Create a `.env.local` file in the project root:
 BLOB_READ_WRITE_TOKEN=your-vercel-blob-token
 ```
 
+### Optional Environment Variables
+
+```env
+# Loading Screen Selection (defaults to 'terminal')
+# Options: 'legacy', 'terminal', 'glyphs'
+VITE_LOADING_SCREEN=terminal
+```
+
+**Loading Screen Options:**
+- `legacy` - Simple "Fringe Matrix 5 Loading..." message (original style)
+- `terminal` - Terminal-style boot sequence with typing animation (default)
+- `glyphs` - Fringe glyphs rotating on black background (minimalist)
+
 ### For CI/CD (GitHub Actions)
 
 **Required Repository Secret:**
@@ -81,6 +94,11 @@ BLOB_READ_WRITE_TOKEN=your-vercel-blob-token
 - If no token is provided, the server automatically falls back to empty image lists
 - Tests will still run successfully but without real avatar images
 - Server logs will show: `⚪ Blob API: Disabled (no token - using fallback for testing)`
+
+**Loading Screen Testing:**
+- CI automatically tests all three loading screen variants (terminal, legacy, glyphs) in parallel
+- Uses matrix strategy to build and test each variant separately
+- See `e2e/LOADING_SCREENS_TESTING.md` for detailed testing documentation
 
 ## Available Commands
 
@@ -150,6 +168,9 @@ npm run test:e2e:headed
 # Run conservative e2e tests (reduced rate limiting)
 npm run test:e2e:conservative
 
+# Test all loading screen variants
+npm run test:e2e:loading-screens
+
 # View test report
 npm run test:e2e:report
 ```
@@ -172,6 +193,8 @@ npm start
 ```
 
 **Note**: E2E tests require `BLOB_READ_WRITE_TOKEN` for full functionality. Without it, tests run with empty image data (fallback mode).
+
+**Loading Screen Testing**: See `e2e/LOADING_SCREENS_TESTING.md` for detailed information on testing all three loading screen variants.
 
 See `e2e/README.md` for detailed testing documentation.
 
