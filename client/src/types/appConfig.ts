@@ -6,9 +6,14 @@
 
 export type LoadingScreenType = 'legacy' | 'terminal' | 'glyphs';
 
+export interface ThemeConfig {
+  accentColor?: string;
+}
+
 export interface AppConfig {
   loadingScreen?: {
     type?: LoadingScreenType;
     autoFadeDelayMs?: number;
   };
+  theme?: ThemeConfig;
 }

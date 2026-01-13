@@ -7,3 +7,9 @@ loadingScreen:
 
   # Delay (ms) before auto-fading to main content after data is ready
   autoFadeDelayMs: 300
+
+theme:
+  # Primary accent color used throughout the UI
+  # This is the "Fringe blue" cyan color derived from the Fringe glyph images
+  # Format: CSS hex color (e.g., "#00D4FF")
+  accentColor: "#00D4FF"
