@@ -18,14 +18,22 @@ const DEFAULT_ACCENT_COLOR = '#00D4FF';
 /**
  * Validates a CSS hex color string.
  * Returns the color if valid, or the default if invalid.
+ *
+ * Accepts 3-character (#RGB) or 6-character (#RRGGBB) hex formats.
+ * Alpha channel formats (4 or 8 character) are not supported; use
+ * standard RGB hex values instead.
+ *
+ * @param value - The hex color string to validate (with or without # prefix)
+ * @returns The validated hex color with # prefix, or the default color if invalid
  */
 function validateHexColor(value: string | undefined): string {
   if (!value) {
     return DEFAULT_ACCENT_COLOR;
   }
 
-  // Match 3, 4, 6, or 8 character hex colors (with or without #)
-  const hexPattern = /^#?([A-Fa-f0-9]{3}|[A-Fa-f0-9]{4}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$/;
+  // Match 3 or 6 character hex colors (with or without #)
+  // Alpha formats (4 or 8 char) are not supported
+  const hexPattern = /^#?([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/;
 
   if (!hexPattern.test(value)) {
     console.warn(
@@ -46,13 +54,23 @@ function validateHexColor(value: string | undefined): string {
 export const THEME_ACCENT_COLOR: string = validateHexColor(config.theme?.accentColor);
 
 /**
- * Converts a hex color to RGB values
+ * Converts a hex color string to RGB component values.
+ *
+ * Supports 3-character (#RGB) and 6-character (#RRGGBB) formats.
+ * The # prefix is optional.
+ *
+ * @param hex - The hex color string to convert
+ * @returns Object containing r, g, b values (0-255 each)
+ *
+ * @example
+ * hexToRgb('#00D4FF') // { r: 0, g: 212, b: 255 }
+ * hexToRgb('F00')     // { r: 255, g: 0, b: 0 }
  */
 export function hexToRgb(hex: string): { r: number; g: number; b: number } {
   // Remove # if present
   const cleanHex = hex.replace('#', '');
 
-  // Handle 3-character hex
+  // Expand 3-character shorthand to 6-character format
   const fullHex = cleanHex.length === 3
     ? cleanHex.split('').map(c => c + c).join('')
     : cleanHex;
@@ -67,6 +85,13 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } {
 
 /**
  * Applies the theme accent color as CSS custom properties on the document root.
+ *
+ * Sets the following CSS custom properties:
+ * - `--theme-accent`: The accent color as a hex value
+ * - `--theme-accent-rgb`: RGB components as "r, g, b" for use in rgba()
+ * - `--theme-glow`: A brighter variant for glow effects
+ * - `--theme-glow-rgb`: RGB components of the glow color
+ *
  * Call this once when the app initializes.
  */
 export function applyTheme(): void {
@@ -76,12 +101,7 @@ export function applyTheme(): void {
   // Main accent color
   root.style.setProperty('--theme-accent', THEME_ACCENT_COLOR);
 
-  // RGB components for creating rgba() values
-  root.style.setProperty('--theme-accent-r', String(rgb.r));
-  root.style.setProperty('--theme-accent-g', String(rgb.g));
-  root.style.setProperty('--theme-accent-b', String(rgb.b));
-
-  // Pre-computed variations for common use cases
+  // RGB components as comma-separated string for use in rgba()
   root.style.setProperty('--theme-accent-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
 
   // Glow color (slightly brighter/lighter version)
