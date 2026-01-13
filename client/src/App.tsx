@@ -4,6 +4,7 @@ import { useLightboxAnimations } from './hooks/useLightboxAnimations';
 import { fetchJSON } from './utils/fetchJSON';
 import { formatTimePacific } from './utils/formatTimePacific';
 import { gitRemoteToHttps } from './utils/gitRemoteToHttps';
+import { applyTheme } from './config/theme';
 import LoadingScreen from './components/LoadingScreen';
 import type {
   Campaign,
@@ -66,6 +67,11 @@ export default function App() {
   const modalTriggerRef = useRef<HTMLElement | null>(null); // Stores element that opened modal for focus restoration
   const modalCloseRef = useRef<HTMLButtonElement>(null);    // Close button ref for initial focus
   const modalRef = useRef<HTMLDivElement>(null);            // Modal container ref for focus trapping
+
+  // Apply theme CSS variables on mount
+  useEffect(() => {
+    applyTheme();
+  }, []);
 
   const repoHref = useMemo(
     () => gitRemoteToHttps(buildInfo?.repoUrl || ''),
