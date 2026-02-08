@@ -63,6 +63,12 @@ export default function App() {
   const [activeModal, setActiveModal] = useState<ContentPage | null>(null);
   const [modalContent, setModalContent] = useState<string>('');
   const [isModalLoading, setIsModalLoading] = useState<boolean>(false);
+  // Accessibility settings
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [reduceMotion, setReduceMotion] = useState<boolean>(false);
+  const [reduceEffects, setReduceEffects] = useState<boolean>(false);
+  // Swipe gesture tracking
+  const swipeRef = useRef<{ startX: number; startY: number; startTime: number } | null>(null);
   const activeModalRef = useRef<ContentPage | null>(null);  // Tracks which modal is loading (prevents race conditions)
   const modalTriggerRef = useRef<HTMLElement | null>(null); // Stores element that opened modal for focus restoration
   const modalCloseRef = useRef<HTMLButtonElement>(null);    // Close button ref for initial focus
@@ -72,6 +78,28 @@ export default function App() {
   useEffect(() => {
     applyTheme();
   }, []);
+
+  // Load accessibility settings from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('fringematrix-a11y');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.reduceMotion === 'boolean') setReduceMotion(parsed.reduceMotion);
+        if (typeof parsed.reduceEffects === 'boolean') setReduceEffects(parsed.reduceEffects);
+      }
+    } catch { /* ignore corrupt localStorage */ }
+  }, []);
+
+  // Apply accessibility classes to <html> and persist to localStorage
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle('reduce-motion', reduceMotion);
+    root.classList.toggle('reduce-effects', reduceEffects);
+    try {
+      localStorage.setItem('fringematrix-a11y', JSON.stringify({ reduceMotion, reduceEffects }));
+    } catch { /* ignore storage errors */ }
+  }, [reduceMotion, reduceEffects]);
 
   const repoHref = useMemo(
     () => gitRemoteToHttps(buildInfo?.repoUrl || ''),
@@ -206,6 +234,7 @@ export default function App() {
     setIsBuildInfoOpen(false);
     setIsShareOpen(false);
     setActiveModal(null);
+    setIsSettingsOpen(false);
   }, []);
 
   const goHome = useCallback(() => {
@@ -627,6 +656,25 @@ export default function App() {
 
   // Grid thumbnail restore handled by hook
 
+  // Swipe gesture handlers for lightbox navigation on touch devices
+  const handleLightboxPointerDown = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType === 'mouse') return;
+    swipeRef.current = { startX: e.clientX, startY: e.clientY, startTime: Date.now() };
+  }, []);
+
+  const handleLightboxPointerUp = useCallback((e: React.PointerEvent) => {
+    if (!swipeRef.current || e.pointerType === 'mouse') return;
+    const dx = e.clientX - swipeRef.current.startX;
+    const dy = e.clientY - swipeRef.current.startY;
+    const dt = Date.now() - swipeRef.current.startTime;
+    swipeRef.current = null;
+    // Minimum 50px horizontal, max 75px vertical, max 500ms duration
+    if (Math.abs(dx) > 50 && Math.abs(dy) < 75 && dt < 500) {
+      if (dx > 0) nextImage(-1);
+      else nextImage(1);
+    }
+  }, [nextImage]);
+
   return (
     <div id="app">
       {showLoadingScreen && !loadingError && (
@@ -704,6 +752,13 @@ export default function App() {
             disabled={isCampaignLoading}
           >
             Legal
+          </button>
+          <button
+            className="toolbar-button"
+            aria-pressed={isSettingsOpen}
+            onClick={() => { setIsSettingsOpen(v => !v); setIsBuildInfoOpen(false); setIsShareOpen(false); }}
+          >
+            Settings
           </button>
         </div>
       </div>
@@ -892,7 +947,18 @@ export default function App() {
       </footer>
 
       {isLightboxOpen && (
-        <div id="lightbox" className="lightbox" aria-hidden={false} onClick={handleLightboxClick}>
+        <div
+          id="lightbox"
+          className="lightbox"
+          aria-hidden={false}
+          onClick={handleLightboxClick}
+          onPointerDown={handleLightboxPointerDown}
+          onPointerUp={handleLightboxPointerUp}
+          style={{ touchAction: 'pan-y' }}
+        >
+          <div className="lightbox-hud" aria-hidden={true}>
+            FILE: {images[lightboxIndex]?.fileName || ''} // {lightboxIndex + 1} OF {images.length}
+          </div>
           <button className="lightbox-close" id="lightbox-close" aria-label="Close" onClick={closeLightbox}>✕</button>
           <img
             id="lightbox-image"
@@ -907,6 +973,49 @@ export default function App() {
             <button id="share-btn" className="action-btn" onClick={(e) => { e.stopPropagation(); handleShare(); }}>Share</button>
             <div className="spacer"></div>
             <button id="next-btn" className="nav-btn" aria-label="Next" onClick={(e) => { e.stopPropagation(); nextImage(1); }}>▶</button>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {isSettingsOpen && (
+        <div className="content-modal-overlay" onClick={() => setIsSettingsOpen(false)} role="dialog" aria-modal={true} aria-labelledby="settings-title">
+          <div className="content-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="content-modal-header">
+              <span className="content-modal-title" id="settings-title">Settings</span>
+              <button className="content-modal-close" aria-label="Close settings" onClick={() => setIsSettingsOpen(false)}>✕</button>
+            </div>
+            <div className="content-modal-body settings-body">
+              <h3 style={{ marginTop: 0 }}>Accessibility</h3>
+              <div className="settings-row">
+                <div className="settings-label">
+                  <span className="settings-label-text">Reduce Motion</span>
+                  <span className="settings-label-desc">Disable animations and transitions</span>
+                </div>
+                <button
+                  className={`settings-toggle${reduceMotion ? ' active' : ''}`}
+                  role="switch"
+                  aria-checked={reduceMotion}
+                  onClick={() => setReduceMotion(v => !v)}
+                >
+                  <span className="settings-toggle-knob"></span>
+                </button>
+              </div>
+              <div className="settings-row">
+                <div className="settings-label">
+                  <span className="settings-label-text">Reduce Effects</span>
+                  <span className="settings-label-desc">Minimize glow, scanlines, and visual effects</span>
+                </div>
+                <button
+                  className={`settings-toggle${reduceEffects ? ' active' : ''}`}
+                  role="switch"
+                  aria-checked={reduceEffects}
+                  onClick={() => setReduceEffects(v => !v)}
+                >
+                  <span className="settings-toggle-knob"></span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
