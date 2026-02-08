@@ -30,14 +30,14 @@ describe('Cyberpunk CSS Custom Properties', () => {
 
 describe('Background Grid Overlay', () => {
   it('should have a body::before pseudo-element for the grid', () => {
-    expect(cssContent).toMatch(/body::before\s*\{/);
+    expect(cssContent).toMatch(/(?<!\w)body::before\s*\{/);
   });
 
   it('grid overlay should not block interaction', () => {
-    // Extract the body::before rule
-    const match = cssContent.match(/body::before\s*\{([^}]*)\}/s);
+    // Extract the body::before rule (with grid background, not .terminal-body::before)
+    const match = cssContent.match(/(?<!\w)body::before\s*\{[^}]*background-size:\s*60px\s+60px[^}]*\}/s);
     expect(match).not.toBeNull();
-    expect(match[1]).toMatch(/pointer-events:\s*none/);
+    expect(match[0]).toMatch(/pointer-events:\s*none/);
   });
 
   it('grid overlay should be fixed position', () => {

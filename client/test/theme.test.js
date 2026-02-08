@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 
 // We test the exported functions directly
 // The theme module reads config.yaml at import time, so we test the pure functions
@@ -74,7 +74,7 @@ describe('hexToRgb', () => {
 describe('Theme accent color validation', () => {
   it('THEME_ACCENT_COLOR should be a valid hex color', async () => {
     const mod = await import('../src/config/theme.ts');
-    expect(mod.THEME_ACCENT_COLOR).toMatch(/^#[A-Fa-f0-9]{3,6}$/);
+    expect(mod.THEME_ACCENT_COLOR).toMatch(/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/);
   });
 
   it('THEME_ACCENT_COLOR should start with #', async () => {

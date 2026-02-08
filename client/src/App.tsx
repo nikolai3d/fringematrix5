@@ -69,6 +69,10 @@ export default function App() {
   const [reduceEffects, setReduceEffects] = useState<boolean>(false);
   // Swipe gesture tracking
   const swipeRef = useRef<{ startX: number; startY: number; startTime: number } | null>(null);
+  // Settings modal refs for focus management
+  const settingsTriggerRef = useRef<HTMLElement | null>(null);
+  const settingsCloseRef = useRef<HTMLButtonElement>(null);
+  const settingsModalRef = useRef<HTMLDivElement>(null);
   const activeModalRef = useRef<ContentPage | null>(null);  // Tracks which modal is loading (prevents race conditions)
   const modalTriggerRef = useRef<HTMLElement | null>(null); // Stores element that opened modal for focus restoration
   const modalCloseRef = useRef<HTMLButtonElement>(null);    // Close button ref for initial focus
@@ -650,6 +654,55 @@ export default function App() {
     };
   }, [activeModal, closeModal]);
 
+  // Settings modal: close callback with focus restoration
+  const closeSettings = useCallback(() => {
+    setIsSettingsOpen(false);
+    settingsTriggerRef.current?.focus();
+    settingsTriggerRef.current = null;
+  }, []);
+
+  // Settings modal keyboard handler and focus management
+  useEffect(() => {
+    if (!isSettingsOpen) return;
+
+    const focusTimer = setTimeout(() => {
+      settingsCloseRef.current?.focus();
+    }, 0);
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeSettings();
+        return;
+      }
+
+      if (e.key === 'Tab' && settingsModalRef.current) {
+        const focusableElements = settingsModalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement?.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement?.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', onKey);
+    return () => {
+      clearTimeout(focusTimer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [isSettingsOpen, closeSettings]);
+
   // The hook manages the wireframe/backdrop animation timing on open/close
 
   // Grid thumbnail sync handled by hook
@@ -756,7 +809,8 @@ export default function App() {
           <button
             className="toolbar-button"
             aria-pressed={isSettingsOpen}
-            onClick={() => { setIsSettingsOpen(v => !v); setIsBuildInfoOpen(false); setIsShareOpen(false); }}
+            onClick={(e) => { settingsTriggerRef.current = e.currentTarget; closeAllSubwindows(); setIsSettingsOpen(v => !v); }}
+            disabled={isCampaignLoading}
           >
             Settings
           </button>
@@ -954,10 +1008,11 @@ export default function App() {
           onClick={handleLightboxClick}
           onPointerDown={handleLightboxPointerDown}
           onPointerUp={handleLightboxPointerUp}
+          onPointerCancel={() => { swipeRef.current = null; }}
           style={{ touchAction: 'pan-y' }}
         >
           <div className="lightbox-hud" aria-hidden={true}>
-            FILE: {images[lightboxIndex]?.fileName || ''} // {lightboxIndex + 1} OF {images.length}
+            FILE: {images[lightboxIndex]?.fileName || ''} {'// '}{lightboxIndex + 1} OF {images.length}
           </div>
           <button className="lightbox-close" id="lightbox-close" aria-label="Close" onClick={closeLightbox}>✕</button>
           <img
@@ -979,23 +1034,24 @@ export default function App() {
 
       {/* Settings Modal */}
       {isSettingsOpen && (
-        <div className="content-modal-overlay" onClick={() => setIsSettingsOpen(false)} role="dialog" aria-modal={true} aria-labelledby="settings-title">
-          <div className="content-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="content-modal-overlay" onClick={closeSettings} role="dialog" aria-modal={true} aria-labelledby="settings-title">
+          <div className="content-modal" ref={settingsModalRef} onClick={(e) => e.stopPropagation()}>
             <div className="content-modal-header">
               <span className="content-modal-title" id="settings-title">Settings</span>
-              <button className="content-modal-close" aria-label="Close settings" onClick={() => setIsSettingsOpen(false)}>✕</button>
+              <button className="content-modal-close" ref={settingsCloseRef} aria-label="Close settings" onClick={closeSettings}>✕</button>
             </div>
             <div className="content-modal-body settings-body">
               <h3 style={{ marginTop: 0 }}>Accessibility</h3>
               <div className="settings-row">
                 <div className="settings-label">
-                  <span className="settings-label-text">Reduce Motion</span>
+                  <span className="settings-label-text" id="settings-reduce-motion-label">Reduce Motion</span>
                   <span className="settings-label-desc">Disable animations and transitions</span>
                 </div>
                 <button
                   className={`settings-toggle${reduceMotion ? ' active' : ''}`}
                   role="switch"
                   aria-checked={reduceMotion}
+                  aria-labelledby="settings-reduce-motion-label"
                   onClick={() => setReduceMotion(v => !v)}
                 >
                   <span className="settings-toggle-knob"></span>
@@ -1003,13 +1059,14 @@ export default function App() {
               </div>
               <div className="settings-row">
                 <div className="settings-label">
-                  <span className="settings-label-text">Reduce Effects</span>
+                  <span className="settings-label-text" id="settings-reduce-effects-label">Reduce Effects</span>
                   <span className="settings-label-desc">Minimize glow, scanlines, and visual effects</span>
                 </div>
                 <button
                   className={`settings-toggle${reduceEffects ? ' active' : ''}`}
                   role="switch"
                   aria-checked={reduceEffects}
+                  aria-labelledby="settings-reduce-effects-label"
                   onClick={() => setReduceEffects(v => !v)}
                 >
                   <span className="settings-toggle-knob"></span>

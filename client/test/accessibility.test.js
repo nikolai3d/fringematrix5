@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 
@@ -229,6 +229,20 @@ describe('Settings Panel Accessibility', () => {
   it('settings close button should have aria-label', () => {
     expect(appContent).toMatch(/aria-label="Close settings"/);
   });
+
+  it('settings toggles should have aria-labelledby for accessible names', () => {
+    expect(appContent).toMatch(/aria-labelledby="settings-reduce-motion-label"/);
+    expect(appContent).toMatch(/aria-labelledby="settings-reduce-effects-label"/);
+  });
+
+  it('settings modal should have focus trap via ref', () => {
+    expect(appContent).toMatch(/settingsModalRef/);
+    expect(appContent).toMatch(/settingsCloseRef/);
+  });
+
+  it('settings modal should close on Escape', () => {
+    expect(appContent).toMatch(/closeSettings/);
+  });
 });
 
 describe('Accessibility Settings Logic', () => {
@@ -320,7 +334,8 @@ describe('Swipe Gesture Logic', () => {
   it('large vertical movement should not trigger swipe', () => {
     const dx = 80;
     const dy = 100; // too much vertical movement
-    expect(Math.abs(dy)).toBeGreaterThanOrEqual(75);
+    expect(Math.abs(dx)).toBeGreaterThan(50); // horizontal would qualify
+    expect(Math.abs(dy)).toBeGreaterThanOrEqual(75); // but vertical exceeds tolerance
   });
 
   it('slow swipe should not trigger navigation', () => {
