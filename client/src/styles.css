@@ -713,7 +713,6 @@ footer.navbar {
   height: 100%;
   border-radius: inherit;
   display: none;
-  transition: object-fit 0s;
 }
 
 .wireframe-rect-inner {

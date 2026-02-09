@@ -194,7 +194,7 @@ export function useLightboxAnimations({
       if (thumbEl) {
         lastOpenedThumbElRef.current = thumbEl;
         activeGridThumbRef.current = thumbEl;
-        thumbEl.style.opacity = '0';
+        try { thumbEl.style.opacity = '0'; } catch (styleErr) { /* ignore style assignment failures */ }
       }
       setLightboxIndex(index);
       setIsLightboxOpen(true);

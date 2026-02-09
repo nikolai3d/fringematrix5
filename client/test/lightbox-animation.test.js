@@ -206,7 +206,7 @@ describe('DOM Cleanup After Animation', () => {
     extra.className = 'wireframe-rect';
     document.body.appendChild(extra);
 
-    document.querySelectorAll('.wireframe-rect').forEach(el => el.remove());
+    document.querySelectorAll('.wireframe-rect').forEach(el => { el.remove(); });
 
     expect(document.querySelectorAll('.wireframe-rect').length).toBe(0);
   });
@@ -320,7 +320,7 @@ describe('Reduce Motion - Close Lightbox Behavior', () => {
     }
 
     expect(lastOpenedThumbEl).toBeNull();
-    document.querySelectorAll('img').forEach(el => el.remove());
+    document.querySelectorAll('img').forEach(el => { el.remove(); });
   });
 });
 
