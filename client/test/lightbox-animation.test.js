@@ -493,6 +493,48 @@ describe('Hook Interface - reduceMotion Prop', () => {
   });
 });
 
+describe('No-Blink Handoff: Wireframe to Lightbox Image', () => {
+  it('lightbox image should NOT have a CSS transition on opacity', () => {
+    // A transition on opacity causes a fade-in delay after the wireframe hides,
+    // producing a visible blink. The opacity change must be instant.
+    const lightboxImgStyle = appContent.match(/id="lightbox-image"[\s\S]*?style=\{\{([^}]*)\}\}/);
+    expect(lightboxImgStyle).not.toBeNull();
+    const styleStr = lightboxImgStyle[1];
+    expect(styleStr).not.toMatch(/transition/);
+  });
+
+  it('lightbox image opacity should be controlled by hideLightboxImage state only', () => {
+    const lightboxImgStyle = appContent.match(/id="lightbox-image"[\s\S]*?style=\{\{([^}]*)\}\}/);
+    expect(lightboxImgStyle).not.toBeNull();
+    const styleStr = lightboxImgStyle[1];
+    expect(styleStr).toMatch(/opacity:\s*hideLightboxImage\s*\?\s*0\s*:\s*1/);
+  });
+
+  it('wireframe animation keyframes should not animate opacity', () => {
+    // Opacity in keyframes causes the image to fade during zoom, producing a blink
+    // at the handoff point. The wireframe must stay fully opaque throughout.
+    const animateCall = hookContent.match(/el\.animate\(\s*\[([\s\S]*?)\]\s*,\s*\{/);
+    expect(animateCall).not.toBeNull();
+    const keyframesStr = animateCall[1];
+    expect(keyframesStr).not.toMatch(/opacity/);
+  });
+
+  it('wireframe element should have opacity set to 1 before animation starts', () => {
+    // The wireframe must be fully visible from the first frame of animation.
+    // It's initially created with opacity: 0, so it must be set to 1 before animating.
+    const setupBlock = hookContent.match(/Object\.assign\(el\.style,\s*\{[\s\S]*?display:\s*'block'[\s\S]*?\}\)/s);
+    expect(setupBlock).not.toBeNull();
+    expect(setupBlock[0]).toMatch(/opacity:\s*'1'/);
+  });
+
+  it('wireframe should be hidden via display:none after animation (not opacity fade)', () => {
+    // After animation completes, the wireframe is hidden by setting display:none,
+    // not by fading opacity. This ensures the lightbox image can take over instantly.
+    const postAnimation = hookContent.match(/await animation\.finished;[\s\S]*?el\.style\.display\s*=\s*'none'/);
+    expect(postAnimation).not.toBeNull();
+  });
+});
+
 describe('App.tsx Integration - reduceMotion Passed to Hook', () => {
   it('App should pass reduceMotion to useLightboxAnimations', () => {
     expect(appContent).toMatch(/useLightboxAnimations\(\{[\s\S]*?reduceMotion,[\s\S]*?\}\)/);
