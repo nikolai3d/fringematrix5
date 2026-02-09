@@ -231,26 +231,6 @@ export default function App() {
   const toggleSidebar = useCallback(() => setIsSidebarOpen((v) => !v), []);
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
 
-  // Centralized function to close all subwindows - add new subwindows here
-  const closeAllSubwindows = useCallback(() => {
-    setIsLightboxOpen(false);
-    setIsSidebarOpen(false);
-    setIsBuildInfoOpen(false);
-    setIsShareOpen(false);
-    setActiveModal(null);
-    setIsSettingsOpen(false);
-  }, []);
-
-  const goHome = useCallback(() => {
-    if (!campaigns.length) return;
-    const firstCampaign = campaigns[0];
-    // Close all open subwindows
-    closeAllSubwindows();
-    // Clear the hash from the URL
-    window.history.replaceState({}, '', window.location.pathname);
-    // Select the first campaign
-    selectCampaign(firstCampaign.id);
-  }, [campaigns, selectCampaign, closeAllSubwindows]);
   const toggleBuildInfo = useCallback(async () => {
     setIsBuildInfoOpen((wasOpen) => {
       const next = !wasOpen;
@@ -522,6 +502,27 @@ export default function App() {
     setIsLightboxOpen,
     setHideLightboxImage,
   });
+
+  // Centralized function to close all subwindows - add new subwindows here
+  const closeAllSubwindows = useCallback(() => {
+    if (isLightboxOpen) closeLightbox();
+    setIsSidebarOpen(false);
+    setIsBuildInfoOpen(false);
+    setIsShareOpen(false);
+    setActiveModal(null);
+    setIsSettingsOpen(false);
+  }, [isLightboxOpen, closeLightbox]);
+
+  const goHome = useCallback(() => {
+    if (!campaigns.length) return;
+    const firstCampaign = campaigns[0];
+    // Close all open subwindows
+    closeAllSubwindows();
+    // Clear the hash from the URL
+    window.history.replaceState({}, '', window.location.pathname);
+    // Select the first campaign
+    selectCampaign(firstCampaign.id);
+  }, [campaigns, selectCampaign, closeAllSubwindows]);
 
   const nextImage = useCallback((delta: number) => {
     setLightboxIndex((idx) => (images.length === 0 ? 0 : (idx + delta + images.length) % images.length));

@@ -64,6 +64,12 @@ export function useLightboxAnimations({
    * Used to prevent redundant backdrop animations.
    */
   const backdropDimmedRef = useRef<boolean>(false);
+  /**
+   * Generation counter to prevent stale closeLightbox finally blocks from
+   * clearing lastOpenedThumbElRef when a new openLightbox call has already
+   * reassigned it during the close animation's await.
+   */
+  const openGenerationRef = useRef<number>(0);
 
   const LIGHTBOX_ANIM_MS = 360;
   // 0.86 was chosen to provide a strong dimming effect for the backdrop,
@@ -193,12 +199,13 @@ export function useLightboxAnimations({
   }, []);
 
   const openLightbox = useCallback((index: number, thumbEl?: HTMLElement) => {
+    openGenerationRef.current++;
     if (reduceMotion) {
       // Skip all animations - lightbox just appears instantly
       if (thumbEl) {
         lastOpenedThumbElRef.current = thumbEl;
         activeGridThumbRef.current = thumbEl;
-        try { thumbEl.style.opacity = '0'; } catch (styleErr) { /* ignore style assignment failures */ }
+        try { thumbEl.classList.add('lightbox-active-thumb'); } catch (_) { /* ignore */ }
       }
       setLightboxIndex(index);
       setIsLightboxOpen(true);
@@ -220,46 +227,32 @@ export function useLightboxAnimations({
       } else {
         pendingOpenImgSrcRef.current = null;
       }
-      try {
-        thumbEl.style.opacity = '1';
-        const anim = thumbEl.animate(
-          [
-            { opacity: 1, offset: 0 },
-            { opacity: 0, offset: 0.4 },
-            { opacity: 0, offset: 1 },
-          ],
-          { duration: LIGHTBOX_ANIM_MS, easing: 'linear', fill: 'forwards' }
-        );
-        anim?.finished?.catch(() => {});
-      } catch (err) {
-        // Fall back to immediate style change if animation creation fails
-        try { thumbEl.style.opacity = '0'; } catch (styleErr) { /* ignore style assignment failures */ }
-      }
+      try { thumbEl.classList.add('lightbox-active-thumb'); } catch (_) { /* ignore */ }
     }
     setLightboxIndex(index);
     setIsLightboxOpen(true);
   }, [reduceMotion, setHideLightboxImage, setIsLightboxOpen, setLightboxIndex]);
 
   const closeLightbox = useCallback(async () => {
+    const closeGeneration = openGenerationRef.current;
     if (reduceMotion) {
       // Skip all animations - lightbox just disappears instantly
       backdropDimmedRef.current = false;
       setIsLightboxOpen(false);
       setHideLightboxImage(false);
       isAnimatingRef.current = false;
-      // Cancel any fill-forward Web Animations on the thumbnail so inline
-      // opacity can take effect (the "sync thumbs" effect may have created one).
+      // Remove active-thumb class from tracked elements
       const el = lastOpenedThumbElRef.current;
       if (el && document.body.contains(el)) {
-        try { el.getAnimations().forEach(a => a.cancel()); } catch (_) { /* ignore */ }
-        try { el.style.opacity = ''; } catch (styleErr) { /* ignore */ }
+        try { el.classList.remove('lightbox-active-thumb'); } catch (_) { /* ignore */ }
       }
       const active = activeGridThumbRef.current;
       if (active && active !== el && document.body.contains(active)) {
-        try { active.getAnimations().forEach(a => a.cancel()); } catch (_) { /* ignore */ }
-        try { active.style.opacity = ''; } catch (styleErr) { /* ignore */ }
+        try { active.classList.remove('lightbox-active-thumb'); } catch (_) { /* ignore */ }
       }
-      lastOpenedThumbElRef.current = null;
+      if (closeGeneration === openGenerationRef.current) {
+        lastOpenedThumbElRef.current = null;
+      }
       return;
     }
     isAnimatingRef.current = true;
@@ -290,27 +283,12 @@ export function useLightboxAnimations({
         return;
       }
       const endRect = thumbElement.getBoundingClientRect();
-      const duration = LIGHTBOX_ANIM_MS;
       // Hide lightbox image immediately since wireframe image takes over
       lightboxImg.style.opacity = '0';
       const backdropAnim = animateLightboxBackdrop('out');
-      try {
-        thumbElement.style.opacity = '0';
-      } catch (styleErr) { /* ignore style assignment failures */ }
-      let thumbAnim;
-      try {
-        thumbAnim = thumbElement?.animate(
-          [
-            { opacity: 0, offset: 0 },
-            { opacity: 0, offset: 0.6 },
-            { opacity: 1, offset: 1 },
-          ],
-          { duration, easing: 'linear', fill: 'forwards' }
-        );
-      } catch (animErr) { /* ignore animation creation failures */ }
+      // Keep thumb hidden during close animation via CSS class (already applied)
       await Promise.all([
         runWireframeAnimation(startRect, endRect, img.src || undefined, 'close'),
-        (thumbAnim?.finished || Promise.resolve()).catch(() => {}),
         (backdropAnim?.finished || Promise.resolve()).catch(() => {}),
       ]);
       backdropDimmedRef.current = false;
@@ -318,18 +296,19 @@ export function useLightboxAnimations({
       setIsLightboxOpen(false);
       setHideLightboxImage(false);
       isAnimatingRef.current = false;
-      // Cancel fill-forward animations and restore opacity on tracked thumb elements
+      // Remove lightbox-active-thumb class from tracked elements
       const el = lastOpenedThumbElRef.current;
       if (el && document.body.contains(el)) {
-        try { el.getAnimations().forEach(a => a.cancel()); } catch (_) { /* ignore */ }
-        try { el.style.opacity = ''; } catch (styleErr) { /* ignore style assignment failures */ }
+        try { el.classList.remove('lightbox-active-thumb'); } catch (_) { /* ignore */ }
       }
       const active = activeGridThumbRef.current;
       if (active && active !== el && document.body.contains(active)) {
-        try { active.getAnimations().forEach(a => a.cancel()); } catch (_) { /* ignore */ }
-        try { active.style.opacity = ''; } catch (styleErr) { /* ignore style assignment failures */ }
+        try { active.classList.remove('lightbox-active-thumb'); } catch (_) { /* ignore */ }
       }
-      lastOpenedThumbElRef.current = null;
+      // Only clear the ref if no new open has happened during our await
+      if (closeGeneration === openGenerationRef.current) {
+        lastOpenedThumbElRef.current = null;
+      }
     }
   }, [reduceMotion, images, lightboxIndex, animateLightboxBackdrop, runWireframeAnimation, setHideLightboxImage, setIsLightboxOpen]);
 
@@ -389,45 +368,31 @@ export function useLightboxAnimations({
     const selector = `.gallery-grid .card img[src="${escapeForAttributeSelector(current.src || '')}"]`;
     const newThumb = document.querySelector(selector) as HTMLElement | null;
 
-    const animateOpacity = (el: HTMLElement | null, to: number, ms: number) => {
-      if (!el) return { finished: Promise.resolve() };
-      try {
-        const from = parseFloat(getComputedStyle(el).opacity || '1');
-        return el.animate([{ opacity: from }, { opacity: to }], { duration: ms, easing: 'linear', fill: 'forwards' });
-      } catch (animErr) {
-        // Best-effort fallback for environments without Web Animations API
-        try { el.style.opacity = String(to); } catch (styleErr) { /* ignore style assignment failures */ }
-        return { finished: Promise.resolve() };
-      }
-    };
-
     const prev = activeGridThumbRef.current;
     if (prev && prev !== newThumb && document.body.contains(prev)) {
-      animateOpacity(prev, 1, 100);
+      try { prev.classList.remove('lightbox-active-thumb'); } catch (_) { /* ignore */ }
     }
     if (newThumb) {
-      animateOpacity(newThumb, 0, 100);
+      try { newThumb.classList.add('lightbox-active-thumb'); } catch (_) { /* ignore */ }
       activeGridThumbRef.current = newThumb;
     } else {
       activeGridThumbRef.current = null;
     }
-  }, [isLightboxOpen, images, lightboxIndex]);
+  }, [isLightboxOpen, images, lightboxIndex, reduceMotion]);
 
   // Restore grid thumb on lightbox close
   useEffect(() => {
     if (isLightboxOpen) return;
     const el = activeGridThumbRef.current;
     if (el && document.body.contains(el)) {
-      try { el.getAnimations().forEach(a => a.cancel()); } catch (_) { /* ignore */ }
-      try { el.style.opacity = ''; } catch (_) { /* ignore */ }
+      try { el.classList.remove('lightbox-active-thumb'); } catch (_) { /* ignore */ }
     }
     activeGridThumbRef.current = null;
     // Safety sweep: ensure no grid thumbnails are stuck invisible due to
-    // interrupted animations, race conditions, or stale fill-forward animations.
+    // stale lightbox-active-thumb classes from interrupted interactions.
     try {
-      document.querySelectorAll<HTMLElement>('.gallery-grid .card img').forEach(img => {
-        try { img.getAnimations().forEach(a => a.cancel()); } catch (_) { /* ignore */ }
-        if (img.style.opacity !== '') img.style.opacity = '';
+      document.querySelectorAll<HTMLElement>('.gallery-grid .card img.lightbox-active-thumb').forEach(img => {
+        try { img.classList.remove('lightbox-active-thumb'); } catch (_) { /* ignore */ }
       });
     } catch (_) { /* ignore */ }
   }, [isLightboxOpen]);

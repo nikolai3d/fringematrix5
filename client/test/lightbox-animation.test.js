@@ -247,17 +247,16 @@ describe('Reduce Motion - Open Lightbox Behavior', () => {
     expect(pendingOpenImgSrc).toBeNull();
   });
 
-  it('should set thumb opacity to 0 immediately when reduceMotion is true', () => {
+  it('should add lightbox-active-thumb class to thumb when reduceMotion is true', () => {
     const thumbEl = document.createElement('img');
-    thumbEl.style.opacity = '1';
     document.body.appendChild(thumbEl);
 
     const reduceMotion = true;
     if (reduceMotion && thumbEl) {
-      thumbEl.style.opacity = '0';
+      thumbEl.classList.add('lightbox-active-thumb');
     }
 
-    expect(thumbEl.style.opacity).toBe('0');
+    expect(thumbEl.classList.contains('lightbox-active-thumb')).toBe(true);
     thumbEl.remove();
   });
 
@@ -297,16 +296,16 @@ describe('Reduce Motion - Close Lightbox Behavior', () => {
     expect(backdropDimmed).toBe(false);
   });
 
-  it('should restore thumb opacity when closing with reduceMotion', () => {
+  it('should remove lightbox-active-thumb class when closing with reduceMotion', () => {
     const thumbEl = document.createElement('img');
-    thumbEl.style.opacity = '0';
+    thumbEl.classList.add('lightbox-active-thumb');
     document.body.appendChild(thumbEl);
 
     if (thumbEl && document.body.contains(thumbEl)) {
-      thumbEl.style.opacity = '';
+      thumbEl.classList.remove('lightbox-active-thumb');
     }
 
-    expect(thumbEl.style.opacity).toBe('');
+    expect(thumbEl.classList.contains('lightbox-active-thumb')).toBe(false);
     thumbEl.remove();
   });
 
@@ -324,100 +323,71 @@ describe('Reduce Motion - Close Lightbox Behavior', () => {
   });
 });
 
-describe('Reduce Motion - Thumbnail Restoration on Close', () => {
-  it('should cancel fill-forward Web Animations on thumb when closing with reduceMotion', () => {
-    // Bug: "keep grid thumbs in sync" effect creates el.animate({fill:'forwards'})
-    // holding opacity at 0. Setting el.style.opacity='' alone doesn't override it.
-    // Fix: cancel animations before restoring inline style.
+describe('CSS Class-Based Thumbnail Restoration on Close', () => {
+  it('should remove lightbox-active-thumb class from thumb when closing with reduceMotion', () => {
     const thumbEl = document.createElement('img');
-    thumbEl.style.opacity = '1';
+    thumbEl.classList.add('lightbox-active-thumb');
     document.body.appendChild(thumbEl);
 
-    // Simulate the fill-forward animation that "sync thumbs" effect creates
-    const mockAnimation = { cancel: vi.fn() };
-    thumbEl.getAnimations = vi.fn().mockReturnValue([mockAnimation]);
-
     // Simulate the reduceMotion close path
-    thumbEl.getAnimations().forEach(a => a.cancel());
-    thumbEl.style.opacity = '';
+    thumbEl.classList.remove('lightbox-active-thumb');
 
-    expect(mockAnimation.cancel).toHaveBeenCalled();
-    expect(thumbEl.style.opacity).toBe('');
+    expect(thumbEl.classList.contains('lightbox-active-thumb')).toBe(false);
     thumbEl.remove();
   });
 
   it('should restore thumb visibility after open+close cycle with reduceMotion', () => {
     const thumbEl = document.createElement('img');
-    thumbEl.style.opacity = '1';
     document.body.appendChild(thumbEl);
 
-    // Simulate open: thumb hidden
-    thumbEl.style.opacity = '0';
-    expect(thumbEl.style.opacity).toBe('0');
+    // Simulate open: thumb hidden via class
+    thumbEl.classList.add('lightbox-active-thumb');
+    expect(thumbEl.classList.contains('lightbox-active-thumb')).toBe(true);
 
-    // Simulate a fill-forward animation holding opacity (from sync effect)
-    let animationCancelled = false;
-    thumbEl.getAnimations = vi.fn().mockReturnValue([{
-      cancel: () => { animationCancelled = true; }
-    }]);
+    // Simulate close: class removed
+    thumbEl.classList.remove('lightbox-active-thumb');
 
-    // Simulate close with reduceMotion: cancel animations, restore opacity
-    thumbEl.getAnimations().forEach(a => a.cancel());
-    thumbEl.style.opacity = '';
-
-    expect(animationCancelled).toBe(true);
-    expect(thumbEl.style.opacity).toBe('');
+    expect(thumbEl.classList.contains('lightbox-active-thumb')).toBe(false);
     thumbEl.remove();
   });
 
-  it('should also cancel animations on activeGridThumb if different from lastOpenedThumb', () => {
+  it('should remove class on both activeGridThumb and lastOpenedThumb if different', () => {
     const lastThumb = document.createElement('img');
     const activeThumb = document.createElement('img');
     document.body.appendChild(lastThumb);
     document.body.appendChild(activeThumb);
 
-    const lastMockAnim = { cancel: vi.fn() };
-    const activeMockAnim = { cancel: vi.fn() };
-    lastThumb.getAnimations = vi.fn().mockReturnValue([lastMockAnim]);
-    activeThumb.getAnimations = vi.fn().mockReturnValue([activeMockAnim]);
+    lastThumb.classList.add('lightbox-active-thumb');
+    activeThumb.classList.add('lightbox-active-thumb');
 
-    // Simulate reduceMotion close: cancel on both elements
-    lastThumb.getAnimations().forEach(a => a.cancel());
-    lastThumb.style.opacity = '';
+    // Simulate close: remove class on both elements
+    lastThumb.classList.remove('lightbox-active-thumb');
     if (activeThumb !== lastThumb) {
-      activeThumb.getAnimations().forEach(a => a.cancel());
-      activeThumb.style.opacity = '';
+      activeThumb.classList.remove('lightbox-active-thumb');
     }
 
-    expect(lastMockAnim.cancel).toHaveBeenCalled();
-    expect(activeMockAnim.cancel).toHaveBeenCalled();
-    expect(lastThumb.style.opacity).toBe('');
-    expect(activeThumb.style.opacity).toBe('');
+    expect(lastThumb.classList.contains('lightbox-active-thumb')).toBe(false);
+    expect(activeThumb.classList.contains('lightbox-active-thumb')).toBe(false);
 
     lastThumb.remove();
     activeThumb.remove();
   });
 
-  it('restore grid thumb effect should cancel animations before setting opacity', () => {
-    // Verify the "restore grid thumb on lightbox close" effect cancels animations
+  it('restore grid thumb effect should remove lightbox-active-thumb class', () => {
     expect(hookContent).toMatch(/Restore grid thumb on lightbox close/);
-    // The effect should call getAnimations().forEach(a => a.cancel()) before setting opacity
     const restoreBlock = hookContent.match(/Restore grid thumb on lightbox close[\s\S]*?activeGridThumbRef\.current = null/);
     expect(restoreBlock).not.toBeNull();
-    expect(restoreBlock[0]).toMatch(/getAnimations\(\)\.forEach/);
-    expect(restoreBlock[0]).toMatch(/\.cancel\(\)/);
+    expect(restoreBlock[0]).toMatch(/classList\.remove\('lightbox-active-thumb'\)/);
   });
 
-  it('closeLightbox reduceMotion path should cancel animations on thumb', () => {
-    // Verify the closeLightbox reduceMotion branch cancels fill-forward animations
+  it('closeLightbox reduceMotion path should remove lightbox-active-thumb class', () => {
     const closeReduceBlock = hookContent.match(/const closeLightbox[\s\S]*?if \(reduceMotion\) \{([\s\S]*?)return;\s*\}/);
     expect(closeReduceBlock).not.toBeNull();
-    expect(closeReduceBlock[1]).toMatch(/getAnimations\(\)\.forEach/);
-    expect(closeReduceBlock[1]).toMatch(/\.cancel\(\)/);
+    expect(closeReduceBlock[1]).toMatch(/classList\.remove\('lightbox-active-thumb'\)/);
   });
 });
 
-describe('Grid Thumbnail Opacity Guaranteed Restoration', () => {
+describe('Grid Thumbnail Class-Based Guaranteed Restoration', () => {
   let galleryGrid;
 
   beforeEach(() => {
@@ -440,74 +410,54 @@ describe('Grid Thumbnail Opacity Guaranteed Restoration', () => {
     return img;
   }
 
-  it('safety sweep should restore all grid thumbnails with stuck opacity on close', () => {
+  it('safety sweep should remove lightbox-active-thumb class from all grid thumbnails on close', () => {
     const img1 = addCard('https://example.com/1.jpg');
     const img2 = addCard('https://example.com/2.jpg');
     const img3 = addCard('https://example.com/3.jpg');
 
-    // Simulate stuck opacity from interrupted animations
-    img1.style.opacity = '0';
-    img2.style.opacity = '0.5';
-    // img3 left at default
-
-    // Mock getAnimations
-    [img1, img2, img3].forEach(img => {
-      img.getAnimations = vi.fn().mockReturnValue([]);
-    });
+    // Simulate stuck class from interrupted interactions
+    img1.classList.add('lightbox-active-thumb');
+    img2.classList.add('lightbox-active-thumb');
+    // img3 left without the class
 
     // Simulate the safety sweep from "restore grid thumb" effect
-    document.querySelectorAll('.gallery-grid .card img').forEach(img => {
-      try { img.getAnimations().forEach(a => a.cancel()); } catch (_) {}
-      if (img.style.opacity !== '') img.style.opacity = '';
+    document.querySelectorAll('.gallery-grid .card img.lightbox-active-thumb').forEach(img => {
+      img.classList.remove('lightbox-active-thumb');
     });
 
-    expect(img1.style.opacity).toBe('');
-    expect(img2.style.opacity).toBe('');
-    expect(img3.style.opacity).toBe('');
+    expect(img1.classList.contains('lightbox-active-thumb')).toBe(false);
+    expect(img2.classList.contains('lightbox-active-thumb')).toBe(false);
+    expect(img3.classList.contains('lightbox-active-thumb')).toBe(false);
   });
 
-  it('safety sweep should cancel fill-forward animations on all grid thumbnails', () => {
+  it('safety sweep should only target elements with the lightbox-active-thumb class', () => {
     const img1 = addCard('https://example.com/1.jpg');
     const img2 = addCard('https://example.com/2.jpg');
 
-    const anim1 = { cancel: vi.fn() };
-    const anim2 = { cancel: vi.fn() };
-    img1.getAnimations = vi.fn().mockReturnValue([anim1]);
-    img2.getAnimations = vi.fn().mockReturnValue([anim2]);
-    img1.style.opacity = '0';
-    img2.style.opacity = '0';
+    img1.classList.add('lightbox-active-thumb');
+    // img2 does not have the class
 
-    // Simulate safety sweep
-    document.querySelectorAll('.gallery-grid .card img').forEach(img => {
-      try { img.getAnimations().forEach(a => a.cancel()); } catch (_) {}
-      if (img.style.opacity !== '') img.style.opacity = '';
-    });
-
-    expect(anim1.cancel).toHaveBeenCalled();
-    expect(anim2.cancel).toHaveBeenCalled();
-    expect(img1.style.opacity).toBe('');
-    expect(img2.style.opacity).toBe('');
+    const matchedElements = document.querySelectorAll('.gallery-grid .card img.lightbox-active-thumb');
+    expect(matchedElements.length).toBe(1);
+    expect(matchedElements[0]).toBe(img1);
   });
 
-  it('closeLightbox finally block should cancel animations on both lastOpened and activeGrid thumbs', () => {
-    // Verify the finally block in normal closeLightbox cancels animations on both refs
+  it('closeLightbox finally block should remove class on both lastOpened and activeGrid thumbs', () => {
     const finallyBlock = hookContent.match(/finally\s*\{([\s\S]*?)\n  \}/);
     expect(finallyBlock).not.toBeNull();
     const body = finallyBlock[1];
-    // Should cancel animations on lastOpenedThumbElRef
-    expect(body).toMatch(/getAnimations\(\)\.forEach\(a\s*=>\s*a\.cancel\(\)\)/);
+    // Should remove lightbox-active-thumb class
+    expect(body).toMatch(/classList\.remove\('lightbox-active-thumb'\)/);
     // Should handle activeGridThumbRef separately
     expect(body).toMatch(/activeGridThumbRef\.current/);
     expect(body).toMatch(/active\s*!==\s*el/);
   });
 
-  it('restore grid thumb effect should include safety sweep of all grid thumbnails', () => {
-    // Verify the effect includes the querySelectorAll sweep
+  it('restore grid thumb effect should include safety sweep of lightbox-active-thumb class', () => {
     const restoreBlock = hookContent.match(/Restore grid thumb on lightbox close[\s\S]*?Safety sweep[\s\S]*?\}, \[isLightboxOpen\]\)/);
     expect(restoreBlock).not.toBeNull();
-    expect(restoreBlock[0]).toMatch(/querySelectorAll.*gallery-grid.*card img/);
-    expect(restoreBlock[0]).toMatch(/getAnimations\(\)\.forEach/);
-    expect(restoreBlock[0]).toMatch(/img\.style\.opacity\s*!==\s*''/);
+    expect(restoreBlock[0]).toMatch(/querySelectorAll.*gallery-grid.*card img\.lightbox-active-thumb/);
+    expect(restoreBlock[0]).toMatch(/classList\.remove\('lightbox-active-thumb'\)/);
   });
 });
 
@@ -609,6 +559,16 @@ describe('CSS Wireframe Image Styles', () => {
   });
 });
 
+describe('CSS lightbox-active-thumb Class', () => {
+  it('CSS should have .lightbox-active-thumb rule with opacity: 0', () => {
+    expect(cssContent).toMatch(/\.lightbox-active-thumb\s*\{[^}]*opacity:\s*0/s);
+  });
+
+  it('.lightbox-active-thumb should be scoped to .card img', () => {
+    expect(cssContent).toMatch(/\.card\s+img\.lightbox-active-thumb/);
+  });
+});
+
 describe('Reduce Motion CSS Integration', () => {
   it('html.reduce-motion should disable all animation-duration', () => {
     expect(cssContent).toMatch(/html\.reduce-motion[^{]*\{[^}]*animation-duration:\s*0\.01ms\s*!important/s);
@@ -663,7 +623,7 @@ describe('Hook Interface - reduceMotion Prop', () => {
     expect(openMatch[1]).toMatch(/if\s*\(reduceMotion\)/);
   });
 
-  it('closeLightbox should check reduceMotion first', () => {
+  it('closeLightbox should check reduceMotion early', () => {
     const closeMatch = hookContent.match(/const closeLightbox = useCallback\(async \(\).*?\{([\s\S]*?)isAnimatingRef\.current = true/);
     expect(closeMatch).not.toBeNull();
     expect(closeMatch[1]).toMatch(/if\s*\(reduceMotion\)/);
@@ -677,6 +637,8 @@ describe('Hook Interface - reduceMotion Prop', () => {
     expect(hookContent).toMatch(/\[reduceMotion,\s*setHideLightboxImage/);
     expect(hookContent).toMatch(/\[reduceMotion,\s*images/);
     expect(hookContent).toMatch(/reduceMotion,\s*animateLightboxBackdrop/);
+    // Sync effect should also include reduceMotion
+    expect(hookContent).toMatch(/\[isLightboxOpen,\s*images,\s*lightboxIndex,\s*reduceMotion\]/);
   });
 });
 
@@ -722,6 +684,38 @@ describe('No-Blink Handoff: Wireframe to Lightbox Image', () => {
   });
 });
 
+describe('Generation Counter - Race Condition Protection', () => {
+  it('hook should have an openGenerationRef counter', () => {
+    expect(hookContent).toMatch(/openGenerationRef\s*=\s*useRef<number>\(0\)/);
+  });
+
+  it('openLightbox should increment the generation counter', () => {
+    const openBlock = hookContent.match(/const openLightbox = useCallback\(\(index.*?\{([\s\S]*?)setLightboxIndex/);
+    expect(openBlock).not.toBeNull();
+    expect(openBlock[1]).toMatch(/openGenerationRef\.current\+\+/);
+  });
+
+  it('closeLightbox should snapshot generation and guard lastOpenedThumbElRef clearing', () => {
+    // closeLightbox should capture the generation at start
+    expect(hookContent).toMatch(/const closeGeneration = openGenerationRef\.current/);
+    // finally block should only clear ref if generation matches
+    const finallyBlock = hookContent.match(/finally\s*\{([\s\S]*?)\n  \}/);
+    expect(finallyBlock).not.toBeNull();
+    expect(finallyBlock[1]).toMatch(/closeGeneration === openGenerationRef\.current/);
+  });
+});
+
+describe('closeAllSubwindows calls closeLightbox', () => {
+  it('App closeAllSubwindows should call closeLightbox instead of setIsLightboxOpen', () => {
+    expect(appContent).toMatch(/const closeAllSubwindows = useCallback\(\(\) => \{/);
+    const closeAllBlock = appContent.match(/const closeAllSubwindows = useCallback\(\(\) => \{([\s\S]*?)\}, \[/);
+    expect(closeAllBlock).not.toBeNull();
+    // Should call closeLightbox(), not setIsLightboxOpen(false)
+    expect(closeAllBlock[1]).toMatch(/closeLightbox\(\)/);
+    expect(closeAllBlock[1]).not.toMatch(/setIsLightboxOpen\(false\)/);
+  });
+});
+
 describe('App.tsx Integration - reduceMotion Passed to Hook', () => {
   it('App should pass reduceMotion to useLightboxAnimations', () => {
     expect(appContent).toMatch(/useLightboxAnimations\(\{[\s\S]*?reduceMotion,[\s\S]*?\}\)/);
@@ -733,5 +727,416 @@ describe('App.tsx Integration - reduceMotion Passed to Hook', () => {
 
   it('App should toggle reduce-motion class on html element', () => {
     expect(appContent).toMatch(/root\.classList\.toggle\('reduce-motion',\s*reduceMotion\)/);
+  });
+});
+
+// =============================================================================
+// Regression Tests: Mode-Switching, Interruption, and Edge Cases
+// =============================================================================
+
+describe('Regression: Open with reduceMotion=true, toggle to false, close', () => {
+  let galleryGrid;
+
+  beforeEach(() => {
+    galleryGrid = document.createElement('div');
+    galleryGrid.className = 'gallery-grid';
+    document.body.appendChild(galleryGrid);
+  });
+
+  afterEach(() => {
+    galleryGrid.remove();
+  });
+
+  function addCard(src) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const img = document.createElement('img');
+    img.src = src;
+    card.appendChild(img);
+    galleryGrid.appendChild(card);
+    return img;
+  }
+
+  it('thumbnail must be visible after open(reduceMotion=true) then close(reduceMotion=false)', () => {
+    const thumb = addCard('https://example.com/1.jpg');
+
+    // Open with reduceMotion=true: adds CSS class
+    thumb.classList.add('lightbox-active-thumb');
+    expect(thumb.classList.contains('lightbox-active-thumb')).toBe(true);
+
+    // User toggles reduceMotion to false mid-lightbox, then closes
+    // closeLightbox finally block removes the class regardless of reduceMotion value
+    thumb.classList.remove('lightbox-active-thumb');
+
+    expect(thumb.classList.contains('lightbox-active-thumb')).toBe(false);
+    // No stuck inline opacity since we use CSS classes
+    expect(thumb.style.opacity).toBe('');
+  });
+
+  it('safety sweep should clean up even if close path misses the thumb', () => {
+    const thumb = addCard('https://example.com/1.jpg');
+
+    // Simulate: class was applied but close path failed to remove it
+    thumb.classList.add('lightbox-active-thumb');
+
+    // Safety sweep runs on lightbox close
+    document.querySelectorAll('.gallery-grid .card img.lightbox-active-thumb').forEach(img => {
+      img.classList.remove('lightbox-active-thumb');
+    });
+
+    expect(thumb.classList.contains('lightbox-active-thumb')).toBe(false);
+  });
+});
+
+describe('Regression: Open with reduceMotion=false, toggle to true, close', () => {
+  let galleryGrid;
+
+  beforeEach(() => {
+    galleryGrid = document.createElement('div');
+    galleryGrid.className = 'gallery-grid';
+    document.body.appendChild(galleryGrid);
+  });
+
+  afterEach(() => {
+    galleryGrid.remove();
+  });
+
+  function addCard(src) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const img = document.createElement('img');
+    img.src = src;
+    card.appendChild(img);
+    galleryGrid.appendChild(card);
+    return img;
+  }
+
+  it('thumbnail must be visible after open(reduceMotion=false) then close(reduceMotion=true)', () => {
+    const thumb = addCard('https://example.com/1.jpg');
+
+    // Open with reduceMotion=false: class is added
+    thumb.classList.add('lightbox-active-thumb');
+    expect(thumb.classList.contains('lightbox-active-thumb')).toBe(true);
+
+    // User toggles reduceMotion to true mid-lightbox, then closes
+    // closeLightbox reduceMotion path removes the class
+    thumb.classList.remove('lightbox-active-thumb');
+
+    expect(thumb.classList.contains('lightbox-active-thumb')).toBe(false);
+    expect(thumb.style.opacity).toBe('');
+  });
+
+  it('CSS class approach is resilient to mode changes because removal is unconditional', () => {
+    // The key insight: classList.remove('lightbox-active-thumb') works the same
+    // regardless of what reduceMotion was when the class was added
+    const thumb = addCard('https://example.com/2.jpg');
+
+    // Add with any method (doesn't matter which mode)
+    thumb.classList.add('lightbox-active-thumb');
+    // Remove always works
+    thumb.classList.remove('lightbox-active-thumb');
+    expect(thumb.classList.contains('lightbox-active-thumb')).toBe(false);
+
+    // Adding again and removing again still works
+    thumb.classList.add('lightbox-active-thumb');
+    thumb.classList.remove('lightbox-active-thumb');
+    expect(thumb.classList.contains('lightbox-active-thumb')).toBe(false);
+  });
+});
+
+describe('Regression: Navigate to different image, close', () => {
+  let galleryGrid;
+
+  beforeEach(() => {
+    galleryGrid = document.createElement('div');
+    galleryGrid.className = 'gallery-grid';
+    document.body.appendChild(galleryGrid);
+  });
+
+  afterEach(() => {
+    galleryGrid.remove();
+  });
+
+  function addCard(src) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const img = document.createElement('img');
+    img.src = src;
+    card.appendChild(img);
+    galleryGrid.appendChild(card);
+    return img;
+  }
+
+  it('original AND navigated thumbnails must be visible after close', () => {
+    const thumb1 = addCard('https://example.com/1.jpg');
+    const thumb2 = addCard('https://example.com/2.jpg');
+
+    // Open lightbox on thumb1
+    thumb1.classList.add('lightbox-active-thumb');
+
+    // Navigate to thumb2 (sync effect removes class from prev, adds to new)
+    thumb1.classList.remove('lightbox-active-thumb');
+    thumb2.classList.add('lightbox-active-thumb');
+
+    expect(thumb1.classList.contains('lightbox-active-thumb')).toBe(false);
+    expect(thumb2.classList.contains('lightbox-active-thumb')).toBe(true);
+
+    // Close lightbox: class removed from active thumb + safety sweep
+    thumb2.classList.remove('lightbox-active-thumb');
+    document.querySelectorAll('.gallery-grid .card img.lightbox-active-thumb').forEach(img => {
+      img.classList.remove('lightbox-active-thumb');
+    });
+
+    // Both must be visible (no lightbox-active-thumb class)
+    expect(thumb1.classList.contains('lightbox-active-thumb')).toBe(false);
+    expect(thumb2.classList.contains('lightbox-active-thumb')).toBe(false);
+    expect(thumb1.style.opacity).toBe('');
+    expect(thumb2.style.opacity).toBe('');
+  });
+
+  it('navigating away properly transfers the active-thumb class', () => {
+    const thumb1 = addCard('https://example.com/a.jpg');
+    const thumb2 = addCard('https://example.com/b.jpg');
+    const thumb3 = addCard('https://example.com/c.jpg');
+
+    // Open on thumb1
+    thumb1.classList.add('lightbox-active-thumb');
+
+    // Navigate to thumb2
+    thumb1.classList.remove('lightbox-active-thumb');
+    thumb2.classList.add('lightbox-active-thumb');
+
+    // Navigate to thumb3
+    thumb2.classList.remove('lightbox-active-thumb');
+    thumb3.classList.add('lightbox-active-thumb');
+
+    // Only thumb3 should have the class
+    expect(thumb1.classList.contains('lightbox-active-thumb')).toBe(false);
+    expect(thumb2.classList.contains('lightbox-active-thumb')).toBe(false);
+    expect(thumb3.classList.contains('lightbox-active-thumb')).toBe(true);
+  });
+});
+
+describe('Regression: Rapid open/close before animation completes', () => {
+  let galleryGrid;
+
+  beforeEach(() => {
+    galleryGrid = document.createElement('div');
+    galleryGrid.className = 'gallery-grid';
+    document.body.appendChild(galleryGrid);
+  });
+
+  afterEach(() => {
+    galleryGrid.remove();
+  });
+
+  function addCard(src) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const img = document.createElement('img');
+    img.src = src;
+    card.appendChild(img);
+    galleryGrid.appendChild(card);
+    return img;
+  }
+
+  it('thumbnail must be visible after rapid open+close', () => {
+    const thumb = addCard('https://example.com/1.jpg');
+
+    // Rapid open
+    thumb.classList.add('lightbox-active-thumb');
+
+    // Rapid close (before any animation can complete)
+    thumb.classList.remove('lightbox-active-thumb');
+
+    // Safety sweep
+    document.querySelectorAll('.gallery-grid .card img.lightbox-active-thumb').forEach(img => {
+      img.classList.remove('lightbox-active-thumb');
+    });
+
+    expect(thumb.classList.contains('lightbox-active-thumb')).toBe(false);
+    expect(thumb.style.opacity).toBe('');
+  });
+
+  it('generation counter prevents stale close from clearing new open ref', () => {
+    // Simulate the generation counter logic
+    let openGeneration = 0;
+    let lastOpenedThumbEl = null;
+
+    // First open
+    openGeneration++;
+    const thumb1 = addCard('https://example.com/1.jpg');
+    lastOpenedThumbEl = thumb1;
+    thumb1.classList.add('lightbox-active-thumb');
+    const closeGeneration1 = openGeneration; // snapshot: 1
+
+    // New open happens during close await (before finally runs)
+    openGeneration++;
+    const thumb2 = addCard('https://example.com/2.jpg');
+    lastOpenedThumbEl = thumb2;
+    thumb2.classList.add('lightbox-active-thumb');
+
+    // Stale close finally runs: generation check prevents clearing ref
+    thumb1.classList.remove('lightbox-active-thumb');
+    if (closeGeneration1 === openGeneration) {
+      lastOpenedThumbEl = null; // This should NOT execute
+    }
+
+    // The new open's ref should still be intact
+    expect(lastOpenedThumbEl).toBe(thumb2);
+    expect(thumb2.classList.contains('lightbox-active-thumb')).toBe(true);
+
+    // Clean up: second close
+    thumb2.classList.remove('lightbox-active-thumb');
+  });
+});
+
+describe('Regression: Navigate several images, close', () => {
+  let galleryGrid;
+
+  beforeEach(() => {
+    galleryGrid = document.createElement('div');
+    galleryGrid.className = 'gallery-grid';
+    document.body.appendChild(galleryGrid);
+  });
+
+  afterEach(() => {
+    galleryGrid.remove();
+  });
+
+  function addCard(src) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const img = document.createElement('img');
+    img.src = src;
+    card.appendChild(img);
+    galleryGrid.appendChild(card);
+    return img;
+  }
+
+  it('all previously-viewed thumbnails must be visible after close', () => {
+    const thumbs = [];
+    for (let i = 0; i < 5; i++) {
+      thumbs.push(addCard(`https://example.com/${i}.jpg`));
+    }
+
+    // Open on thumb 0
+    thumbs[0].classList.add('lightbox-active-thumb');
+
+    // Navigate through thumbs 1-4
+    for (let i = 1; i < 5; i++) {
+      thumbs[i - 1].classList.remove('lightbox-active-thumb');
+      thumbs[i].classList.add('lightbox-active-thumb');
+    }
+
+    // Only last navigated thumb should have the class
+    for (let i = 0; i < 4; i++) {
+      expect(thumbs[i].classList.contains('lightbox-active-thumb')).toBe(false);
+    }
+    expect(thumbs[4].classList.contains('lightbox-active-thumb')).toBe(true);
+
+    // Close: remove from active + safety sweep
+    thumbs[4].classList.remove('lightbox-active-thumb');
+    document.querySelectorAll('.gallery-grid .card img.lightbox-active-thumb').forEach(img => {
+      img.classList.remove('lightbox-active-thumb');
+    });
+
+    // ALL must be visible
+    for (let i = 0; i < 5; i++) {
+      expect(thumbs[i].classList.contains('lightbox-active-thumb')).toBe(false);
+      expect(thumbs[i].style.opacity).toBe('');
+    }
+  });
+
+  it('navigating back to already-visited thumb works correctly', () => {
+    const thumb1 = addCard('https://example.com/1.jpg');
+    const thumb2 = addCard('https://example.com/2.jpg');
+
+    // Open thumb1 -> navigate to thumb2 -> navigate back to thumb1
+    thumb1.classList.add('lightbox-active-thumb');
+    thumb1.classList.remove('lightbox-active-thumb');
+    thumb2.classList.add('lightbox-active-thumb');
+    thumb2.classList.remove('lightbox-active-thumb');
+    thumb1.classList.add('lightbox-active-thumb');
+
+    // Close
+    thumb1.classList.remove('lightbox-active-thumb');
+
+    expect(thumb1.classList.contains('lightbox-active-thumb')).toBe(false);
+    expect(thumb2.classList.contains('lightbox-active-thumb')).toBe(false);
+  });
+});
+
+describe('Regression: No stuck inline opacity or animations after ANY close', () => {
+  let galleryGrid;
+
+  beforeEach(() => {
+    galleryGrid = document.createElement('div');
+    galleryGrid.className = 'gallery-grid';
+    document.body.appendChild(galleryGrid);
+  });
+
+  afterEach(() => {
+    galleryGrid.remove();
+  });
+
+  function addCard(src) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const img = document.createElement('img');
+    img.src = src;
+    card.appendChild(img);
+    galleryGrid.appendChild(card);
+    return img;
+  }
+
+  it('no grid thumbnails should have lightbox-active-thumb class after close', () => {
+    const img1 = addCard('https://example.com/1.jpg');
+    const img2 = addCard('https://example.com/2.jpg');
+    const img3 = addCard('https://example.com/3.jpg');
+
+    // Simulate various stuck states
+    img1.classList.add('lightbox-active-thumb');
+    img2.classList.add('lightbox-active-thumb');
+    // img3 clean
+
+    // Safety sweep (as implemented in "Restore grid thumb on lightbox close" effect)
+    document.querySelectorAll('.gallery-grid .card img.lightbox-active-thumb').forEach(img => {
+      img.classList.remove('lightbox-active-thumb');
+    });
+
+    const stuckThumbs = document.querySelectorAll('.gallery-grid .card img.lightbox-active-thumb');
+    expect(stuckThumbs.length).toBe(0);
+  });
+
+  it('no grid thumbnails should have stuck inline opacity after close', () => {
+    const img1 = addCard('https://example.com/1.jpg');
+    const img2 = addCard('https://example.com/2.jpg');
+    const img3 = addCard('https://example.com/3.jpg');
+
+    // The CSS-class approach means no inline opacity is ever set on grid thumbs
+    // by the refactored code. Verify no inline opacity exists.
+    [img1, img2, img3].forEach(img => {
+      expect(img.style.opacity).toBe('');
+    });
+  });
+
+  it('hook code should not set inline opacity on grid thumbnails (uses CSS class instead)', () => {
+    // Verify the openLightbox code uses classList.add, not style.opacity
+    const openBlock = hookContent.match(/const openLightbox = useCallback\(\(index.*?\{([\s\S]*?)\}, \[/);
+    expect(openBlock).not.toBeNull();
+    expect(openBlock[1]).toMatch(/classList\.add\('lightbox-active-thumb'\)/);
+    // Should not contain thumbEl.style.opacity = '0' for hiding
+    expect(openBlock[1]).not.toMatch(/thumbEl\.style\.opacity\s*=\s*'0'/);
+  });
+
+  it('sync effect should use classList instead of inline opacity animations', () => {
+    // The "keep grid thumbs in sync" effect should use classList, not el.animate
+    const syncBlock = hookContent.match(/Keep grid thumbs in sync[\s\S]*?\}, \[isLightboxOpen, images, lightboxIndex/);
+    expect(syncBlock).not.toBeNull();
+    expect(syncBlock[0]).toMatch(/classList\.add\('lightbox-active-thumb'\)/);
+    expect(syncBlock[0]).toMatch(/classList\.remove\('lightbox-active-thumb'\)/);
+    // Should not use el.animate for opacity on thumbnails
+    expect(syncBlock[0]).not.toMatch(/animateOpacity/);
   });
 });
