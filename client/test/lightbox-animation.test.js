@@ -470,7 +470,7 @@ describe('Hook Interface - reduceMotion Prop', () => {
   });
 
   it('hook should destructure reduceMotion from props', () => {
-    expect(hookContent).toMatch(/reduceMotion,\n\s*setLightboxIndex/s);
+    expect(hookContent).toMatch(/reduceMotion\s*,\s*setLightboxIndex/s);
   });
 
   it('openLightbox should check reduceMotion first', () => {

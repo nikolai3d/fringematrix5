@@ -89,6 +89,8 @@ export function useLightboxAnimations({
     });
     const img = document.createElement('img');
     img.className = 'wireframe-rect-img';
+    img.alt = '';
+    img.setAttribute('aria-hidden', 'true');
     Object.assign(img.style, {
       position: 'absolute',
       inset: '0',
@@ -213,6 +215,8 @@ export function useLightboxAnimations({
       const thumbImg = thumbEl.tagName === 'IMG' ? thumbEl as HTMLImageElement : thumbEl.querySelector('img');
       if (thumbImg) {
         pendingOpenImgSrcRef.current = thumbImg.src;
+      } else {
+        pendingOpenImgSrcRef.current = null;
       }
       try {
         thumbEl.style.opacity = '1';
@@ -281,7 +285,7 @@ export function useLightboxAnimations({
       lightboxImg.style.opacity = '0';
       const backdropAnim = animateLightboxBackdrop('out');
       try {
-        if (thumbElement) thumbElement.style.opacity = '0';
+        thumbElement.style.opacity = '0';
       } catch (styleErr) { /* ignore style assignment failures */ }
       let thumbAnim;
       try {
