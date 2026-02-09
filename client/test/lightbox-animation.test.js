@@ -1140,3 +1140,107 @@ describe('Regression: No stuck inline opacity or animations after ANY close', ()
     expect(syncBlock[0]).not.toMatch(/animateOpacity/);
   });
 });
+
+// =============================================================================
+// Tab Visibility / Zero-Dimension Rect Protection
+// =============================================================================
+
+describe('Zero-dimension rect validation (tab visibility fix)', () => {
+  it('hook should define an isValidRect helper', () => {
+    expect(hookContent).toMatch(/isValidRect\s*=\s*\(r.*?\)\s*=>\s*r\.width\s*>\s*0\s*&&\s*r\.height\s*>\s*0/);
+  });
+
+  it('hook should define a waitForValidRect helper with retry logic', () => {
+    expect(hookContent).toMatch(/waitForValidRect\s*=\s*\(el.*?\).*?Promise/s);
+    expect(hookContent).toMatch(/LAYOUT_RETRY_LIMIT/);
+  });
+
+  it('isValidRect should return false for zero-dimension rects', () => {
+    // Replicate the isValidRect logic from the hook
+    const isValidRect = (r) => r.width > 0 && r.height > 0;
+
+    expect(isValidRect({ left: 0, top: 0, width: 0, height: 0 })).toBe(false);
+    expect(isValidRect({ left: 100, top: 200, width: 0, height: 0 })).toBe(false);
+    expect(isValidRect({ left: 0, top: 0, width: 100, height: 0 })).toBe(false);
+    expect(isValidRect({ left: 0, top: 0, width: 0, height: 100 })).toBe(false);
+  });
+
+  it('isValidRect should return true for normal rects', () => {
+    const isValidRect = (r) => r.width > 0 && r.height > 0;
+
+    expect(isValidRect({ left: 0, top: 0, width: 100, height: 100 })).toBe(true);
+    expect(isValidRect({ left: 50, top: 50, width: 1, height: 1 })).toBe(true);
+    expect(isValidRect({ left: -10, top: -10, width: 200, height: 300 })).toBe(true);
+  });
+
+  it('open animation effect should check isValidRect on endRect before animating', () => {
+    // The open effect should validate the lightbox image rect
+    const openEffect = hookContent.match(
+      /After mount of lightbox[\s\S]*?return \(\) => cancelAnimationFrame/
+    );
+    expect(openEffect).not.toBeNull();
+    expect(openEffect[0]).toMatch(/isValidRect\(endRect\)/);
+  });
+
+  it('open animation effect should call waitForValidRect when endRect is zero', () => {
+    const openEffect = hookContent.match(
+      /After mount of lightbox[\s\S]*?return \(\) => cancelAnimationFrame/
+    );
+    expect(openEffect).not.toBeNull();
+    expect(openEffect[0]).toMatch(/waitForValidRect/);
+  });
+
+  it('open animation effect should also validate startRect', () => {
+    const openEffect = hookContent.match(
+      /After mount of lightbox[\s\S]*?return \(\) => cancelAnimationFrame/
+    );
+    expect(openEffect).not.toBeNull();
+    expect(openEffect[0]).toMatch(/isValidRect\(startRect\)/);
+  });
+
+  it('open animation should fall back gracefully when rects stay zero', () => {
+    // When rects are invalid, the effect should still show the lightbox image
+    // by setting opacity to '' and calling setHideLightboxImage(false)
+    const openEffect = hookContent.match(
+      /After mount of lightbox[\s\S]*?return \(\) => cancelAnimationFrame/
+    );
+    expect(openEffect).not.toBeNull();
+    // Should restore lightbox image visibility on fallback
+    const fallbackBlock = openEffect[0].match(
+      /!isValidRect\(endRect\)\s*\|\|\s*!isValidRect\(startRect\)\)\s*\{([\s\S]*?)return;/
+    );
+    expect(fallbackBlock).not.toBeNull();
+    expect(fallbackBlock[1]).toMatch(/lightboxImg\.style\.opacity\s*=\s*''/);
+    expect(fallbackBlock[1]).toMatch(/setHideLightboxImage\(false\)/);
+    expect(fallbackBlock[1]).toMatch(/isAnimatingRef\.current\s*=\s*false/);
+  });
+
+  it('closeLightbox should validate rects before running wireframe animation', () => {
+    const closeBlock = hookContent.match(
+      /const closeLightbox = useCallback[\s\S]*?\}, \[reduceMotion/
+    );
+    expect(closeBlock).not.toBeNull();
+    expect(closeBlock[0]).toMatch(/isValidRect\(startRect\)/);
+    expect(closeBlock[0]).toMatch(/isValidRect\(endRect\)/);
+  });
+
+  it('closeLightbox should skip wireframe and fade backdrop when rects are zero', () => {
+    const closeBlock = hookContent.match(
+      /const closeLightbox = useCallback[\s\S]*?\}, \[reduceMotion/
+    );
+    expect(closeBlock).not.toBeNull();
+    // After the isValidRect check, should animate backdrop out and return
+    const skipBlock = closeBlock[0].match(
+      /!isValidRect\(startRect\)\s*\|\|\s*!isValidRect\(endRect\)\)\s*\{([\s\S]*?)return;/
+    );
+    expect(skipBlock).not.toBeNull();
+    expect(skipBlock[1]).toMatch(/animateLightboxBackdrop\('out'\)/);
+    expect(skipBlock[1]).toMatch(/backdropDimmedRef\.current\s*=\s*false/);
+  });
+
+  it('LAYOUT_RETRY_LIMIT should be defined and positive', () => {
+    const match = hookContent.match(/LAYOUT_RETRY_LIMIT\s*=\s*(\d+)/);
+    expect(match).not.toBeNull();
+    expect(parseInt(match[1])).toBeGreaterThan(0);
+  });
+});

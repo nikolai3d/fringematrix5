@@ -71,12 +71,43 @@ export function useLightboxAnimations({
    */
   const openGenerationRef = useRef<number>(0);
 
+  /**
+   * Number of extra requestAnimationFrame retries when getBoundingClientRect
+   * returns zero-dimension rects (e.g. after a tab visibility change where the
+   * browser has evicted decoded image data).
+   */
+  const LAYOUT_RETRY_LIMIT = 3;
+
   const LIGHTBOX_ANIM_MS = 360;
   // 0.86 was chosen to provide a strong dimming effect for the backdrop,
   // while still allowing some visibility of the underlying content for context.
   const LIGHTBOX_BACKDROP_OPACITY = 0.86;
   const LIGHTBOX_BACKDROP_EASING_IN = 'cubic-bezier(0, 0, 0.2, 1)';
   const LIGHTBOX_BACKDROP_EASING_OUT = 'cubic-bezier(0.4, 0, 1, 1)';
+
+  /** Returns true when both width and height are greater than zero. */
+  const isValidRect = (r: Rect) => r.width > 0 && r.height > 0;
+
+  /**
+   * Wait up to LAYOUT_RETRY_LIMIT animation frames for the element to report
+   * non-zero dimensions.  After tab visibility changes the browser may need
+   * extra frames to decode images and finish layout.
+   */
+  const waitForValidRect = (el: HTMLElement): Promise<DOMRect> => {
+    return new Promise(resolve => {
+      let remaining = LAYOUT_RETRY_LIMIT;
+      const check = () => {
+        const rect = el.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0 || remaining <= 0) {
+          resolve(rect);
+        } else {
+          remaining--;
+          requestAnimationFrame(check);
+        }
+      };
+      requestAnimationFrame(check);
+    });
+  };
 
   const ensureWireframeElement = useCallback(() => {
     if (wireframeElRef.current && document.body.contains(wireframeElRef.current)) return wireframeElRef.current;
@@ -283,6 +314,14 @@ export function useLightboxAnimations({
         return;
       }
       const endRect = thumbElement.getBoundingClientRect();
+      // If either rect has zero dimensions (e.g. after tab visibility change),
+      // skip the wireframe animation and just close with a backdrop fade.
+      if (!isValidRect(startRect) || !isValidRect(endRect)) {
+        const backdropAnim = animateLightboxBackdrop('out');
+        await (backdropAnim?.finished || Promise.resolve()).catch(() => {});
+        backdropDimmedRef.current = false;
+        return;
+      }
       // Hide lightbox image immediately since wireframe image takes over
       lightboxImg.style.opacity = '0';
       const backdropAnim = animateLightboxBackdrop('out');
@@ -339,7 +378,27 @@ export function useLightboxAnimations({
     const rAF = requestAnimationFrame(async () => {
       const lightboxImg = document.getElementById('lightbox-image');
       if (!lightboxImg) { setHideLightboxImage(false); pendingOpenStartRectRef.current = null; pendingOpenImgSrcRef.current = null; isAnimatingRef.current = false; return; }
-      const endRect = lightboxImg.getBoundingClientRect();
+      let endRect = lightboxImg.getBoundingClientRect();
+      // After tab visibility changes the browser may evict decoded image data,
+      // causing getBoundingClientRect to report zero dimensions until layout
+      // catches up. Wait a few frames for a valid rect before animating.
+      if (!isValidRect(endRect)) {
+        endRect = await waitForValidRect(lightboxImg);
+      }
+      // If dimensions are still zero (or thumbnail rect was zero), skip the
+      // wireframe animation and just show the lightbox image directly.
+      if (!isValidRect(endRect) || !isValidRect(startRect)) {
+        if (needBackdropIn) {
+          animateLightboxBackdrop('in');
+          backdropDimmedRef.current = true;
+        }
+        lightboxImg.style.opacity = '';
+        setHideLightboxImage(false);
+        pendingOpenStartRectRef.current = null;
+        pendingOpenImgSrcRef.current = null;
+        isAnimatingRef.current = false;
+        return;
+      }
       // Keep lightbox image hidden during animation - wireframe image takes its place
       lightboxImg.style.opacity = '0';
       let backdropAnim;
