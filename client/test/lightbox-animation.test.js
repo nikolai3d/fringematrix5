@@ -1140,3 +1140,154 @@ describe('Regression: No stuck inline opacity or animations after ANY close', ()
     expect(syncBlock[0]).not.toMatch(/animateOpacity/);
   });
 });
+
+// =============================================================================
+// Tab Visibility / Zero-Dimension Rect Protection
+// =============================================================================
+
+describe('Zero-dimension rect validation (tab visibility fix)', () => {
+  it('isValidRect and LAYOUT_RETRY_LIMIT should be at module scope (not inside hook)', () => {
+    // They should appear before the function useLightboxAnimations declaration
+    const hookStart = hookContent.indexOf('export function useLightboxAnimations');
+    const isValidRectPos = hookContent.indexOf('const isValidRect');
+    const retryLimitPos = hookContent.indexOf('const LAYOUT_RETRY_LIMIT');
+    expect(isValidRectPos).toBeGreaterThan(-1);
+    expect(retryLimitPos).toBeGreaterThan(-1);
+    expect(isValidRectPos).toBeLessThan(hookStart);
+    expect(retryLimitPos).toBeLessThan(hookStart);
+  });
+
+  it('hook should define an isValidRect helper', () => {
+    expect(hookContent).toMatch(/isValidRect\s*=\s*\(r.*?\)\s*=>\s*r\.width\s*>\s*0\s*&&\s*r\.height\s*>\s*0/);
+  });
+
+  it('hook should define a waitForValidRect function with retry logic', () => {
+    expect(hookContent).toMatch(/function waitForValidRect\(/);
+    expect(hookContent).toMatch(/LAYOUT_RETRY_LIMIT/);
+  });
+
+  it('waitForValidRect should accept an AbortSignal parameter', () => {
+    expect(hookContent).toMatch(/waitForValidRect\(el.*?signal\?.*?AbortSignal/s);
+  });
+
+  it('waitForValidRect should have a setTimeout fallback', () => {
+    // The function should use setTimeout to guarantee resolution
+    const fnBlock = hookContent.match(/function waitForValidRect[\s\S]*?^}/m);
+    expect(fnBlock).not.toBeNull();
+    expect(fnBlock[0]).toMatch(/setTimeout/);
+    expect(fnBlock[0]).toMatch(/LAYOUT_RETRY_TIMEOUT_MS/);
+  });
+
+  it('waitForValidRect should reuse isValidRect (no duplicated check)', () => {
+    const fnBlock = hookContent.match(/function waitForValidRect[\s\S]*?^}/m);
+    expect(fnBlock).not.toBeNull();
+    expect(fnBlock[0]).toMatch(/isValidRect\(rect\)/);
+  });
+
+  it('isValidRect should return false for zero-dimension rects', () => {
+    const isValidRect = (r) => r.width > 0 && r.height > 0;
+
+    expect(isValidRect({ left: 0, top: 0, width: 0, height: 0 })).toBe(false);
+    expect(isValidRect({ left: 100, top: 200, width: 0, height: 0 })).toBe(false);
+    expect(isValidRect({ left: 0, top: 0, width: 100, height: 0 })).toBe(false);
+    expect(isValidRect({ left: 0, top: 0, width: 0, height: 100 })).toBe(false);
+  });
+
+  it('isValidRect should return true for normal rects', () => {
+    const isValidRect = (r) => r.width > 0 && r.height > 0;
+
+    expect(isValidRect({ left: 0, top: 0, width: 100, height: 100 })).toBe(true);
+    expect(isValidRect({ left: 50, top: 50, width: 1, height: 1 })).toBe(true);
+    expect(isValidRect({ left: -10, top: -10, width: 200, height: 300 })).toBe(true);
+  });
+
+  it('open animation effect should check isValidRect on endRect before animating', () => {
+    const openEffect = hookContent.match(
+      /After mount of lightbox[\s\S]*?abortCtrl\.abort\(\)/
+    );
+    expect(openEffect).not.toBeNull();
+    expect(openEffect[0]).toMatch(/isValidRect\(endRect\)/);
+  });
+
+  it('open animation effect should call waitForValidRect with abort signal', () => {
+    const openEffect = hookContent.match(
+      /After mount of lightbox[\s\S]*?abortCtrl\.abort\(\)/
+    );
+    expect(openEffect).not.toBeNull();
+    expect(openEffect[0]).toMatch(/waitForValidRect\(lightboxImg,\s*abortCtrl\.signal\)/);
+  });
+
+  it('open animation effect should check aborted signal after waiting', () => {
+    const openEffect = hookContent.match(
+      /After mount of lightbox[\s\S]*?abortCtrl\.abort\(\)/
+    );
+    expect(openEffect).not.toBeNull();
+    expect(openEffect[0]).toMatch(/abortCtrl\.signal\.aborted/);
+  });
+
+  it('open animation effect should also validate startRect', () => {
+    const openEffect = hookContent.match(
+      /After mount of lightbox[\s\S]*?abortCtrl\.abort\(\)/
+    );
+    expect(openEffect).not.toBeNull();
+    expect(openEffect[0]).toMatch(/isValidRect\(startRect\)/);
+  });
+
+  it('open animation should fall back gracefully when rects stay zero', () => {
+    const openEffect = hookContent.match(
+      /After mount of lightbox[\s\S]*?abortCtrl\.abort\(\)/
+    );
+    expect(openEffect).not.toBeNull();
+    const fallbackBlock = openEffect[0].match(
+      /!isValidRect\(endRect\)\s*\|\|\s*!isValidRect\(startRect\)\)\s*\{([\s\S]*?)return;/
+    );
+    expect(fallbackBlock).not.toBeNull();
+    expect(fallbackBlock[1]).toMatch(/lightboxImg\.style\.opacity\s*=\s*''/);
+    expect(fallbackBlock[1]).toMatch(/setHideLightboxImage\(false\)/);
+    expect(fallbackBlock[1]).toMatch(/isAnimatingRef\.current\s*=\s*false/);
+  });
+
+  it('effect cleanup should abort the controller and cancel the rAF', () => {
+    const openEffect = hookContent.match(
+      /After mount of lightbox[\s\S]*?abortCtrl\.abort\(\)/
+    );
+    expect(openEffect).not.toBeNull();
+    // Cleanup should call both cancelAnimationFrame and abortCtrl.abort()
+    expect(openEffect[0]).toMatch(/cancelAnimationFrame\(rAF\)/);
+    expect(openEffect[0]).toMatch(/abortCtrl\.abort\(\)/);
+  });
+
+  it('closeLightbox should validate rects before running wireframe animation', () => {
+    const closeBlock = hookContent.match(
+      /const closeLightbox = useCallback[\s\S]*?\}, \[reduceMotion/
+    );
+    expect(closeBlock).not.toBeNull();
+    expect(closeBlock[0]).toMatch(/isValidRect\(startRect\)/);
+    expect(closeBlock[0]).toMatch(/isValidRect\(endRect\)/);
+  });
+
+  it('closeLightbox should skip wireframe and fade backdrop when rects are zero', () => {
+    const closeBlock = hookContent.match(
+      /const closeLightbox = useCallback[\s\S]*?\}, \[reduceMotion/
+    );
+    expect(closeBlock).not.toBeNull();
+    const skipBlock = closeBlock[0].match(
+      /!isValidRect\(startRect\)\s*\|\|\s*!isValidRect\(endRect\)\)\s*\{([\s\S]*?)return;/
+    );
+    expect(skipBlock).not.toBeNull();
+    expect(skipBlock[1]).toMatch(/animateLightboxBackdrop\('out'\)/);
+    expect(skipBlock[1]).toMatch(/backdropDimmedRef\.current\s*=\s*false/);
+  });
+
+  it('LAYOUT_RETRY_LIMIT should be defined and positive', () => {
+    const match = hookContent.match(/LAYOUT_RETRY_LIMIT\s*=\s*(\d+)/);
+    expect(match).not.toBeNull();
+    expect(parseInt(match[1])).toBeGreaterThan(0);
+  });
+
+  it('LAYOUT_RETRY_TIMEOUT_MS should be defined and positive', () => {
+    const match = hookContent.match(/LAYOUT_RETRY_TIMEOUT_MS\s*=\s*(\d+)/);
+    expect(match).not.toBeNull();
+    expect(parseInt(match[1])).toBeGreaterThan(0);
+  });
+});

@@ -66,6 +66,93 @@ test.beforeEach(async ({ page }) => {
   await waitForLoaderToFinish(page);
 });
 
+test.describe('Lightbox animation after tab visibility change', () => {
+  test('lightbox opens correctly when getBoundingClientRect initially returns zero-dimension rects', async ({ page }) => {
+    // This test simulates the bug where, after switching away from the tab
+    // and back, getBoundingClientRect returns {0,0,0,0} because the browser
+    // has evicted decoded image data.  The fix retries layout measurement
+    // for a few frames before falling back to showing the image directly.
+    const cards = page.locator('.gallery-grid .card img');
+    const count = await cards.count();
+    if (count === 0) test.skip(true, 'No images available to test lightbox');
+
+    const firstImg = cards.nth(0);
+
+    // Intercept getBoundingClientRect so the lightbox image reports zeros
+    // for the first two calls, simulating a stale-layout scenario.
+    await page.evaluate(() => {
+      const orig = Element.prototype.getBoundingClientRect;
+      let interceptCount = 0;
+      Element.prototype.getBoundingClientRect = function (this: Element) {
+        if (this.id === 'lightbox-image' && interceptCount < 2) {
+          interceptCount++;
+          return new DOMRect(0, 0, 0, 0);
+        }
+        return orig.call(this);
+      };
+      // Auto-restore after 5 s so other tests aren't affected
+      setTimeout(() => { Element.prototype.getBoundingClientRect = orig; }, 5000);
+    });
+
+    // Click first image to open lightbox
+    await firstImg.click();
+
+    // Lightbox must become visible even though initial rects were zero
+    const lightbox = page.locator('#lightbox');
+    await expect(lightbox).toBeVisible();
+
+    // The lightbox image must be visible (not stuck at opacity: 0)
+    const lightboxImage = page.locator('#lightbox-image');
+    await expect(lightboxImage).toBeVisible();
+
+    // Wireframe should be hidden once the animation (or fallback) completes
+    await waitForWireframeHidden(page);
+
+    // Close the lightbox
+    await page.keyboard.press('Escape');
+    await expect(lightbox).toBeHidden();
+  });
+
+  test('lightbox falls back gracefully when all rect retries return zero', async ({ page }) => {
+    // When every retry returns zeros (e.g. persistent layout failure), the
+    // fix should skip the wireframe animation entirely and show the lightbox
+    // image directly without getting stuck.
+    const cards = page.locator('.gallery-grid .card img');
+    const count = await cards.count();
+    if (count === 0) test.skip(true, 'No images available to test lightbox');
+
+    const firstImg = cards.nth(0);
+
+    // Make EVERY getBoundingClientRect call for #lightbox-image return zeros
+    // so the retry loop exhausts all attempts and hits the fallback path.
+    await page.evaluate(() => {
+      const orig = Element.prototype.getBoundingClientRect;
+      Element.prototype.getBoundingClientRect = function (this: Element) {
+        if (this.id === 'lightbox-image') return new DOMRect(0, 0, 0, 0);
+        return orig.call(this);
+      };
+      // Auto-restore after 5 s so other tests aren't affected
+      setTimeout(() => { Element.prototype.getBoundingClientRect = orig; }, 5000);
+    });
+
+    await firstImg.click();
+
+    // Lightbox must still become visible (fallback shows image directly)
+    const lightbox = page.locator('#lightbox');
+    await expect(lightbox).toBeVisible();
+
+    // The lightbox image must not be stuck invisible
+    const lightboxImage = page.locator('#lightbox-image');
+    await expect(lightboxImage).toBeVisible();
+
+    // Wireframe should be hidden (animation was skipped)
+    await waitForWireframeHidden(page);
+
+    await page.keyboard.press('Escape');
+    await expect(lightbox).toBeHidden();
+  });
+});
+
 test.describe('Lightbox animations', () => {
   test('zoom-in shows wireframe and dims backdrop; thumbnails fade and navigation updates fades', async ({ page, browserName }) => {
     const cards = page.locator('.gallery-grid .card img');
