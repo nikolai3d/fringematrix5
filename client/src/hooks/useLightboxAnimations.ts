@@ -247,9 +247,17 @@ export function useLightboxAnimations({
       setIsLightboxOpen(false);
       setHideLightboxImage(false);
       isAnimatingRef.current = false;
+      // Cancel any fill-forward Web Animations on the thumbnail so inline
+      // opacity can take effect (the "sync thumbs" effect may have created one).
       const el = lastOpenedThumbElRef.current;
       if (el && document.body.contains(el)) {
+        try { el.getAnimations().forEach(a => a.cancel()); } catch (_) { /* ignore */ }
         try { el.style.opacity = ''; } catch (styleErr) { /* ignore */ }
+      }
+      const active = activeGridThumbRef.current;
+      if (active && active !== el && document.body.contains(active)) {
+        try { active.getAnimations().forEach(a => a.cancel()); } catch (_) { /* ignore */ }
+        try { active.style.opacity = ''; } catch (styleErr) { /* ignore */ }
       }
       lastOpenedThumbElRef.current = null;
       return;
@@ -403,6 +411,8 @@ export function useLightboxAnimations({
     if (isLightboxOpen) return;
     const el = activeGridThumbRef.current;
     if (el && document.body.contains(el)) {
+      // Cancel any fill-forward Web Animations that may be holding opacity at 0
+      try { el.getAnimations().forEach(a => a.cancel()); } catch (_) { /* ignore */ }
       try { el.style.opacity = ''; } catch (err) {
         const descriptor = el?.outerHTML?.substring(0, 100) || 'unknown element';
         console.error('Error while attempting to reset opacity on grid thumb. This may be due to a style assignment failure or another unexpected error.', err, descriptor);

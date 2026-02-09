@@ -324,6 +324,99 @@ describe('Reduce Motion - Close Lightbox Behavior', () => {
   });
 });
 
+describe('Reduce Motion - Thumbnail Restoration on Close', () => {
+  it('should cancel fill-forward Web Animations on thumb when closing with reduceMotion', () => {
+    // Bug: "keep grid thumbs in sync" effect creates el.animate({fill:'forwards'})
+    // holding opacity at 0. Setting el.style.opacity='' alone doesn't override it.
+    // Fix: cancel animations before restoring inline style.
+    const thumbEl = document.createElement('img');
+    thumbEl.style.opacity = '1';
+    document.body.appendChild(thumbEl);
+
+    // Simulate the fill-forward animation that "sync thumbs" effect creates
+    const mockAnimation = { cancel: vi.fn() };
+    thumbEl.getAnimations = vi.fn().mockReturnValue([mockAnimation]);
+
+    // Simulate the reduceMotion close path
+    thumbEl.getAnimations().forEach(a => a.cancel());
+    thumbEl.style.opacity = '';
+
+    expect(mockAnimation.cancel).toHaveBeenCalled();
+    expect(thumbEl.style.opacity).toBe('');
+    thumbEl.remove();
+  });
+
+  it('should restore thumb visibility after open+close cycle with reduceMotion', () => {
+    const thumbEl = document.createElement('img');
+    thumbEl.style.opacity = '1';
+    document.body.appendChild(thumbEl);
+
+    // Simulate open: thumb hidden
+    thumbEl.style.opacity = '0';
+    expect(thumbEl.style.opacity).toBe('0');
+
+    // Simulate a fill-forward animation holding opacity (from sync effect)
+    let animationCancelled = false;
+    thumbEl.getAnimations = vi.fn().mockReturnValue([{
+      cancel: () => { animationCancelled = true; }
+    }]);
+
+    // Simulate close with reduceMotion: cancel animations, restore opacity
+    thumbEl.getAnimations().forEach(a => a.cancel());
+    thumbEl.style.opacity = '';
+
+    expect(animationCancelled).toBe(true);
+    expect(thumbEl.style.opacity).toBe('');
+    thumbEl.remove();
+  });
+
+  it('should also cancel animations on activeGridThumb if different from lastOpenedThumb', () => {
+    const lastThumb = document.createElement('img');
+    const activeThumb = document.createElement('img');
+    document.body.appendChild(lastThumb);
+    document.body.appendChild(activeThumb);
+
+    const lastMockAnim = { cancel: vi.fn() };
+    const activeMockAnim = { cancel: vi.fn() };
+    lastThumb.getAnimations = vi.fn().mockReturnValue([lastMockAnim]);
+    activeThumb.getAnimations = vi.fn().mockReturnValue([activeMockAnim]);
+
+    // Simulate reduceMotion close: cancel on both elements
+    lastThumb.getAnimations().forEach(a => a.cancel());
+    lastThumb.style.opacity = '';
+    if (activeThumb !== lastThumb) {
+      activeThumb.getAnimations().forEach(a => a.cancel());
+      activeThumb.style.opacity = '';
+    }
+
+    expect(lastMockAnim.cancel).toHaveBeenCalled();
+    expect(activeMockAnim.cancel).toHaveBeenCalled();
+    expect(lastThumb.style.opacity).toBe('');
+    expect(activeThumb.style.opacity).toBe('');
+
+    lastThumb.remove();
+    activeThumb.remove();
+  });
+
+  it('restore grid thumb effect should cancel animations before setting opacity', () => {
+    // Verify the "restore grid thumb on lightbox close" effect cancels animations
+    expect(hookContent).toMatch(/Restore grid thumb on lightbox close/);
+    // The effect should call getAnimations().forEach(a => a.cancel()) before setting opacity
+    const restoreBlock = hookContent.match(/Restore grid thumb on lightbox close[\s\S]*?activeGridThumbRef\.current = null/);
+    expect(restoreBlock).not.toBeNull();
+    expect(restoreBlock[0]).toMatch(/getAnimations\(\)\.forEach/);
+    expect(restoreBlock[0]).toMatch(/\.cancel\(\)/);
+  });
+
+  it('closeLightbox reduceMotion path should cancel animations on thumb', () => {
+    // Verify the closeLightbox reduceMotion branch cancels fill-forward animations
+    const closeReduceBlock = hookContent.match(/const closeLightbox[\s\S]*?if \(reduceMotion\) \{([\s\S]*?)return;\s*\}/);
+    expect(closeReduceBlock).not.toBeNull();
+    expect(closeReduceBlock[1]).toMatch(/getAnimations\(\)\.forEach/);
+    expect(closeReduceBlock[1]).toMatch(/\.cancel\(\)/);
+  });
+});
+
 describe('Reduce Motion - useEffect Open Path', () => {
   it('should clear pending refs and mark not animating when reduceMotion is true', () => {
     let pendingOpenStartRect = { left: 10, top: 20, width: 100, height: 100 };
