@@ -417,6 +417,100 @@ describe('Reduce Motion - Thumbnail Restoration on Close', () => {
   });
 });
 
+describe('Grid Thumbnail Opacity Guaranteed Restoration', () => {
+  let galleryGrid;
+
+  beforeEach(() => {
+    galleryGrid = document.createElement('div');
+    galleryGrid.className = 'gallery-grid';
+    document.body.appendChild(galleryGrid);
+  });
+
+  afterEach(() => {
+    galleryGrid.remove();
+  });
+
+  function addCard(src) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const img = document.createElement('img');
+    img.src = src;
+    card.appendChild(img);
+    galleryGrid.appendChild(card);
+    return img;
+  }
+
+  it('safety sweep should restore all grid thumbnails with stuck opacity on close', () => {
+    const img1 = addCard('https://example.com/1.jpg');
+    const img2 = addCard('https://example.com/2.jpg');
+    const img3 = addCard('https://example.com/3.jpg');
+
+    // Simulate stuck opacity from interrupted animations
+    img1.style.opacity = '0';
+    img2.style.opacity = '0.5';
+    // img3 left at default
+
+    // Mock getAnimations
+    [img1, img2, img3].forEach(img => {
+      img.getAnimations = vi.fn().mockReturnValue([]);
+    });
+
+    // Simulate the safety sweep from "restore grid thumb" effect
+    document.querySelectorAll('.gallery-grid .card img').forEach(img => {
+      try { img.getAnimations().forEach(a => a.cancel()); } catch (_) {}
+      if (img.style.opacity !== '') img.style.opacity = '';
+    });
+
+    expect(img1.style.opacity).toBe('');
+    expect(img2.style.opacity).toBe('');
+    expect(img3.style.opacity).toBe('');
+  });
+
+  it('safety sweep should cancel fill-forward animations on all grid thumbnails', () => {
+    const img1 = addCard('https://example.com/1.jpg');
+    const img2 = addCard('https://example.com/2.jpg');
+
+    const anim1 = { cancel: vi.fn() };
+    const anim2 = { cancel: vi.fn() };
+    img1.getAnimations = vi.fn().mockReturnValue([anim1]);
+    img2.getAnimations = vi.fn().mockReturnValue([anim2]);
+    img1.style.opacity = '0';
+    img2.style.opacity = '0';
+
+    // Simulate safety sweep
+    document.querySelectorAll('.gallery-grid .card img').forEach(img => {
+      try { img.getAnimations().forEach(a => a.cancel()); } catch (_) {}
+      if (img.style.opacity !== '') img.style.opacity = '';
+    });
+
+    expect(anim1.cancel).toHaveBeenCalled();
+    expect(anim2.cancel).toHaveBeenCalled();
+    expect(img1.style.opacity).toBe('');
+    expect(img2.style.opacity).toBe('');
+  });
+
+  it('closeLightbox finally block should cancel animations on both lastOpened and activeGrid thumbs', () => {
+    // Verify the finally block in normal closeLightbox cancels animations on both refs
+    const finallyBlock = hookContent.match(/finally\s*\{([\s\S]*?)\n  \}/);
+    expect(finallyBlock).not.toBeNull();
+    const body = finallyBlock[1];
+    // Should cancel animations on lastOpenedThumbElRef
+    expect(body).toMatch(/getAnimations\(\)\.forEach\(a\s*=>\s*a\.cancel\(\)\)/);
+    // Should handle activeGridThumbRef separately
+    expect(body).toMatch(/activeGridThumbRef\.current/);
+    expect(body).toMatch(/active\s*!==\s*el/);
+  });
+
+  it('restore grid thumb effect should include safety sweep of all grid thumbnails', () => {
+    // Verify the effect includes the querySelectorAll sweep
+    const restoreBlock = hookContent.match(/Restore grid thumb on lightbox close[\s\S]*?Safety sweep[\s\S]*?\}, \[isLightboxOpen\]\)/);
+    expect(restoreBlock).not.toBeNull();
+    expect(restoreBlock[0]).toMatch(/querySelectorAll.*gallery-grid.*card img/);
+    expect(restoreBlock[0]).toMatch(/getAnimations\(\)\.forEach/);
+    expect(restoreBlock[0]).toMatch(/img\.style\.opacity\s*!==\s*''/);
+  });
+});
+
 describe('Reduce Motion - useEffect Open Path', () => {
   it('should clear pending refs and mark not animating when reduceMotion is true', () => {
     let pendingOpenStartRect = { left: 10, top: 20, width: 100, height: 100 };

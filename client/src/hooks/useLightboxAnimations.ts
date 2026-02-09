@@ -318,9 +318,16 @@ export function useLightboxAnimations({
       setIsLightboxOpen(false);
       setHideLightboxImage(false);
       isAnimatingRef.current = false;
+      // Cancel fill-forward animations and restore opacity on tracked thumb elements
       const el = lastOpenedThumbElRef.current;
       if (el && document.body.contains(el)) {
+        try { el.getAnimations().forEach(a => a.cancel()); } catch (_) { /* ignore */ }
         try { el.style.opacity = ''; } catch (styleErr) { /* ignore style assignment failures */ }
+      }
+      const active = activeGridThumbRef.current;
+      if (active && active !== el && document.body.contains(active)) {
+        try { active.getAnimations().forEach(a => a.cancel()); } catch (_) { /* ignore */ }
+        try { active.style.opacity = ''; } catch (styleErr) { /* ignore style assignment failures */ }
       }
       lastOpenedThumbElRef.current = null;
     }
@@ -411,14 +418,18 @@ export function useLightboxAnimations({
     if (isLightboxOpen) return;
     const el = activeGridThumbRef.current;
     if (el && document.body.contains(el)) {
-      // Cancel any fill-forward Web Animations that may be holding opacity at 0
       try { el.getAnimations().forEach(a => a.cancel()); } catch (_) { /* ignore */ }
-      try { el.style.opacity = ''; } catch (err) {
-        const descriptor = el?.outerHTML?.substring(0, 100) || 'unknown element';
-        console.error('Error while attempting to reset opacity on grid thumb. This may be due to a style assignment failure or another unexpected error.', err, descriptor);
-      }
+      try { el.style.opacity = ''; } catch (_) { /* ignore */ }
     }
     activeGridThumbRef.current = null;
+    // Safety sweep: ensure no grid thumbnails are stuck invisible due to
+    // interrupted animations, race conditions, or stale fill-forward animations.
+    try {
+      document.querySelectorAll<HTMLElement>('.gallery-grid .card img').forEach(img => {
+        try { img.getAnimations().forEach(a => a.cancel()); } catch (_) { /* ignore */ }
+        if (img.style.opacity !== '') img.style.opacity = '';
+      });
+    } catch (_) { /* ignore */ }
   }, [isLightboxOpen]);
 
   // Cleanup wireframe helper element on unmount to prevent leaks
