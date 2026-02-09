@@ -19,6 +19,56 @@ interface Rect {
   height: number;
 }
 
+/**
+ * Number of extra requestAnimationFrame retries when getBoundingClientRect
+ * returns zero-dimension rects (e.g. after a tab visibility change where the
+ * browser has evicted decoded image data).
+ */
+const LAYOUT_RETRY_LIMIT = 3;
+
+/** Maximum milliseconds to wait for a valid rect before giving up. */
+const LAYOUT_RETRY_TIMEOUT_MS = 500;
+
+/** Returns true when both width and height are greater than zero. */
+const isValidRect = (r: Rect) => r.width > 0 && r.height > 0;
+
+/**
+ * Wait up to LAYOUT_RETRY_LIMIT animation frames (or LAYOUT_RETRY_TIMEOUT_MS,
+ * whichever comes first) for the element to report non-zero dimensions.
+ * After tab visibility changes the browser may need extra frames to decode
+ * images and finish layout.  Accepts an AbortSignal so callers can cancel
+ * early (e.g. when the effect cleanup runs).
+ */
+function waitForValidRect(el: HTMLElement, signal?: AbortSignal): Promise<DOMRect> {
+  return new Promise(resolve => {
+    let remaining = LAYOUT_RETRY_LIMIT;
+
+    const settle = (rect: DOMRect) => {
+      clearTimeout(timer);
+      resolve(rect);
+    };
+
+    // Time-based fallback: resolve with whatever rect we have if rAF retries
+    // stall (e.g. tab is still background-throttled).
+    const timer = setTimeout(() => {
+      remaining = 0; // force next check to resolve
+      settle(el.getBoundingClientRect());
+    }, LAYOUT_RETRY_TIMEOUT_MS);
+
+    const check = () => {
+      if (signal?.aborted) { settle(el.getBoundingClientRect()); return; }
+      const rect = el.getBoundingClientRect();
+      if (isValidRect(rect) || remaining <= 0) {
+        settle(rect);
+      } else {
+        remaining--;
+        requestAnimationFrame(check);
+      }
+    };
+    requestAnimationFrame(check);
+  });
+}
+
 export function useLightboxAnimations({
   images,
   isLightboxOpen,
@@ -71,43 +121,12 @@ export function useLightboxAnimations({
    */
   const openGenerationRef = useRef<number>(0);
 
-  /**
-   * Number of extra requestAnimationFrame retries when getBoundingClientRect
-   * returns zero-dimension rects (e.g. after a tab visibility change where the
-   * browser has evicted decoded image data).
-   */
-  const LAYOUT_RETRY_LIMIT = 3;
-
   const LIGHTBOX_ANIM_MS = 360;
   // 0.86 was chosen to provide a strong dimming effect for the backdrop,
   // while still allowing some visibility of the underlying content for context.
   const LIGHTBOX_BACKDROP_OPACITY = 0.86;
   const LIGHTBOX_BACKDROP_EASING_IN = 'cubic-bezier(0, 0, 0.2, 1)';
   const LIGHTBOX_BACKDROP_EASING_OUT = 'cubic-bezier(0.4, 0, 1, 1)';
-
-  /** Returns true when both width and height are greater than zero. */
-  const isValidRect = (r: Rect) => r.width > 0 && r.height > 0;
-
-  /**
-   * Wait up to LAYOUT_RETRY_LIMIT animation frames for the element to report
-   * non-zero dimensions.  After tab visibility changes the browser may need
-   * extra frames to decode images and finish layout.
-   */
-  const waitForValidRect = (el: HTMLElement): Promise<DOMRect> => {
-    return new Promise(resolve => {
-      let remaining = LAYOUT_RETRY_LIMIT;
-      const check = () => {
-        const rect = el.getBoundingClientRect();
-        if (rect.width > 0 && rect.height > 0 || remaining <= 0) {
-          resolve(rect);
-        } else {
-          remaining--;
-          requestAnimationFrame(check);
-        }
-      };
-      requestAnimationFrame(check);
-    });
-  };
 
   const ensureWireframeElement = useCallback(() => {
     if (wireframeElRef.current && document.body.contains(wireframeElRef.current)) return wireframeElRef.current;
@@ -375,6 +394,9 @@ export function useLightboxAnimations({
       }
       return;
     }
+    // AbortController lets us cancel waitForValidRect retries when the
+    // effect cleans up (e.g. lightbox closed before animation finishes).
+    const abortCtrl = new AbortController();
     const rAF = requestAnimationFrame(async () => {
       const lightboxImg = document.getElementById('lightbox-image');
       if (!lightboxImg) { setHideLightboxImage(false); pendingOpenStartRectRef.current = null; pendingOpenImgSrcRef.current = null; isAnimatingRef.current = false; return; }
@@ -383,8 +405,10 @@ export function useLightboxAnimations({
       // causing getBoundingClientRect to report zero dimensions until layout
       // catches up. Wait a few frames for a valid rect before animating.
       if (!isValidRect(endRect)) {
-        endRect = await waitForValidRect(lightboxImg);
+        endRect = await waitForValidRect(lightboxImg, abortCtrl.signal);
       }
+      // Bail out if the effect was cleaned up while we were waiting.
+      if (abortCtrl.signal.aborted) return;
       // If dimensions are still zero (or thumbnail rect was zero), skip the
       // wireframe animation and just show the lightbox image directly.
       if (!isValidRect(endRect) || !isValidRect(startRect)) {
@@ -410,13 +434,15 @@ export function useLightboxAnimations({
         runWireframeAnimation(startRect, endRect, imgSrc || undefined, 'open'),
         (backdropAnim?.finished || Promise.resolve()).catch(() => {}),
       ]);
+      // Bail out if the effect was cleaned up during the animation.
+      if (abortCtrl.signal.aborted) return;
       lightboxImg.style.opacity = '';
       setHideLightboxImage(false);
       pendingOpenStartRectRef.current = null;
       pendingOpenImgSrcRef.current = null;
       isAnimatingRef.current = false;
     });
-    return () => cancelAnimationFrame(rAF);
+    return () => { cancelAnimationFrame(rAF); abortCtrl.abort(); };
   }, [isLightboxOpen, lightboxIndex, reduceMotion, animateLightboxBackdrop, runWireframeAnimation, setHideLightboxImage]);
 
   // Keep grid thumbs in sync during lightbox navigation

@@ -1146,17 +1146,45 @@ describe('Regression: No stuck inline opacity or animations after ANY close', ()
 // =============================================================================
 
 describe('Zero-dimension rect validation (tab visibility fix)', () => {
+  it('isValidRect and LAYOUT_RETRY_LIMIT should be at module scope (not inside hook)', () => {
+    // They should appear before the function useLightboxAnimations declaration
+    const hookStart = hookContent.indexOf('export function useLightboxAnimations');
+    const isValidRectPos = hookContent.indexOf('const isValidRect');
+    const retryLimitPos = hookContent.indexOf('const LAYOUT_RETRY_LIMIT');
+    expect(isValidRectPos).toBeGreaterThan(-1);
+    expect(retryLimitPos).toBeGreaterThan(-1);
+    expect(isValidRectPos).toBeLessThan(hookStart);
+    expect(retryLimitPos).toBeLessThan(hookStart);
+  });
+
   it('hook should define an isValidRect helper', () => {
     expect(hookContent).toMatch(/isValidRect\s*=\s*\(r.*?\)\s*=>\s*r\.width\s*>\s*0\s*&&\s*r\.height\s*>\s*0/);
   });
 
-  it('hook should define a waitForValidRect helper with retry logic', () => {
-    expect(hookContent).toMatch(/waitForValidRect\s*=\s*\(el.*?\).*?Promise/s);
+  it('hook should define a waitForValidRect function with retry logic', () => {
+    expect(hookContent).toMatch(/function waitForValidRect\(/);
     expect(hookContent).toMatch(/LAYOUT_RETRY_LIMIT/);
   });
 
+  it('waitForValidRect should accept an AbortSignal parameter', () => {
+    expect(hookContent).toMatch(/waitForValidRect\(el.*?signal\?.*?AbortSignal/s);
+  });
+
+  it('waitForValidRect should have a setTimeout fallback', () => {
+    // The function should use setTimeout to guarantee resolution
+    const fnBlock = hookContent.match(/function waitForValidRect[\s\S]*?^}/m);
+    expect(fnBlock).not.toBeNull();
+    expect(fnBlock[0]).toMatch(/setTimeout/);
+    expect(fnBlock[0]).toMatch(/LAYOUT_RETRY_TIMEOUT_MS/);
+  });
+
+  it('waitForValidRect should reuse isValidRect (no duplicated check)', () => {
+    const fnBlock = hookContent.match(/function waitForValidRect[\s\S]*?^}/m);
+    expect(fnBlock).not.toBeNull();
+    expect(fnBlock[0]).toMatch(/isValidRect\(rect\)/);
+  });
+
   it('isValidRect should return false for zero-dimension rects', () => {
-    // Replicate the isValidRect logic from the hook
     const isValidRect = (r) => r.width > 0 && r.height > 0;
 
     expect(isValidRect({ left: 0, top: 0, width: 0, height: 0 })).toBe(false);
@@ -1174,38 +1202,42 @@ describe('Zero-dimension rect validation (tab visibility fix)', () => {
   });
 
   it('open animation effect should check isValidRect on endRect before animating', () => {
-    // The open effect should validate the lightbox image rect
     const openEffect = hookContent.match(
-      /After mount of lightbox[\s\S]*?return \(\) => cancelAnimationFrame/
+      /After mount of lightbox[\s\S]*?abortCtrl\.abort\(\)/
     );
     expect(openEffect).not.toBeNull();
     expect(openEffect[0]).toMatch(/isValidRect\(endRect\)/);
   });
 
-  it('open animation effect should call waitForValidRect when endRect is zero', () => {
+  it('open animation effect should call waitForValidRect with abort signal', () => {
     const openEffect = hookContent.match(
-      /After mount of lightbox[\s\S]*?return \(\) => cancelAnimationFrame/
+      /After mount of lightbox[\s\S]*?abortCtrl\.abort\(\)/
     );
     expect(openEffect).not.toBeNull();
-    expect(openEffect[0]).toMatch(/waitForValidRect/);
+    expect(openEffect[0]).toMatch(/waitForValidRect\(lightboxImg,\s*abortCtrl\.signal\)/);
+  });
+
+  it('open animation effect should check aborted signal after waiting', () => {
+    const openEffect = hookContent.match(
+      /After mount of lightbox[\s\S]*?abortCtrl\.abort\(\)/
+    );
+    expect(openEffect).not.toBeNull();
+    expect(openEffect[0]).toMatch(/abortCtrl\.signal\.aborted/);
   });
 
   it('open animation effect should also validate startRect', () => {
     const openEffect = hookContent.match(
-      /After mount of lightbox[\s\S]*?return \(\) => cancelAnimationFrame/
+      /After mount of lightbox[\s\S]*?abortCtrl\.abort\(\)/
     );
     expect(openEffect).not.toBeNull();
     expect(openEffect[0]).toMatch(/isValidRect\(startRect\)/);
   });
 
   it('open animation should fall back gracefully when rects stay zero', () => {
-    // When rects are invalid, the effect should still show the lightbox image
-    // by setting opacity to '' and calling setHideLightboxImage(false)
     const openEffect = hookContent.match(
-      /After mount of lightbox[\s\S]*?return \(\) => cancelAnimationFrame/
+      /After mount of lightbox[\s\S]*?abortCtrl\.abort\(\)/
     );
     expect(openEffect).not.toBeNull();
-    // Should restore lightbox image visibility on fallback
     const fallbackBlock = openEffect[0].match(
       /!isValidRect\(endRect\)\s*\|\|\s*!isValidRect\(startRect\)\)\s*\{([\s\S]*?)return;/
     );
@@ -1213,6 +1245,16 @@ describe('Zero-dimension rect validation (tab visibility fix)', () => {
     expect(fallbackBlock[1]).toMatch(/lightboxImg\.style\.opacity\s*=\s*''/);
     expect(fallbackBlock[1]).toMatch(/setHideLightboxImage\(false\)/);
     expect(fallbackBlock[1]).toMatch(/isAnimatingRef\.current\s*=\s*false/);
+  });
+
+  it('effect cleanup should abort the controller and cancel the rAF', () => {
+    const openEffect = hookContent.match(
+      /After mount of lightbox[\s\S]*?abortCtrl\.abort\(\)/
+    );
+    expect(openEffect).not.toBeNull();
+    // Cleanup should call both cancelAnimationFrame and abortCtrl.abort()
+    expect(openEffect[0]).toMatch(/cancelAnimationFrame\(rAF\)/);
+    expect(openEffect[0]).toMatch(/abortCtrl\.abort\(\)/);
   });
 
   it('closeLightbox should validate rects before running wireframe animation', () => {
@@ -1229,7 +1271,6 @@ describe('Zero-dimension rect validation (tab visibility fix)', () => {
       /const closeLightbox = useCallback[\s\S]*?\}, \[reduceMotion/
     );
     expect(closeBlock).not.toBeNull();
-    // After the isValidRect check, should animate backdrop out and return
     const skipBlock = closeBlock[0].match(
       /!isValidRect\(startRect\)\s*\|\|\s*!isValidRect\(endRect\)\)\s*\{([\s\S]*?)return;/
     );
@@ -1240,6 +1281,12 @@ describe('Zero-dimension rect validation (tab visibility fix)', () => {
 
   it('LAYOUT_RETRY_LIMIT should be defined and positive', () => {
     const match = hookContent.match(/LAYOUT_RETRY_LIMIT\s*=\s*(\d+)/);
+    expect(match).not.toBeNull();
+    expect(parseInt(match[1])).toBeGreaterThan(0);
+  });
+
+  it('LAYOUT_RETRY_TIMEOUT_MS should be defined and positive', () => {
+    const match = hookContent.match(/LAYOUT_RETRY_TIMEOUT_MS\s*=\s*(\d+)/);
     expect(match).not.toBeNull();
     expect(parseInt(match[1])).toBeGreaterThan(0);
   });

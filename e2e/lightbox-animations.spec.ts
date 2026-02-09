@@ -113,33 +113,39 @@ test.describe('Lightbox animation after tab visibility change', () => {
     await expect(lightbox).toBeHidden();
   });
 
-  test('lightbox opens correctly after simulated tab visibility change', async ({ page }) => {
+  test('lightbox falls back gracefully when all rect retries return zero', async ({ page }) => {
+    // When every retry returns zeros (e.g. persistent layout failure), the
+    // fix should skip the wireframe animation entirely and show the lightbox
+    // image directly without getting stuck.
     const cards = page.locator('.gallery-grid .card img');
     const count = await cards.count();
     if (count === 0) test.skip(true, 'No images available to test lightbox');
 
-    // Simulate tab being hidden and restored via visibilitychange
-    await page.evaluate(() => {
-      Object.defineProperty(document, 'hidden', { value: true, writable: true, configurable: true });
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
-    await page.waitForTimeout(300);
-    await page.evaluate(() => {
-      Object.defineProperty(document, 'hidden', { value: false, writable: true, configurable: true });
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
-    await page.waitForTimeout(100);
-
-    // Now click an image - it should still open correctly
     const firstImg = cards.nth(0);
+
+    // Make EVERY getBoundingClientRect call for #lightbox-image return zeros
+    // so the retry loop exhausts all attempts and hits the fallback path.
+    await page.evaluate(() => {
+      const orig = Element.prototype.getBoundingClientRect;
+      Element.prototype.getBoundingClientRect = function (this: Element) {
+        if (this.id === 'lightbox-image') return new DOMRect(0, 0, 0, 0);
+        return orig.call(this);
+      };
+      // Auto-restore after 5 s so other tests aren't affected
+      setTimeout(() => { Element.prototype.getBoundingClientRect = orig; }, 5000);
+    });
+
     await firstImg.click();
 
+    // Lightbox must still become visible (fallback shows image directly)
     const lightbox = page.locator('#lightbox');
     await expect(lightbox).toBeVisible();
 
+    // The lightbox image must not be stuck invisible
     const lightboxImage = page.locator('#lightbox-image');
     await expect(lightboxImage).toBeVisible();
 
+    // Wireframe should be hidden (animation was skipped)
     await waitForWireframeHidden(page);
 
     await page.keyboard.press('Escape');
