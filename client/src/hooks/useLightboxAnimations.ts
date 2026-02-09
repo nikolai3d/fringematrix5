@@ -6,6 +6,7 @@ interface UseLightboxAnimationsProps {
   images: ImageData[];
   isLightboxOpen: boolean;
   lightboxIndex: number;
+  reduceMotion: boolean;
   setLightboxIndex: (index: number) => void;
   setIsLightboxOpen: (open: boolean) => void;
   setHideLightboxImage: (hide: boolean) => void;
@@ -22,6 +23,7 @@ export function useLightboxAnimations({
   images,
   isLightboxOpen,
   lightboxIndex,
+  reduceMotion,
   setLightboxIndex,
   setIsLightboxOpen,
   setHideLightboxImage,
@@ -37,6 +39,11 @@ export function useLightboxAnimations({
    * Set when opening the lightbox, used to animate from thumbnail to lightbox.
    */
   const pendingOpenStartRectRef = useRef<Rect | null>(null);
+  /**
+   * Ref to store the image src for the pending open animation.
+   * Used to display the actual image inside the wireframe during zoom.
+   */
+  const pendingOpenImgSrcRef = useRef<string | null>(null);
   /**
    * Ref to track whether an open/close animation is currently in progress.
    * Used to prevent clicks from interrupting animations.
@@ -78,7 +85,19 @@ export function useLightboxAnimations({
       pointerEvents: 'none',
       zIndex: 100,
       opacity: '0',
+      overflow: 'hidden',
     });
+    const img = document.createElement('img');
+    img.className = 'wireframe-rect-img';
+    Object.assign(img.style, {
+      position: 'absolute',
+      inset: '0',
+      width: '100%',
+      height: '100%',
+      objectFit: 'cover',
+      borderRadius: 'inherit',
+    });
+    container.appendChild(img);
     const inner = document.createElement('div');
     inner.className = 'wireframe-rect-inner';
     Object.assign(inner.style, { position: 'absolute', inset: '0' });
@@ -88,9 +107,19 @@ export function useLightboxAnimations({
     return container;
   }, []);
 
-  const runWireframeAnimation = useCallback(async (fromRect: Rect, toRect: Rect) => {
+  const runWireframeAnimation = useCallback(async (fromRect: Rect, toRect: Rect, imgSrc?: string, direction: 'open' | 'close' = 'open') => {
+    let fitSwitchTimeout: ReturnType<typeof setTimeout> | undefined;
     try {
       const el = ensureWireframeElement();
+      const img = el.querySelector('.wireframe-rect-img') as HTMLImageElement | null;
+      if (img && imgSrc) {
+        img.src = imgSrc;
+        img.style.display = 'block';
+        // Start with cover for thumbnail-like appearance, end with contain for lightbox
+        img.style.objectFit = direction === 'open' ? 'cover' : 'contain';
+      } else if (img) {
+        img.style.display = 'none';
+      }
       Object.assign(el.style, {
         left: `${fromRect.left}px`,
         top: `${fromRect.top}px`,
@@ -101,16 +130,22 @@ export function useLightboxAnimations({
       });
       const duration = LIGHTBOX_ANIM_MS;
       const easing = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
+
+      // Switch object-fit partway through animation for a smooth visual transition
+      fitSwitchTimeout = setTimeout(() => {
+        if (img) img.style.objectFit = direction === 'open' ? 'contain' : 'cover';
+      }, duration * 0.35);
+
       const animation = el.animate(
         [
-          { left: `${fromRect.left}px`, top: `${fromRect.top}px`, width: `${fromRect.width}px`, height: `${fromRect.height}px`, borderRadius: '12px', opacity: 0, offset: 0 },
-          { opacity: 1, offset: 0.15 },
+          { left: `${fromRect.left}px`, top: `${fromRect.top}px`, width: `${fromRect.width}px`, height: `${fromRect.height}px`, borderRadius: '12px', opacity: 1, offset: 0 },
           { opacity: 1, offset: 0.85 },
           { left: `${toRect.left}px`, top: `${toRect.top}px`, width: `${toRect.width}px`, height: `${toRect.height}px`, borderRadius: '10px', opacity: 0, offset: 1 },
         ],
         { duration, easing, fill: 'forwards' }
       );
       await animation.finished;
+      clearTimeout(fitSwitchTimeout);
       Object.assign(el.style, {
         left: `${toRect.left}px`,
         top: `${toRect.top}px`,
@@ -118,10 +153,14 @@ export function useLightboxAnimations({
         height: `${toRect.height}px`,
       });
       el.style.display = 'none';
+      if (img) img.style.display = 'none';
     } catch (animErr) {
-      // Best-effort: if animation API fails, hide the helper element
+      // Best-effort: if animation API fails or animation is cancelled, hide the helper element
+      if (fitSwitchTimeout !== undefined) clearTimeout(fitSwitchTimeout);
       const el = wireframeElRef.current;
       if (el) el.style.display = 'none';
+      const img = el?.querySelector('.wireframe-rect-img') as HTMLImageElement | null;
+      if (img) img.style.display = 'none';
     }
   }, [ensureWireframeElement]);
 
@@ -150,6 +189,19 @@ export function useLightboxAnimations({
   }, []);
 
   const openLightbox = useCallback((index: number, thumbEl?: HTMLElement) => {
+    if (reduceMotion) {
+      // Skip all animations - lightbox just appears instantly
+      if (thumbEl) {
+        lastOpenedThumbElRef.current = thumbEl;
+        activeGridThumbRef.current = thumbEl;
+        thumbEl.style.opacity = '0';
+      }
+      setLightboxIndex(index);
+      setIsLightboxOpen(true);
+      setHideLightboxImage(false);
+      isAnimatingRef.current = false;
+      return;
+    }
     isAnimatingRef.current = true;
     if (thumbEl) {
       const rect = thumbEl.getBoundingClientRect();
@@ -157,6 +209,11 @@ export function useLightboxAnimations({
       setHideLightboxImage(true);
       lastOpenedThumbElRef.current = thumbEl;
       activeGridThumbRef.current = thumbEl;
+      // Store the image src for wireframe animation
+      const thumbImg = thumbEl.tagName === 'IMG' ? thumbEl as HTMLImageElement : thumbEl.querySelector('img');
+      if (thumbImg) {
+        pendingOpenImgSrcRef.current = thumbImg.src;
+      }
       try {
         thumbEl.style.opacity = '1';
         const anim = thumbEl.animate(
@@ -175,9 +232,22 @@ export function useLightboxAnimations({
     }
     setLightboxIndex(index);
     setIsLightboxOpen(true);
-  }, [setHideLightboxImage, setIsLightboxOpen, setLightboxIndex]);
+  }, [reduceMotion, setHideLightboxImage, setIsLightboxOpen, setLightboxIndex]);
 
   const closeLightbox = useCallback(async () => {
+    if (reduceMotion) {
+      // Skip all animations - lightbox just disappears instantly
+      backdropDimmedRef.current = false;
+      setIsLightboxOpen(false);
+      setHideLightboxImage(false);
+      isAnimatingRef.current = false;
+      const el = lastOpenedThumbElRef.current;
+      if (el && document.body.contains(el)) {
+        try { el.style.opacity = ''; } catch (styleErr) { /* ignore */ }
+      }
+      lastOpenedThumbElRef.current = null;
+      return;
+    }
     isAnimatingRef.current = true;
     try {
       const img = images[lightboxIndex];
@@ -207,17 +277,11 @@ export function useLightboxAnimations({
       }
       const endRect = thumbElement.getBoundingClientRect();
       const duration = LIGHTBOX_ANIM_MS;
-      const imgAnim = lightboxImg.animate(
-        [
-          { opacity: 1, offset: 0 },
-          { opacity: 0, offset: 0.4 },
-          { opacity: 0, offset: 1 },
-        ],
-        { duration, easing: 'linear', fill: 'forwards' }
-      );
+      // Hide lightbox image immediately since wireframe image takes over
+      lightboxImg.style.opacity = '0';
       const backdropAnim = animateLightboxBackdrop('out');
-      try { 
-        if (thumbElement) thumbElement.style.opacity = '0'; 
+      try {
+        if (thumbElement) thumbElement.style.opacity = '0';
       } catch (styleErr) { /* ignore style assignment failures */ }
       let thumbAnim;
       try {
@@ -231,8 +295,7 @@ export function useLightboxAnimations({
         );
       } catch (animErr) { /* ignore animation creation failures */ }
       await Promise.all([
-        runWireframeAnimation(startRect, endRect),
-        imgAnim.finished.catch(() => {}),
+        runWireframeAnimation(startRect, endRect, img.src || undefined, 'close'),
         (thumbAnim?.finished || Promise.resolve()).catch(() => {}),
         (backdropAnim?.finished || Promise.resolve()).catch(() => {}),
       ]);
@@ -247,12 +310,21 @@ export function useLightboxAnimations({
       }
       lastOpenedThumbElRef.current = null;
     }
-  }, [images, lightboxIndex, animateLightboxBackdrop, runWireframeAnimation, setHideLightboxImage, setIsLightboxOpen]);
+  }, [reduceMotion, images, lightboxIndex, animateLightboxBackdrop, runWireframeAnimation, setHideLightboxImage, setIsLightboxOpen]);
 
   // After mount of lightbox, animate wireframe and backdrop in
   useEffect(() => {
     if (!isLightboxOpen) return;
+    if (reduceMotion) {
+      // No animation needed - lightbox is already visible
+      backdropDimmedRef.current = true;
+      pendingOpenStartRectRef.current = null;
+      pendingOpenImgSrcRef.current = null;
+      isAnimatingRef.current = false;
+      return;
+    }
     const startRect = pendingOpenStartRectRef.current;
+    const imgSrc = pendingOpenImgSrcRef.current;
     const needBackdropIn = !backdropDimmedRef.current;
     if (!startRect) {
       if (needBackdropIn) {
@@ -266,35 +338,27 @@ export function useLightboxAnimations({
     }
     const rAF = requestAnimationFrame(async () => {
       const lightboxImg = document.getElementById('lightbox-image');
-      if (!lightboxImg) { setHideLightboxImage(false); pendingOpenStartRectRef.current = null; isAnimatingRef.current = false; return; }
+      if (!lightboxImg) { setHideLightboxImage(false); pendingOpenStartRectRef.current = null; pendingOpenImgSrcRef.current = null; isAnimatingRef.current = false; return; }
       const endRect = lightboxImg.getBoundingClientRect();
+      // Keep lightbox image hidden during animation - wireframe image takes its place
       lightboxImg.style.opacity = '0';
-      const duration = LIGHTBOX_ANIM_MS;
-      const imgAnim = lightboxImg.animate(
-        [
-          { opacity: 0, offset: 0 },
-          { opacity: 0, offset: 0.6 },
-          { opacity: 1, offset: 1 },
-        ],
-        { duration, easing: 'linear', fill: 'forwards' }
-      );
       let backdropAnim;
       if (needBackdropIn) {
         backdropAnim = animateLightboxBackdrop('in');
         backdropDimmedRef.current = true;
       }
       await Promise.all([
-        runWireframeAnimation(startRect, endRect),
-        imgAnim.finished.catch(() => {}),
+        runWireframeAnimation(startRect, endRect, imgSrc || undefined, 'open'),
         (backdropAnim?.finished || Promise.resolve()).catch(() => {}),
       ]);
       lightboxImg.style.opacity = '';
       setHideLightboxImage(false);
       pendingOpenStartRectRef.current = null;
+      pendingOpenImgSrcRef.current = null;
       isAnimatingRef.current = false;
     });
     return () => cancelAnimationFrame(rAF);
-  }, [isLightboxOpen, lightboxIndex, animateLightboxBackdrop, runWireframeAnimation, setHideLightboxImage]);
+  }, [isLightboxOpen, lightboxIndex, reduceMotion, animateLightboxBackdrop, runWireframeAnimation, setHideLightboxImage]);
 
   // Keep grid thumbs in sync during lightbox navigation
   useEffect(() => {

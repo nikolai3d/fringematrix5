@@ -517,6 +517,7 @@ export default function App() {
     images,
     isLightboxOpen,
     lightboxIndex,
+    reduceMotion,
     setLightboxIndex,
     setIsLightboxOpen,
     setHideLightboxImage,
