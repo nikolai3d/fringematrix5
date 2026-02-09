@@ -1020,7 +1020,7 @@ export default function App() {
             id="lightbox-image"
             alt="Selected"
             src={images[lightboxIndex]?.src || ''}
-            style={{ opacity: hideLightboxImage ? 0 : 1, transition: 'opacity .12s ease' }}
+            style={{ opacity: hideLightboxImage ? 0 : 1 }}
           />
           <div className="lightbox-actions">
             <button id="prev-btn" className="nav-btn" aria-label="Previous" onClick={(e) => { e.stopPropagation(); nextImage(-1); }}>◀</button>
