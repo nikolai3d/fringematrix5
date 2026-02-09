@@ -129,6 +129,7 @@ export function useLightboxAnimations({
         height: `${fromRect.height}px`,
         borderRadius: '12px',
         display: 'block',
+        opacity: '1',
       });
       const duration = LIGHTBOX_ANIM_MS;
       const easing = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
@@ -138,11 +139,12 @@ export function useLightboxAnimations({
         if (img) img.style.objectFit = direction === 'open' ? 'contain' : 'cover';
       }, duration * 0.35);
 
+      // Keep opacity at 1 throughout so the image stays fully visible during zoom.
+      // The wireframe is hidden via display:none after animation completes.
       const animation = el.animate(
         [
-          { left: `${fromRect.left}px`, top: `${fromRect.top}px`, width: `${fromRect.width}px`, height: `${fromRect.height}px`, borderRadius: '12px', opacity: 1, offset: 0 },
-          { opacity: 1, offset: 0.85 },
-          { left: `${toRect.left}px`, top: `${toRect.top}px`, width: `${toRect.width}px`, height: `${toRect.height}px`, borderRadius: '10px', opacity: 0, offset: 1 },
+          { left: `${fromRect.left}px`, top: `${fromRect.top}px`, width: `${fromRect.width}px`, height: `${fromRect.height}px`, borderRadius: '12px', offset: 0 },
+          { left: `${toRect.left}px`, top: `${toRect.top}px`, width: `${toRect.width}px`, height: `${toRect.height}px`, borderRadius: '10px', offset: 1 },
         ],
         { duration, easing, fill: 'forwards' }
       );

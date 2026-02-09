@@ -443,19 +443,16 @@ describe('Reduce Motion CSS Integration', () => {
 });
 
 describe('Animation Keyframe Structure', () => {
-  it('open animation keyframes should start at opacity 1 (image visible throughout)', () => {
-    // The updated animation starts at opacity 1 instead of 0
+  it('animation keyframes should not include opacity (image stays fully visible)', () => {
+    // Wireframe stays at full opacity throughout - no fade that would cause blinking.
+    // Opacity is controlled via inline style (set to 1 before animation, hidden via display:none after).
     const keyframes = [
-      { left: '10px', top: '20px', width: '100px', height: '100px', borderRadius: '12px', opacity: 1, offset: 0 },
-      { opacity: 1, offset: 0.85 },
-      { left: '50px', top: '50px', width: '500px', height: '500px', borderRadius: '10px', opacity: 0, offset: 1 },
+      { left: '10px', top: '20px', width: '100px', height: '100px', borderRadius: '12px', offset: 0 },
+      { left: '50px', top: '50px', width: '500px', height: '500px', borderRadius: '10px', offset: 1 },
     ];
 
-    expect(keyframes[0].opacity).toBe(1);
-    expect(keyframes[1].opacity).toBe(1);
-    expect(keyframes[1].offset).toBe(0.85);
-    expect(keyframes[2].opacity).toBe(0);
-    expect(keyframes[2].offset).toBe(1);
+    expect(keyframes[0]).not.toHaveProperty('opacity');
+    expect(keyframes[1]).not.toHaveProperty('opacity');
   });
 
   it('animation should use cubic-bezier easing for smooth zoom', () => {
