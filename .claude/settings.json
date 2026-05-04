@@ -4,7 +4,8 @@
       {
         "hooks": [
           {
-            "command": "bd prime",
+            "command": "command -v bd >/dev/null 2>&1 && bd prime || true",
+            "timeout": 300,
             "type": "command"
           }
         ],
@@ -15,7 +16,8 @@
       {
         "hooks": [
           {
-            "command": "bd prime",
+            "command": "command -v bd >/dev/null 2>&1 && bd prime || true",
+            "timeout": 300,
             "type": "command"
           }
         ],
