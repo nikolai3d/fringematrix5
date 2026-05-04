@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "fringematrix5",
+  "project_id": "acb43855-3b1e-4394-b40a-681413201c62"
+}
