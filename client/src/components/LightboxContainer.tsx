@@ -42,8 +42,12 @@ export default function LightboxContainer({
         await navigator.share({ title: 'Fringe Matrix', text: img.fileName, url: shareUrl.toString() });
       } catch {}
     } else if (navigator.clipboard) {
-      await navigator.clipboard.writeText(shareUrl.toString());
-      alert('Link copied to clipboard');
+      try {
+        await navigator.clipboard.writeText(shareUrl.toString());
+        alert('Link copied to clipboard');
+      } catch {
+        // clipboard permission denied or insecure context — fail silently
+      }
     }
   }, [images, lightboxIndex]);
 

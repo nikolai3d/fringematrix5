@@ -25,6 +25,37 @@ import type {
 // time we treat the image as errored and let the rest of the batch finish.
 const IMAGE_PRELOAD_TIMEOUT_MS = 15_000;
 
+async function preloadCampaignImages(
+  campaignImages: ApiImageData[],
+  signal: AbortSignal,
+  onProgress: (loaded: number) => void,
+): Promise<{ hasError: boolean }> {
+  let loaded = 0;
+  let hasError = false;
+  await Promise.all(
+    campaignImages.map((img) =>
+      new Promise<void>((resolve) => {
+        const image = new Image();
+        let settled = false;
+        const done = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          if (signal.aborted) return resolve();
+          loaded += 1;
+          onProgress(loaded);
+          resolve();
+        };
+        const timer = setTimeout(() => { hasError = true; done(); }, IMAGE_PRELOAD_TIMEOUT_MS);
+        image.onload = done;
+        image.onerror = () => { hasError = true; done(); };
+        image.src = img.src;
+      }),
+    ),
+  );
+  return { hasError };
+}
+
 export default function App() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
@@ -120,6 +151,7 @@ export default function App() {
 
     if (imagesByCampaign[id]) {
       setImages(imagesByCampaign[id]);
+      setIsCampaignLoading(false);
       return;
     }
 
@@ -150,36 +182,7 @@ export default function App() {
       }));
       setImages(placeholderImages);
 
-      let loadedCount = 0;
-      let hasError = false;
-
-      const loadPromises = campaignImages.map((img: ApiImageData) =>
-        new Promise<void>((resolve) => {
-          const image = new Image();
-          let settled = false;
-          const done = () => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(timer);
-            if (signal.aborted) return resolve();
-            loadedCount++;
-            setCampaignLoadProgress(loadedCount);
-            resolve();
-          };
-          const timer = setTimeout(() => {
-            hasError = true;
-            done();
-          }, IMAGE_PRELOAD_TIMEOUT_MS);
-          image.onload = done;
-          image.onerror = () => {
-            hasError = true;
-            done();
-          };
-          image.src = img.src;
-        })
-      );
-
-      await Promise.all(loadPromises);
+      const { hasError } = await preloadCampaignImages(campaignImages, signal, setCampaignLoadProgress);
       if (signal.aborted) return;
 
       if (hasError) {
@@ -426,36 +429,7 @@ export default function App() {
               }));
               setImages(placeholderImages);
 
-              let loadedCount = 0;
-              let hasError = false;
-
-              const loadPromises = campaignImages.map((img: ApiImageData) =>
-                new Promise<void>((resolve) => {
-                  const image = new Image();
-                  let settled = false;
-                  const done = () => {
-                    if (settled) return;
-                    settled = true;
-                    clearTimeout(timer);
-                    if (signal.aborted) return resolve();
-                    loadedCount++;
-                    setCampaignLoadProgress(loadedCount);
-                    resolve();
-                  };
-                  const timer = setTimeout(() => {
-                    hasError = true;
-                    done();
-                  }, IMAGE_PRELOAD_TIMEOUT_MS);
-                  image.onload = done;
-                  image.onerror = () => {
-                    hasError = true;
-                    done();
-                  };
-                  image.src = img.src;
-                })
-              );
-
-              await Promise.all(loadPromises);
+              const { hasError } = await preloadCampaignImages(campaignImages, signal, setCampaignLoadProgress);
               if (signal.aborted) return;
 
               if (hasError) {
