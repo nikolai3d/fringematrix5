@@ -2,6 +2,7 @@ import express, { Request, Response, Application } from 'express';
 import path from 'path';
 import fs from 'fs';
 import yaml from 'js-yaml';
+import dotenv from 'dotenv';
 import { list, ListBlobResultBlob } from '@vercel/blob';
 import { fileURLToPath } from 'url';
 
@@ -38,29 +39,19 @@ interface ListBlobsOptions {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Auto-load .env.local if it exists (like in our migration script)
+const IS_DEV = process.env['NODE_ENV'] !== 'production';
+
+// Auto-load .env.local if present. `override: false` preserves any value
+// already in process.env (matching the old handrolled-parser semantics)
+// and gives precedence to whoever launched the process.
 const ENV_LOCAL_PATH = path.join(__dirname, '..', '.env.local');
 if (fs.existsSync(ENV_LOCAL_PATH)) {
-  const envContent = fs.readFileSync(ENV_LOCAL_PATH, 'utf8');
-  const envVars = envContent
-    .split('\n')
-    .filter(line => line && !line.startsWith('#') && line.includes('='))
-    .reduce((acc: Record<string, string>, line) => {
-      const [key, ...valueParts] = line.split('=');
-      const value = valueParts.join('=').replace(/^["']|["']$/g, ''); // Remove surrounding quotes
-      acc[key.trim()] = value;
-      return acc;
-    }, {});
-  
-  // Set environment variables if they're not already set
-  Object.entries(envVars).forEach(([key, value]) => {
-    if (!process.env[key]) {
-      process.env[key] = value;
-    }
-  });
-  
-  console.log('📋 Loaded environment variables from .env.local');
-  console.log('🔑 BLOB_READ_WRITE_TOKEN:', process.env['BLOB_READ_WRITE_TOKEN'] ? 'FOUND' : 'MISSING');
+  dotenv.config({ path: ENV_LOCAL_PATH, override: false });
+
+  if (IS_DEV) {
+    console.log('📋 Loaded environment variables from .env.local');
+    console.log('🔑 BLOB_READ_WRITE_TOKEN:', process.env['BLOB_READ_WRITE_TOKEN'] ? 'FOUND' : 'MISSING');
+  }
 }
 
 const app: Application = express();
@@ -74,15 +65,46 @@ const PUBLIC_DIR = path.join(PROJECT_ROOT, 'public');
 const CLIENT_DIST_DIR = path.join(PROJECT_ROOT, 'client', 'dist');
 const HAS_CLIENT_BUILD = fs.existsSync(path.join(CLIENT_DIST_DIR, 'index.html'));
 const BUILD_INFO_PATH = path.join(PROJECT_ROOT, 'build-info.json');
-const IS_DEV = process.env['NODE_ENV'] !== 'production';
 
 // Simple cache for blob listings to reduce API calls during testing
 const blobCache = new Map<string, BlobCacheEntry>();
 const CACHE_TTL = 30000; // 30 seconds cache during development/testing
 const HAS_BLOB_TOKEN = !!process.env['BLOB_READ_WRITE_TOKEN'];
 
-// Cache for content pages (History, Credits, Legal) - cached indefinitely until server restart
-const contentCache = new Map<string, string>();
+// Thrown when the upstream Vercel Blob API is unreachable or rate-limited and
+// no usable cache fallback exists. Route handlers translate this into a 503
+// (or 429) so the client can render an actionable error instead of a generic
+// "no images" empty state.
+class BlobUnavailableError extends Error {
+  retryAfterSeconds?: number;
+  rateLimited: boolean;
+  constructor(message: string, opts: { retryAfterSeconds?: number; rateLimited?: boolean } = {}) {
+    super(message);
+    this.name = 'BlobUnavailableError';
+    this.retryAfterSeconds = opts.retryAfterSeconds;
+    this.rateLimited = opts.rateLimited ?? false;
+  }
+}
+
+function sendBlobError(res: Response, err: BlobUnavailableError, fallbackMessage: string): void {
+  const status = err.rateLimited ? 429 : 503;
+  if (err.retryAfterSeconds !== undefined) {
+    res.setHeader('Retry-After', String(err.retryAfterSeconds));
+  }
+  res.status(status).json({ error: err.message || fallbackMessage });
+}
+
+// Cache for content pages (History, Credits, Legal).
+// TTL protects against stale reads if content/*.html is edited under a running
+// server; size cap is a safety net against unbounded growth if the set of
+// valid content pages expands later.
+interface ContentCacheEntry {
+  content: string;
+  timestamp: number;
+}
+const contentCache = new Map<string, ContentCacheEntry>();
+const CONTENT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CONTENT_CACHE_MAX = 16;
 
 async function listBlobsWithCache(options: ListBlobsOptions): Promise<{ blobs: ListBlobResultBlob[] }> {
   // If no blob token is available (e.g., in CI), return empty results
@@ -113,16 +135,49 @@ async function listBlobsWithCache(options: ListBlobsOptions): Promise<{ blobs: L
       const retryAfter = Math.min(error.retryAfter || 5, 10);
       console.log(`Rate limited, retrying in ${retryAfter} seconds...`);
       await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-      return await list(options);
+      try {
+        const retryResult = await list(options);
+        blobCache.set(cacheKey, { data: retryResult, timestamp: Date.now() });
+        return retryResult;
+      } catch (retryErr: any) {
+        // Distinguish "still rate-limited on retry" from "retry hit a different
+        // failure (e.g. connection error)". The former is a 429; the latter is
+        // a 503 with no retry-after, since we don't have a meaningful hint.
+        if (retryErr.name === 'BlobServiceRateLimited') {
+          throw new BlobUnavailableError('Vercel Blob is rate-limited', {
+            retryAfterSeconds: retryErr.retryAfter || retryAfter,
+            rateLimited: true,
+          });
+        }
+        throw new BlobUnavailableError(
+          `Vercel Blob unavailable after retry: ${retryErr.message || retryErr.name || 'unknown error'}`
+        );
+      }
     }
-    
+
     if (error.message && error.message.includes('No token found')) {
       console.log('Blob token missing, returning empty blob list for testing');
       return { blobs: [] };
     }
-    
-    throw error;
+
+    throw new BlobUnavailableError(`Vercel Blob unavailable: ${error.message || error.name || 'unknown error'}`);
   }
+}
+
+function deriveCampaignId(c: any, index: number): string {
+  // Prefer explicit id (most stable across rename of hashtag/icon_path),
+  // fall back to hashtag, then icon_path. Random-fallback is forbidden because
+  // it breaks hash-URL deep linking across server restarts.
+  // slugify can produce an empty string from inputs with no alphanumerics
+  // (e.g. "@@@!!!"); in that case fall through to the next candidate.
+  for (const candidate of [c.id, c.hashtag, c.icon_path]) {
+    if (typeof candidate !== 'string' || !candidate.trim()) continue;
+    const slug = slugify(candidate);
+    if (slug) return slug;
+  }
+  throw new Error(
+    `Campaign at index ${index} has no usable identifier (id, hashtag, and icon_path all empty or non-alphanumeric)`
+  );
 }
 
 function loadCampaigns(): Campaign[] {
@@ -130,9 +185,9 @@ function loadCampaigns(): Campaign[] {
   const file = fs.readFileSync(yamlPath, 'utf8');
   const data = yaml.load(file) as { campaigns?: any[] } | null;
   const campaigns = Array.isArray(data?.campaigns) ? data.campaigns : [];
-  return campaigns.map((c) => ({
+  return campaigns.map((c, i) => ({
     ...c,
-    id: slugify(c.hashtag || c.icon_path || Math.random().toString(36).slice(2)),
+    id: deriveCampaignId(c, i),
   }));
 }
 
@@ -201,6 +256,11 @@ app.get('/avatars/*', async (req: Request, res: Response): Promise<void> => {
     // Redirect to the CDN URL
     res.redirect(302, blob.url);
   } catch (err: any) {
+    if (err instanceof BlobUnavailableError) {
+      console.error('Avatar redirect blob error:', err.message);
+      sendBlobError(res, err, 'Failed to serve avatar');
+      return;
+    }
     console.error('Avatar redirect error:', err);
     res.status(500).json({ error: 'Failed to serve avatar' });
   }
@@ -249,6 +309,11 @@ app.get('/api/campaigns/:id/images', async (req: Request, res: Response): Promis
 
     res.json({ images });
   } catch (err: any) {
+    if (err instanceof BlobUnavailableError) {
+      console.error('Campaign images blob error:', err.message);
+      sendBlobError(res, err, 'Failed to list images from CDN');
+      return;
+    }
     console.error('Blob listing error:', err);
     res.status(500).json({ error: 'Failed to list images from CDN' });
   }
@@ -305,8 +370,8 @@ app.get('/api/content/:page', async (req: Request, res: Response): Promise<void>
 
   // Check cache first
   const cached = contentCache.get(page);
-  if (cached) {
-    res.json({ content: cached, page });
+  if (cached && Date.now() - cached.timestamp < CONTENT_CACHE_TTL) {
+    res.json({ content: cached.content, page });
     return;
   }
 
@@ -314,8 +379,17 @@ app.get('/api/content/:page', async (req: Request, res: Response): Promise<void>
 
   try {
     const content = await fs.promises.readFile(contentPath, 'utf8');
-    // Cache the content for future requests
-    contentCache.set(page, content);
+    // Evict the oldest entry if we're at capacity (Map preserves insertion order).
+    // Delete-before-set on the refresh path so a re-cached entry moves to the
+    // end of the iteration order — otherwise Map.set on an existing key keeps
+    // its original position and the just-refreshed entry would be the next
+    // eviction target.
+    contentCache.delete(page);
+    if (contentCache.size >= CONTENT_CACHE_MAX) {
+      const oldest = contentCache.keys().next().value;
+      if (oldest !== undefined) contentCache.delete(oldest);
+    }
+    contentCache.set(page, { content, timestamp: Date.now() });
     res.json({ content, page });
   } catch (err: any) {
     if (err.code === 'ENOENT') {
@@ -344,6 +418,11 @@ app.get('/api/glyphs', async (_req: Request, res: Response): Promise<void> => {
 
     res.json({ glyphs });
   } catch (err: any) {
+    if (err instanceof BlobUnavailableError) {
+      console.error('Glyphs blob error:', err.message);
+      sendBlobError(res, err, 'Failed to list glyphs');
+      return;
+    }
     console.error('Glyphs listing error:', err);
     res.status(500).json({ error: 'Failed to list glyphs' });
   }

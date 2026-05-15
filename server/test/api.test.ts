@@ -46,6 +46,63 @@ describe('API contract', () => {
       fsSpy.mockRestore();
       consoleSpy.mockRestore();
     });
+
+    it('returns 500 when a campaign has no usable identifier', async () => {
+      const malformed = 'campaigns:\n  - episode: "Lonely entry with no id"\n';
+      const fsSpy = jest.spyOn(fs, 'readFileSync').mockImplementationOnce(() => malformed);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const res = await request(app).get('/api/campaigns');
+      expect(res.status).toBe(500);
+      expect(res.body).toHaveProperty('error');
+      fsSpy.mockRestore();
+      consoleSpy.mockRestore();
+    });
+
+    it('returns 500 when all identifier fields slugify to empty strings', async () => {
+      // id/hashtag/icon_path are truthy strings but contain no alphanumerics,
+      // so slugify() collapses them all to ''. Must fail loudly rather than
+      // produce a campaign with id: '' that would shadow other entries.
+      const noSlugifiable =
+        'campaigns:\n' +
+        '  - id: "@@@"\n' +
+        '    hashtag: "!!!"\n' +
+        '    icon_path: "***"\n' +
+        '    episode: "Edge case"\n';
+      const fsSpy = jest.spyOn(fs, 'readFileSync').mockImplementationOnce(() => noSlugifiable);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const res = await request(app).get('/api/campaigns');
+      expect(res.status).toBe(500);
+      fsSpy.mockRestore();
+      consoleSpy.mockRestore();
+    });
+
+    it('falls through to hashtag when id is present but slugifies to empty', async () => {
+      // id is a non-empty string but produces an empty slug — should fall
+      // through to hashtag rather than throwing.
+      const fallthrough =
+        'campaigns:\n' +
+        '  - id: "@@@"\n' +
+        '    hashtag: "RealHashtag"\n' +
+        '    episode: "Test"\n';
+      const fsSpy = jest.spyOn(fs, 'readFileSync').mockImplementationOnce(() => fallthrough);
+      const res = await request(app).get('/api/campaigns');
+      expect(res.status).toBe(200);
+      expect(res.body.campaigns[0].id).toBe('realhashtag');
+      fsSpy.mockRestore();
+    });
+
+    it('uses explicit id from yaml when provided', async () => {
+      const yamlWithIds =
+        'campaigns:\n' +
+        '  - id: "my-explicit-id"\n' +
+        '    hashtag: "DifferentHashtag"\n' +
+        '    episode: "Test"\n';
+      const fsSpy = jest.spyOn(fs, 'readFileSync').mockImplementationOnce(() => yamlWithIds);
+      const res = await request(app).get('/api/campaigns');
+      expect(res.status).toBe(200);
+      expect(res.body.campaigns[0].id).toBe('my-explicit-id');
+      fsSpy.mockRestore();
+    });
   });
 
   describe('GET /api/campaigns/:id/images', () => {
@@ -60,8 +117,10 @@ describe('API contract', () => {
       }
       const firstId = campaigns[0]!.id;
       const res = await request(app).get(`/api/campaigns/${firstId}/images`);
-      // Could be 200 with images (possibly empty) or 500 if avatar paths are inaccessible
-      expect([200, 500]).toContain(res.status);
+      // Could be 200 with images (possibly empty), or 503 if the upstream blob
+      // service is unavailable. 500 stays in the set for legacy / unexpected
+      // server errors that aren't blob-related.
+      expect([200, 500, 503]).toContain(res.status);
       if (res.status === 200) {
         expect(res.body).toHaveProperty('images');
         expect(Array.isArray(res.body.images)).toBe(true);
