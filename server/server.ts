@@ -198,10 +198,28 @@ function loadCampaigns(): Campaign[] {
   const file = fs.readFileSync(yamlPath, 'utf8');
   const data = yaml.load(file) as { campaigns?: any[] } | null;
   const campaigns = Array.isArray(data?.campaigns) ? data.campaigns : [];
-  return campaigns.map((c, i) => ({
+  const mapped = campaigns.map((c, i) => ({
     ...c,
     id: deriveCampaignId(c, i),
   }));
+
+  // Detect duplicate ids — two campaigns producing the same slug would make the
+  // second one permanently unreachable via find-by-id.
+  const seen = new Map<string, any>();
+  for (const campaign of mapped) {
+    const { id } = campaign;
+    if (seen.has(id)) {
+      const prev = seen.get(id);
+      throw new Error(
+        `Duplicate campaign id '${id}': conflicts between` +
+        ` {hashtag: ${JSON.stringify(prev.hashtag ?? null)}, icon_path: ${JSON.stringify(prev.icon_path ?? null)}}` +
+        ` and {hashtag: ${JSON.stringify(campaign.hashtag ?? null)}, icon_path: ${JSON.stringify(campaign.icon_path ?? null)}}`
+      );
+    }
+    seen.set(id, campaign);
+  }
+
+  return mapped;
 }
 
 function slugify(str: string): string {
