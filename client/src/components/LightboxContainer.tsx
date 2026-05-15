@@ -2,9 +2,11 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import type { MutableRefObject } from 'react';
 import type { ImageData } from '../types/api';
 
-// Swipe thresholds tuned to feel responsive without firing on incidental drags.
+/** Minimum horizontal travel (px) required for a touch to count as a swipe. */
 const SWIPE_MIN_HORIZONTAL_PX = 50;
+/** Maximum vertical drift (px) allowed before a gesture is treated as a scroll. */
 const SWIPE_MAX_VERTICAL_PX = 75;
+/** Maximum gesture duration (ms); longer presses are not counted as swipes. */
 const SWIPE_MAX_DURATION_MS = 500;
 
 interface Props {
