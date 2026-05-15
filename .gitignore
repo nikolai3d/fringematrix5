@@ -43,3 +43,6 @@ test-results/
 .dolt/
 .beads/*.db
 .beads-credential-key
+
+# Cursor / AI conversation logs — large, not needed in repo
+ai_logs/
