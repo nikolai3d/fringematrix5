@@ -5,7 +5,10 @@ import { fetchJSON } from './utils/fetchJSON';
 import { formatTimePacific } from './utils/formatTimePacific';
 import { gitRemoteToHttps } from './utils/gitRemoteToHttps';
 import { applyTheme } from './config/theme';
-import LoadingScreen from './components/LoadingScreen';
+import LoadingManager from './components/LoadingManager';
+import CampaignNavigation from './components/CampaignNavigation';
+import ContentModal from './components/ContentModal';
+import LightboxContainer from './components/LightboxContainer';
 import type {
   Campaign,
   ImageData,
@@ -50,20 +53,9 @@ export default function App() {
   const buildBtnRef = useRef<HTMLButtonElement>(null);
   const [shareStyle, setShareStyle] = useState<React.CSSProperties>({});
   const [buildStyle, setBuildStyle] = useState<React.CSSProperties>({});
-  // =============================================================================
-  // Content Modal State (History, Credits, Legal)
-  //
-  // Focus Management Contract:
-  // 1. When modal opens, the trigger element (button that opened it) is stored
-  // 2. Focus moves to the close button when modal opens
-  // 3. Focus is trapped within the modal:
-  //    - Tab on last focusable element wraps to first
-  //    - Shift+Tab on first focusable element wraps to last
-  //    - Other keys are not intercepted
-  // 4. Escape key closes the modal
-  // 5. When modal closes, focus returns to the stored trigger element
-  // 6. If no trigger element exists, focus restoration is safely skipped
-  // =============================================================================
+  // Content modal state (History, Credits, Legal).
+  // The focus-management contract lives inside ContentModal; this component
+  // owns the data and trigger-element for focus restoration on close.
   const [activeModal, setActiveModal] = useState<ContentPage | null>(null);
   const [modalContent, setModalContent] = useState<string>('');
   const [isModalLoading, setIsModalLoading] = useState<boolean>(false);
@@ -71,17 +63,14 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [reduceMotion, setReduceMotion] = useState<boolean>(false);
   const [reduceEffects, setReduceEffects] = useState<boolean>(false);
-  // Swipe gesture tracking
-  const swipeRef = useRef<{ startX: number; startY: number; startTime: number } | null>(null);
   // Settings modal refs for focus management
   const settingsTriggerRef = useRef<HTMLElement | null>(null);
   const settingsCloseRef = useRef<HTMLButtonElement>(null);
   const settingsModalRef = useRef<HTMLDivElement>(null);
-  const activeModalRef = useRef<ContentPage | null>(null);  // Tracks which modal is loading (prevents race conditions)
+  // Tracks which modal is loading; ContentModal owns the keyboard/focus trap.
+  const activeModalRef = useRef<ContentPage | null>(null);
   const modalLoadAbortRef = useRef<AbortController | null>(null);
-  const modalTriggerRef = useRef<HTMLElement | null>(null); // Stores element that opened modal for focus restoration
-  const modalCloseRef = useRef<HTMLButtonElement>(null);    // Close button ref for initial focus
-  const modalRef = useRef<HTMLDivElement>(null);            // Modal container ref for focus trapping
+  const modalTriggerRef = useRef<HTMLElement | null>(null);
 
   // Apply theme CSS variables on mount
   useEffect(() => {
@@ -550,138 +539,6 @@ export default function App() {
     selectCampaign(firstCampaign.id);
   }, [campaigns, selectCampaign, closeAllSubwindows]);
 
-  const nextImage = useCallback((delta: number) => {
-    setLightboxIndex((idx) => (images.length === 0 ? 0 : (idx + delta + images.length) % images.length));
-  }, [images.length]);
-
-  const handleShare = useCallback(async () => {
-    const img = images[lightboxIndex];
-    if (!img || !img.src) return;
-    const shareUrl = new URL(window.location.href);
-    shareUrl.searchParams.set('img', img.src);
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: 'Fringe Matrix', text: img.fileName, url: shareUrl.toString() });
-      } catch {}
-    } else if (navigator.clipboard) {
-      await navigator.clipboard.writeText(shareUrl.toString());
-      alert('Link copied to clipboard');
-    }
-  }, [images, lightboxIndex]);
-
-  const handleLightboxClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    // Ignore clicks during open/close animation to prevent interruption
-    if (isAnimatingRef.current) return;
-
-    const lightboxImage = document.getElementById('lightbox-image') as HTMLImageElement;
-    if (!lightboxImage) return;
-
-    const imageRect = lightboxImage.getBoundingClientRect();
-    const clickX = e.clientX;
-    const clickY = e.clientY;
-
-    const isInsideImage = (
-      clickX >= imageRect.left &&
-      clickX <= imageRect.right &&
-      clickY >= imageRect.top &&
-      clickY <= imageRect.bottom
-    );
-
-    // Check if click is within the toolbar area bounds
-    const toolbarElement = document.querySelector('.lightbox-actions') as HTMLElement;
-    let isInToolbarArea = false;
-    if (toolbarElement) {
-      const toolbarRect = toolbarElement.getBoundingClientRect();
-      isInToolbarArea = (
-        clickX >= toolbarRect.left &&
-        clickX <= toolbarRect.right &&
-        clickY >= toolbarRect.top &&
-        clickY <= toolbarRect.bottom
-      );
-    }
-
-    // console.log('Lightbox click detected:');
-    // console.log('  Click coordinates:', { x: clickX, y: clickY });
-    // console.log('  Image bounds:', {
-    //   left: imageRect.left,
-    //   right: imageRect.right,
-    //   top: imageRect.top,
-    //   bottom: imageRect.bottom
-    // });
-    // console.log('  Click is inside image:', isInsideImage);
-    // console.log('  Click is in toolbar area:', isInToolbarArea);
-
-    // Close lightbox if click is outside image AND not in toolbar area
-    if (!isInsideImage && !isInToolbarArea) {
-      // console.log('  Closing lightbox (outside click)');
-      closeLightbox();
-    }
-  }, [closeLightbox]);
-
-  useEffect(() => {
-    if (!isLightboxOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeLightbox();
-      else if (e.key === 'ArrowRight') nextImage(1);
-      else if (e.key === 'ArrowLeft') nextImage(-1);
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [isLightboxOpen, closeLightbox, nextImage]);
-
-  // Modal keyboard handler and focus management
-  // Implements Focus Contract Items 2, 3, and 4
-  useEffect(() => {
-    if (!activeModal) return;
-
-    // Focus Contract Item 2: Focus moves to the close button when modal opens
-    // Using setTimeout to ensure DOM is ready after React render
-    const focusTimer = setTimeout(() => {
-      modalCloseRef.current?.focus();
-    }, 0);
-
-    const onKey = (e: KeyboardEvent) => {
-      // Focus Contract Item 4: Escape key closes the modal
-      if (e.key === 'Escape') {
-        closeModal();
-        return;
-      }
-
-      // Focus Contract Item 3: Focus is trapped within the modal
-      // Only intercept Tab key; other keys pass through normally
-      if (e.key === 'Tab' && modalRef.current) {
-        const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        const firstElement = focusableElements[0];
-        const lastElement = focusableElements[focusableElements.length - 1];
-
-        if (e.shiftKey) {
-          // Focus Contract Item 3b: Shift+Tab on first element wraps to last
-          if (document.activeElement === firstElement) {
-            e.preventDefault();
-            lastElement?.focus();
-          }
-          // Otherwise, let browser handle normal Shift+Tab behavior
-        } else {
-          // Focus Contract Item 3a: Tab on last element wraps to first
-          if (document.activeElement === lastElement) {
-            e.preventDefault();
-            firstElement?.focus();
-          }
-          // Otherwise, let browser handle normal Tab behavior (middle elements)
-        }
-      }
-      // Focus Contract Item 3c: Other keys are not intercepted
-    };
-
-    document.addEventListener('keydown', onKey);
-    return () => {
-      clearTimeout(focusTimer);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [activeModal, closeModal]);
-
   // Settings modal: close callback with focus restoration
   const closeSettings = useCallback(() => {
     setIsSettingsOpen(false);
@@ -731,50 +588,16 @@ export default function App() {
     };
   }, [isSettingsOpen, closeSettings]);
 
-  // The hook manages the wireframe/backdrop animation timing on open/close
-
-  // Grid thumbnail sync handled by hook
-
-  // Grid thumbnail restore handled by hook
-
-  // Swipe gesture handlers for lightbox navigation on touch devices
-  const handleLightboxPointerDown = useCallback((e: React.PointerEvent) => {
-    if (e.pointerType === 'mouse') return;
-    swipeRef.current = { startX: e.clientX, startY: e.clientY, startTime: Date.now() };
-  }, []);
-
-  const handleLightboxPointerUp = useCallback((e: React.PointerEvent) => {
-    if (!swipeRef.current || e.pointerType === 'mouse') return;
-    const dx = e.clientX - swipeRef.current.startX;
-    const dy = e.clientY - swipeRef.current.startY;
-    const dt = Date.now() - swipeRef.current.startTime;
-    swipeRef.current = null;
-    // Minimum 50px horizontal, max 75px vertical, max 500ms duration
-    if (Math.abs(dx) > 50 && Math.abs(dy) < 75 && dt < 500) {
-      if (dx > 0) nextImage(-1);
-      else nextImage(1);
-    }
-  }, [nextImage]);
-
   return (
     <div id="app">
-      {showLoadingScreen && !loadingError && (
-        <LoadingScreen
-          campaignCount={loadingCampaignCount}
-          imageCount={loadingImageCount}
-          isDataReady={isDataReady}
-          onComplete={handleLoadingComplete}
-        />
-      )}
-      {loadingError && (
-        <div className="crt-overlay" role="alertdialog" aria-modal={true} aria-label="Loading failed">
-          <div className="crt-inner">
-            <div className="crt-text">
-              Fringe Matrix loading failed, check your Internet connection or try reloading the site
-            </div>
-          </div>
-        </div>
-      )}
+      <LoadingManager
+        show={showLoadingScreen}
+        loadingError={loadingError}
+        campaignCount={loadingCampaignCount}
+        imageCount={loadingImageCount}
+        isDataReady={isDataReady}
+        onComplete={handleLoadingComplete}
+      />
       {/* Top toolbar with primary actions */}
       <div className="toolbar" role="toolbar" aria-label="Primary actions">
         <div className="toolbar-inner">
@@ -880,22 +703,14 @@ export default function App() {
         )}
       </div>
 
-      <aside id="campaign-sidebar" className={`sidebar${isSidebarOpen ? ' open' : ''}`} aria-hidden={!isSidebarOpen}>
-        <div className="sidebar-header">All Campaigns</div>
-        <div className="sidebar-list">
-          {campaigns.map((c) => (
-            <button
-              key={c.id}
-              className={`sidebar-item${c.id === activeCampaignId ? ' active' : ''}`}
-              onClick={async () => { await selectCampaign(c.id); closeSidebar(); }}
-              disabled={isCampaignLoading}
-            >
-              #{c.hashtag}
-            </button>
-          ))}
-        </div>
-      </aside>
-      {isSidebarOpen && <div className="sidebar-overlay" onClick={closeSidebar} aria-hidden={true}></div>}
+      <CampaignNavigation
+        campaigns={campaigns}
+        activeCampaignId={activeCampaignId}
+        isOpen={isSidebarOpen}
+        isCampaignLoading={isCampaignLoading}
+        onSelect={selectCampaign}
+        onClose={closeSidebar}
+      />
 
       <main className="content">
         <section id="campaign-info" className="campaign-info">
@@ -1028,37 +843,15 @@ export default function App() {
         </div>
       </footer>
 
-      {isLightboxOpen && (
-        <div
-          id="lightbox"
-          className="lightbox"
-          aria-hidden={false}
-          onClick={handleLightboxClick}
-          onPointerDown={handleLightboxPointerDown}
-          onPointerUp={handleLightboxPointerUp}
-          onPointerCancel={() => { swipeRef.current = null; }}
-          style={{ touchAction: 'pan-y' }}
-        >
-          <div className="lightbox-hud" aria-hidden={true}>
-            FILE: {images[lightboxIndex]?.fileName || ''} {'// '}{lightboxIndex + 1} OF {images.length}
-          </div>
-          <button className="lightbox-close" id="lightbox-close" aria-label="Close" onClick={closeLightbox}>✕</button>
-          <img
-            id="lightbox-image"
-            alt="Selected"
-            src={images[lightboxIndex]?.src || ''}
-            style={{ opacity: hideLightboxImage ? 0 : 1 }}
-          />
-          <div className="lightbox-actions">
-            <button id="prev-btn" className="nav-btn" aria-label="Previous" onClick={(e) => { e.stopPropagation(); nextImage(-1); }}>◀</button>
-            <div className="spacer"></div>
-            <a id="download-btn" className="action-btn" download href={images[lightboxIndex]?.src || '#'} onClick={(e) => e.stopPropagation()}>Download</a>
-            <button id="share-btn" className="action-btn" onClick={(e) => { e.stopPropagation(); handleShare(); }}>Share</button>
-            <div className="spacer"></div>
-            <button id="next-btn" className="nav-btn" aria-label="Next" onClick={(e) => { e.stopPropagation(); nextImage(1); }}>▶</button>
-          </div>
-        </div>
-      )}
+      <LightboxContainer
+        images={images}
+        lightboxIndex={lightboxIndex}
+        isLightboxOpen={isLightboxOpen}
+        hideLightboxImage={hideLightboxImage}
+        setLightboxIndex={setLightboxIndex}
+        closeLightbox={closeLightbox}
+        isAnimatingRef={isAnimatingRef}
+      />
 
       {/* Settings Modal */}
       {isSettingsOpen && (
@@ -1105,33 +898,12 @@ export default function App() {
         </div>
       )}
 
-      {/* Content Modal (History, Credits, Legal) */}
-      {activeModal && (
-        <div className="content-modal-overlay" onClick={closeModal} role="dialog" aria-modal={true} aria-labelledby="modal-title">
-          <div className="content-modal" ref={modalRef} onClick={(e) => e.stopPropagation()}>
-            <div className="content-modal-header">
-              <span className="content-modal-title" id="modal-title">
-                {activeModal.charAt(0).toUpperCase() + activeModal.slice(1)}
-              </span>
-              <button
-                className="content-modal-close"
-                ref={modalCloseRef}
-                aria-label="Close"
-                onClick={closeModal}
-              >
-                ✕
-              </button>
-            </div>
-            <div className="content-modal-body">
-              {isModalLoading ? (
-                <div className="content-modal-loading">Loading...</div>
-              ) : (
-                <div dangerouslySetInnerHTML={{ __html: modalContent }} />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <ContentModal
+        activeModal={activeModal}
+        content={modalContent}
+        isLoading={isModalLoading}
+        onClose={closeModal}
+      />
     </div>
   );
 }
