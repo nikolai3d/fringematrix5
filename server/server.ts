@@ -167,14 +167,26 @@ async function listBlobsWithCache(options: ListBlobsOptions): Promise<{ blobs: L
   }
 }
 
+function deriveCampaignId(c: any, index: number): string {
+  // Prefer explicit id (most stable across rename of hashtag/icon_path),
+  // fall back to hashtag, then icon_path. Random-fallback is forbidden because
+  // it breaks hash-URL deep linking across server restarts.
+  if (typeof c.id === 'string' && c.id.trim()) return slugify(c.id);
+  if (typeof c.hashtag === 'string' && c.hashtag.trim()) return slugify(c.hashtag);
+  if (typeof c.icon_path === 'string' && c.icon_path.trim()) return slugify(c.icon_path);
+  throw new Error(
+    `Campaign at index ${index} has no usable identifier (id, hashtag, or icon_path are all empty)`
+  );
+}
+
 function loadCampaigns(): Campaign[] {
   const yamlPath = path.join(DATA_DIR, 'campaigns.yaml');
   const file = fs.readFileSync(yamlPath, 'utf8');
   const data = yaml.load(file) as { campaigns?: any[] } | null;
   const campaigns = Array.isArray(data?.campaigns) ? data.campaigns : [];
-  return campaigns.map((c) => ({
+  return campaigns.map((c, i) => ({
     ...c,
-    id: slugify(c.hashtag || c.icon_path || Math.random().toString(36).slice(2)),
+    id: deriveCampaignId(c, i),
   }));
 }
 

@@ -46,6 +46,30 @@ describe('API contract', () => {
       fsSpy.mockRestore();
       consoleSpy.mockRestore();
     });
+
+    it('returns 500 when a campaign has no usable identifier', async () => {
+      const malformed = 'campaigns:\n  - episode: "Lonely entry with no id"\n';
+      const fsSpy = jest.spyOn(fs, 'readFileSync').mockImplementationOnce(() => malformed);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const res = await request(app).get('/api/campaigns');
+      expect(res.status).toBe(500);
+      expect(res.body).toHaveProperty('error');
+      fsSpy.mockRestore();
+      consoleSpy.mockRestore();
+    });
+
+    it('uses explicit id from yaml when provided', async () => {
+      const yamlWithIds =
+        'campaigns:\n' +
+        '  - id: "my-explicit-id"\n' +
+        '    hashtag: "DifferentHashtag"\n' +
+        '    episode: "Test"\n';
+      const fsSpy = jest.spyOn(fs, 'readFileSync').mockImplementationOnce(() => yamlWithIds);
+      const res = await request(app).get('/api/campaigns');
+      expect(res.status).toBe(200);
+      expect(res.body.campaigns[0].id).toBe('my-explicit-id');
+      fsSpy.mockRestore();
+    });
   });
 
   describe('GET /api/campaigns/:id/images', () => {
