@@ -106,8 +106,6 @@ export default function App() {
   const settingsTriggerRef = useRef<HTMLElement | null>(null);
   const settingsCloseRef = useRef<HTMLButtonElement>(null);
   const settingsModalRef = useRef<HTMLDivElement>(null);
-  // Tracks which modal is loading; ContentModal owns the keyboard/focus trap.
-  const activeModalRef = useRef<ContentPage | null>(null);
   const modalLoadAbortRef = useRef<AbortController | null>(null);
   const modalTriggerRef = useRef<HTMLElement | null>(null);
 
@@ -298,8 +296,6 @@ export default function App() {
     // Focus Contract Item 1: Store the trigger element for focus restoration when modal closes
     modalTriggerRef.current = document.activeElement as HTMLElement;
 
-    // activeModalRef stays as defense in depth alongside abort signal
-    activeModalRef.current = page;
     setActiveModal(page);
     setIsModalLoading(true);
     setModalContent('');
@@ -307,19 +303,15 @@ export default function App() {
     try {
       const data = await fetchJSON<ContentResponse>(`/api/content/${page}`, { signal });
       if (signal.aborted) return;
-      if (activeModalRef.current === page) {
-        // Sanitize HTML to prevent XSS attacks
-        const sanitizedContent = DOMPurify.sanitize(data.content);
-        setModalContent(sanitizedContent);
-      }
+      // Sanitize HTML to prevent XSS attacks
+      const sanitizedContent = DOMPurify.sanitize(data.content);
+      setModalContent(sanitizedContent);
     } catch (e) {
       if (signal.aborted || (e instanceof DOMException && e.name === 'AbortError')) return;
       console.error('Failed to load content:', e);
-      if (activeModalRef.current === page) {
-        setModalContent('<p>Failed to load content. Please try again.</p>');
-      }
+      setModalContent('<p>Failed to load content. Please try again.</p>');
     } finally {
-      if (!signal.aborted && activeModalRef.current === page) {
+      if (!signal.aborted) {
         setIsModalLoading(false);
       }
     }
@@ -330,7 +322,6 @@ export default function App() {
   const closeModal = useCallback(() => {
     modalLoadAbortRef.current?.abort();
     modalLoadAbortRef.current = null;
-    activeModalRef.current = null;
     setActiveModal(null);
     setModalContent('');
     setIsModalLoading(false);
