@@ -33,8 +33,15 @@ interface BlobCacheEntry {
 
 interface ListBlobsOptions {
   prefix?: string;
+  /** When set, fetch only a single page capped at this limit (no pagination loop). */
   limit?: number;
 }
+
+// Maximum total blobs collected across all pages in a single paginated fetch.
+// Guards against runaway memory usage if a prefix contains an unexpectedly
+// large number of items. At ~1 KB per blob metadata entry, 10 000 entries
+// is about 10 MB — well within acceptable server memory for a response.
+const MAX_BLOB_ITEMS = 10_000;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -121,6 +128,20 @@ const contentCache = new Map<string, ContentCacheEntry>();
 const CONTENT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const CONTENT_CACHE_MAX = 16;
 
+/**
+ * Fetches blobs from Vercel Blob, with in-memory caching and optional cursor
+ * pagination.
+ *
+ * When `options.limit` is omitted (the default), the function pages through
+ * ALL results using the cursor returned by each `list()` call, accumulating
+ * blobs until `hasMore` is false or `MAX_BLOB_ITEMS` is reached. This
+ * replaces the old single-call `limit: 1000` approach and ensures campaigns
+ * with thousands of images are fully returned without silently truncating.
+ *
+ * When `options.limit` is provided, a single `list()` call is made (no
+ * pagination loop). This is used by the `/avatars/*` redirect route which
+ * only needs the first matching blob.
+ */
 async function listBlobsWithCache(options: ListBlobsOptions): Promise<{ blobs: ListBlobResultBlob[] }> {
   // If no blob token is available (e.g., in CI), return empty results
   if (!HAS_BLOB_TOKEN) {
@@ -130,13 +151,49 @@ async function listBlobsWithCache(options: ListBlobsOptions): Promise<{ blobs: L
 
   const cacheKey = JSON.stringify(options);
   const cached = blobCache.get(cacheKey);
-  
+
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.data;
   }
-  
+
+  // Helper: fetch all pages for a prefix, accumulating up to MAX_BLOB_ITEMS.
+  // Only used when no explicit limit is supplied.
+  async function fetchAllPages(): Promise<{ blobs: ListBlobResultBlob[] }> {
+    const accumulated: ListBlobResultBlob[] = [];
+    let cursor: string | undefined = undefined;
+
+    do {
+      const page = await list({
+        prefix: options.prefix,
+        limit: 1000, // per-page size; Vercel Blob's documented max per call
+        ...(cursor ? { cursor } : {}),
+      });
+
+      accumulated.push(...page.blobs);
+
+      if (!page.hasMore || accumulated.length >= MAX_BLOB_ITEMS) {
+        if (accumulated.length >= MAX_BLOB_ITEMS) {
+          console.warn(
+            `listBlobsWithCache: reached MAX_BLOB_ITEMS (${MAX_BLOB_ITEMS}) for prefix "${options.prefix ?? ''}". ` +
+            'Some blobs may have been omitted. Consider splitting this campaign into sub-folders.'
+          );
+        }
+        break;
+      }
+
+      cursor = page.cursor;
+    } while (cursor);
+
+    return { blobs: accumulated };
+  }
+
   try {
-    const result = await list(options);
+    // Single-page fetch when an explicit limit was requested (e.g. exact-match
+    // lookups in the /avatars/* redirect route).
+    const result = options.limit !== undefined
+      ? await list(options)
+      : await fetchAllPages();
+
     // Evict oldest entry when at capacity (Map preserves insertion order).
     // Delete-before-set so a re-cached key moves to the tail of iteration order.
     blobCache.delete(cacheKey);
@@ -158,7 +215,9 @@ async function listBlobsWithCache(options: ListBlobsOptions): Promise<{ blobs: L
       console.log(`Rate limited, retrying in ${retryAfter} seconds...`);
       await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
       try {
-        const retryResult = await list(options);
+        const retryResult = options.limit !== undefined
+          ? await list(options)
+          : await fetchAllPages();
         blobCache.delete(cacheKey);
         if (blobCache.size >= BLOB_CACHE_MAX) {
           const oldest = blobCache.keys().next().value;
@@ -330,10 +389,9 @@ app.get('/api/campaigns/:id/images', async (req: Request, res: Response): Promis
     const campaignPath = campaign.icon_path || '';
     const blobPrefix = campaignPath ? `avatars/${campaignPath}/` : 'avatars/';
 
-    // List blobs with the campaign prefix
+    // List blobs with the campaign prefix (no limit = paginate through all pages)
     const { blobs } = await listBlobsWithCache({
       prefix: blobPrefix,
-      limit: 1000, // Adjust as needed for your image collection size
     });
 
     // Filter for image files and format response
@@ -500,4 +558,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 export default app;
 
 // Exported for tests only – do not use in application code
-export { blobCache, CACHE_TTL, BLOB_CACHE_MAX };
+export { blobCache, CACHE_TTL, BLOB_CACHE_MAX, MAX_BLOB_ITEMS };
