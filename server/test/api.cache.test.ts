@@ -6,7 +6,7 @@ import { jest, describe, it, expect, beforeAll, beforeEach, afterEach } from '@j
 //   2. TTL expiry: re-fetches after TTL elapses
 //   3. LRU eviction: 101st unique key evicts the oldest entry
 
-const listMock = jest.fn();
+const listMock = jest.fn<() => Promise<unknown>>();
 
 jest.unstable_mockModule('@vercel/blob', () => ({
   list: listMock,

@@ -1,6 +1,6 @@
 import request from 'supertest';
 import fs from 'fs';
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 
 // Import the Express app without starting the listener
 import app from '../server.ts';

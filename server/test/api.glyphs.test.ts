@@ -11,7 +11,7 @@ const mockGlyphBlobs = [
 
 // Mock @vercel/blob before importing the server
 jest.unstable_mockModule('@vercel/blob', () => ({
-  list: jest.fn().mockResolvedValue({
+  list: jest.fn<() => Promise<unknown>>().mockResolvedValue({
     blobs: mockGlyphBlobs,
     cursor: undefined,
     hasMore: false,

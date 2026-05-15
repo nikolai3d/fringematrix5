@@ -7,7 +7,7 @@ import { jest, describe, it, expect, beforeAll } from '@jest/globals';
 //   - 404 when no matching blob exists
 //   - 503 (or 429) when Vercel Blob is unavailable
 
-const listMock = jest.fn();
+const listMock = jest.fn<() => Promise<unknown>>();
 
 jest.unstable_mockModule('@vercel/blob', () => ({
   list: listMock,
