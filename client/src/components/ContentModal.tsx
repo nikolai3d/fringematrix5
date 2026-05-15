@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { ContentPage } from '../types/api';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 // =============================================================================
 // Focus Management Contract (ContentModal):
@@ -26,6 +27,9 @@ export default function ContentModal({ activeModal, content, isLoading, onClose 
   const modalRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
+  // Focus Contract Item 3 & 4: trap Tab and handle Escape via shared hook
+  useFocusTrap(!!activeModal, modalRef, onClose);
+
   useEffect(() => {
     if (!activeModal) return;
 
@@ -34,41 +38,10 @@ export default function ContentModal({ activeModal, content, isLoading, onClose 
       closeRef.current?.focus();
     }, 0);
 
-    const onKey = (e: KeyboardEvent) => {
-      // Focus Contract Item 4: Escape closes
-      if (e.key === 'Escape') {
-        onClose();
-        return;
-      }
-
-      // Focus Contract Item 3: trap Tab inside the modal
-      if (e.key === 'Tab' && modalRef.current) {
-        const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        const firstElement = focusableElements[0];
-        const lastElement = focusableElements[focusableElements.length - 1];
-
-        if (e.shiftKey) {
-          if (document.activeElement === firstElement) {
-            e.preventDefault();
-            lastElement?.focus();
-          }
-        } else {
-          if (document.activeElement === lastElement) {
-            e.preventDefault();
-            firstElement?.focus();
-          }
-        }
-      }
-    };
-
-    document.addEventListener('keydown', onKey);
     return () => {
       clearTimeout(focusTimer);
-      document.removeEventListener('keydown', onKey);
     };
-  }, [activeModal, onClose]);
+  }, [activeModal]);
 
   if (!activeModal) return null;
 

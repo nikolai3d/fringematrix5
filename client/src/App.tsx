@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import DOMPurify from 'dompurify';
 import { useLightboxAnimations } from './hooks/useLightboxAnimations';
+import { useFocusTrap } from './hooks/useFocusTrap';
 import { fetchJSON } from './utils/fetchJSON';
 import { formatTimePacific } from './utils/formatTimePacific';
 import { gitRemoteToHttps } from './utils/gitRemoteToHttps';
@@ -480,7 +481,10 @@ export default function App() {
     settingsTriggerRef.current = null;
   }, []);
 
-  // Settings modal keyboard handler and focus management
+  // Settings modal: trap Tab and handle Escape via shared hook
+  useFocusTrap(isSettingsOpen, settingsModalRef, closeSettings);
+
+  // Settings modal: focus the close button on open
   useEffect(() => {
     if (!isSettingsOpen) return;
 
@@ -488,39 +492,10 @@ export default function App() {
       settingsCloseRef.current?.focus();
     }, 0);
 
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        closeSettings();
-        return;
-      }
-
-      if (e.key === 'Tab' && settingsModalRef.current) {
-        const focusableElements = settingsModalRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        const firstElement = focusableElements[0];
-        const lastElement = focusableElements[focusableElements.length - 1];
-
-        if (e.shiftKey) {
-          if (document.activeElement === firstElement) {
-            e.preventDefault();
-            lastElement?.focus();
-          }
-        } else {
-          if (document.activeElement === lastElement) {
-            e.preventDefault();
-            firstElement?.focus();
-          }
-        }
-      }
-    };
-
-    document.addEventListener('keydown', onKey);
     return () => {
       clearTimeout(focusTimer);
-      document.removeEventListener('keydown', onKey);
     };
-  }, [isSettingsOpen, closeSettings]);
+  }, [isSettingsOpen]);
 
   return (
     <div id="app">
