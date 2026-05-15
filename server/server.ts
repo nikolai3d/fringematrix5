@@ -2,6 +2,7 @@ import express, { Request, Response, Application } from 'express';
 import path from 'path';
 import fs from 'fs';
 import yaml from 'js-yaml';
+import dotenv from 'dotenv';
 import { list, ListBlobResultBlob } from '@vercel/blob';
 import { fileURLToPath } from 'url';
 
@@ -40,26 +41,12 @@ const __dirname = path.dirname(__filename);
 
 const IS_DEV = process.env['NODE_ENV'] !== 'production';
 
-// Auto-load .env.local if it exists (like in our migration script)
+// Auto-load .env.local if present. `override: false` preserves any value
+// already in process.env (matching the old handrolled-parser semantics)
+// and gives precedence to whoever launched the process.
 const ENV_LOCAL_PATH = path.join(__dirname, '..', '.env.local');
 if (fs.existsSync(ENV_LOCAL_PATH)) {
-  const envContent = fs.readFileSync(ENV_LOCAL_PATH, 'utf8');
-  const envVars = envContent
-    .split('\n')
-    .filter(line => line && !line.startsWith('#') && line.includes('='))
-    .reduce((acc: Record<string, string>, line) => {
-      const [key, ...valueParts] = line.split('=');
-      const value = valueParts.join('=').replace(/^["']|["']$/g, ''); // Remove surrounding quotes
-      acc[key.trim()] = value;
-      return acc;
-    }, {});
-
-  // Set environment variables if they're not already set
-  Object.entries(envVars).forEach(([key, value]) => {
-    if (!process.env[key]) {
-      process.env[key] = value;
-    }
-  });
+  dotenv.config({ path: ENV_LOCAL_PATH, override: false });
 
   if (IS_DEV) {
     console.log('📋 Loaded environment variables from .env.local');
