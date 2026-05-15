@@ -72,6 +72,20 @@ const CACHE_TTL = 30000; // 30 seconds cache during development/testing
 const BLOB_CACHE_MAX = 100; // Maximum number of unique cache entries (LRU eviction)
 const HAS_BLOB_TOKEN = !!process.env['BLOB_READ_WRITE_TOKEN'];
 
+// Shape of the rate-limit error thrown by the @vercel/blob SDK.
+interface BlobRateLimitedError extends Error {
+  name: 'BlobServiceRateLimited';
+  retryAfter?: number;
+}
+
+function isBlobRateLimitedError(err: unknown): err is BlobRateLimitedError {
+  return err instanceof Error && err.name === 'BlobServiceRateLimited';
+}
+
+function toErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 // Thrown when the upstream Vercel Blob API is unreachable or rate-limited and
 // no usable cache fallback exists. Route handlers translate this into a 503
 // (or 429) so the client can render an actionable error instead of a generic
@@ -132,15 +146,15 @@ async function listBlobsWithCache(options: ListBlobsOptions): Promise<{ blobs: L
     }
     blobCache.set(cacheKey, { data: result, timestamp: Date.now() });
     return result;
-  } catch (error: any) {
-    if (error.name === 'BlobServiceRateLimited') {
+  } catch (error: unknown) {
+    if (isBlobRateLimitedError(error)) {
       // If we hit rate limits, return cached data if available, even if expired
       if (cached) {
         console.log('Using expired cache due to rate limit');
         return cached.data;
       }
       // Wait for the suggested retry time (but cap it at 10 seconds for tests)
-      const retryAfter = Math.min(error.retryAfter || 5, 10);
+      const retryAfter = Math.min(error.retryAfter ?? 5, 10);
       console.log(`Rate limited, retrying in ${retryAfter} seconds...`);
       await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
       try {
@@ -152,23 +166,23 @@ async function listBlobsWithCache(options: ListBlobsOptions): Promise<{ blobs: L
         }
         blobCache.set(cacheKey, { data: retryResult, timestamp: Date.now() });
         return retryResult;
-      } catch (retryErr: any) {
+      } catch (retryErr: unknown) {
         // Distinguish "still rate-limited on retry" from "retry hit a different
         // failure (e.g. connection error)". The former is a 429; the latter is
         // a 503 with no retry-after, since we don't have a meaningful hint.
-        if (retryErr.name === 'BlobServiceRateLimited') {
+        if (isBlobRateLimitedError(retryErr)) {
           throw new BlobUnavailableError('Vercel Blob is rate-limited', {
-            retryAfterSeconds: retryErr.retryAfter || retryAfter,
+            retryAfterSeconds: retryErr.retryAfter ?? retryAfter,
             rateLimited: true,
           });
         }
         throw new BlobUnavailableError(
-          `Vercel Blob unavailable after retry: ${retryErr.message || retryErr.name || 'unknown error'}`
+          `Vercel Blob unavailable after retry: ${toErrorMessage(retryErr)}`
         );
       }
     }
 
-    throw new BlobUnavailableError(`Vercel Blob unavailable: ${error.message || error.name || 'unknown error'}`);
+    throw new BlobUnavailableError(`Vercel Blob unavailable: ${toErrorMessage(error)}`);
   }
 }
 
@@ -244,8 +258,8 @@ function ensureDevBuildInfo(): void {
       };
       fs.writeFileSync(BUILD_INFO_PATH, JSON.stringify(devInfo, null, 2), 'utf8');
     }
-  } catch (err: any) {
-    console.warn('Could not create dev build-info.json:', err.message);
+  } catch (err: unknown) {
+    console.warn('Could not create dev build-info.json:', toErrorMessage(err));
   }
 }
 
@@ -281,7 +295,7 @@ app.get('/avatars/*', async (req: Request, res: Response): Promise<void> => {
     
     // Redirect to the CDN URL
     res.redirect(302, blob.url);
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof BlobUnavailableError) {
       console.error('Avatar redirect blob error:', err.message);
       sendBlobError(res, err, 'Failed to serve avatar');
@@ -297,7 +311,7 @@ app.get('/api/campaigns', (_req: Request, res: Response): void => {
   try {
     const campaigns = loadCampaigns();
     res.json({ campaigns });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err);
     res.status(500).json({ error: 'Failed to load campaigns' });
   }
@@ -334,7 +348,7 @@ app.get('/api/campaigns/:id/images', async (req: Request, res: Response): Promis
       }));
 
     res.json({ images });
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof BlobUnavailableError) {
       console.error('Campaign images blob error:', err.message);
       sendBlobError(res, err, 'Failed to list images from CDN');
@@ -376,7 +390,7 @@ app.get('/api/build-info', (_req: Request, res: Response): void => {
       commitHash: null, 
       builtAt: null
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err);
     res.status(500).json({ error: 'Failed to load build info' });
   }
@@ -417,8 +431,8 @@ app.get('/api/content/:page', async (req: Request, res: Response): Promise<void>
     }
     contentCache.set(page, { content, timestamp: Date.now() });
     res.json({ content, page });
-  } catch (err: any) {
-    if (err.code === 'ENOENT') {
+  } catch (err: unknown) {
+    if (err instanceof Error && (err as NodeJS.ErrnoException).code === 'ENOENT') {
       res.status(404).json({ error: 'Content file not found' });
     } else {
       console.error('Content read error:', err);
@@ -443,7 +457,7 @@ app.get('/api/glyphs', async (_req: Request, res: Response): Promise<void> => {
       .map(blob => blob.url);
 
     res.json({ glyphs });
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof BlobUnavailableError) {
       console.error('Glyphs blob error:', err.message);
       sendBlobError(res, err, 'Failed to list glyphs');
