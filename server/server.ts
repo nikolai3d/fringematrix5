@@ -84,8 +84,17 @@ const blobCache = new Map<string, BlobCacheEntry>();
 const CACHE_TTL = 30000; // 30 seconds cache during development/testing
 const HAS_BLOB_TOKEN = !!process.env['BLOB_READ_WRITE_TOKEN'];
 
-// Cache for content pages (History, Credits, Legal) - cached indefinitely until server restart
-const contentCache = new Map<string, string>();
+// Cache for content pages (History, Credits, Legal).
+// TTL protects against stale reads if content/*.html is edited under a running
+// server; size cap is a safety net against unbounded growth if the set of
+// valid content pages expands later.
+interface ContentCacheEntry {
+  content: string;
+  timestamp: number;
+}
+const contentCache = new Map<string, ContentCacheEntry>();
+const CONTENT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CONTENT_CACHE_MAX = 16;
 
 async function listBlobsWithCache(options: ListBlobsOptions): Promise<{ blobs: ListBlobResultBlob[] }> {
   // If no blob token is available (e.g., in CI), return empty results
@@ -308,8 +317,8 @@ app.get('/api/content/:page', async (req: Request, res: Response): Promise<void>
 
   // Check cache first
   const cached = contentCache.get(page);
-  if (cached) {
-    res.json({ content: cached, page });
+  if (cached && Date.now() - cached.timestamp < CONTENT_CACHE_TTL) {
+    res.json({ content: cached.content, page });
     return;
   }
 
@@ -317,8 +326,12 @@ app.get('/api/content/:page', async (req: Request, res: Response): Promise<void>
 
   try {
     const content = await fs.promises.readFile(contentPath, 'utf8');
-    // Cache the content for future requests
-    contentCache.set(page, content);
+    // Evict the oldest entry if we're at capacity (Map preserves insertion order)
+    if (contentCache.size >= CONTENT_CACHE_MAX && !contentCache.has(page)) {
+      const oldest = contentCache.keys().next().value;
+      if (oldest !== undefined) contentCache.delete(oldest);
+    }
+    contentCache.set(page, { content, timestamp: Date.now() });
     res.json({ content, page });
   } catch (err: any) {
     if (err.code === 'ENOENT') {
