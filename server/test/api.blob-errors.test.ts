@@ -85,6 +85,24 @@ describe('Blob failure surface', () => {
     consoleLogSpy.mockRestore();
   });
 
+  it('returns 503 when blob throws "No token found" (invalid token should not look like empty gallery)', async () => {
+    listMock.mockReset();
+    listMock.mockRejectedValue(new Error('No token found'));
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    const campaignsRes = await request(app).get('/api/campaigns');
+    const firstId = campaignsRes.body.campaigns[0].id;
+
+    const res = await request(app).get(`/api/campaigns/${firstId}/images`);
+    expect(res.status).toBe(503);
+    expect(res.body).toHaveProperty('error');
+    expect(res.body.error).toMatch(/Vercel Blob unavailable/i);
+
+    consoleSpy.mockRestore();
+    consoleLogSpy.mockRestore();
+  });
+
   it('caches the retry result when first call is rate-limited but retry succeeds', async () => {
     listMock.mockReset();
     const rateLimitErr = Object.assign(new Error('rate limited'), {
