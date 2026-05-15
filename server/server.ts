@@ -69,6 +69,7 @@ const BUILD_INFO_PATH = path.join(PROJECT_ROOT, 'build-info.json');
 // Simple cache for blob listings to reduce API calls during testing
 const blobCache = new Map<string, BlobCacheEntry>();
 const CACHE_TTL = 30000; // 30 seconds cache during development/testing
+const BLOB_CACHE_MAX = 100; // Maximum number of unique cache entries (LRU eviction)
 const HAS_BLOB_TOKEN = !!process.env['BLOB_READ_WRITE_TOKEN'];
 
 // Thrown when the upstream Vercel Blob API is unreachable or rate-limited and
@@ -122,6 +123,13 @@ async function listBlobsWithCache(options: ListBlobsOptions): Promise<{ blobs: L
   
   try {
     const result = await list(options);
+    // Evict oldest entry when at capacity (Map preserves insertion order).
+    // Delete-before-set so a re-cached key moves to the tail of iteration order.
+    blobCache.delete(cacheKey);
+    if (blobCache.size >= BLOB_CACHE_MAX) {
+      const oldest = blobCache.keys().next().value;
+      if (oldest !== undefined) blobCache.delete(oldest);
+    }
     blobCache.set(cacheKey, { data: result, timestamp: Date.now() });
     return result;
   } catch (error: any) {
@@ -137,6 +145,11 @@ async function listBlobsWithCache(options: ListBlobsOptions): Promise<{ blobs: L
       await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
       try {
         const retryResult = await list(options);
+        blobCache.delete(cacheKey);
+        if (blobCache.size >= BLOB_CACHE_MAX) {
+          const oldest = blobCache.keys().next().value;
+          if (oldest !== undefined) blobCache.delete(oldest);
+        }
         blobCache.set(cacheKey, { data: retryResult, timestamp: Date.now() });
         return retryResult;
       } catch (retryErr: any) {
@@ -458,3 +471,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
 // Export the app for testing
 export default app;
+
+// Exported for tests only – do not use in application code
+export { blobCache, CACHE_TTL, BLOB_CACHE_MAX };
