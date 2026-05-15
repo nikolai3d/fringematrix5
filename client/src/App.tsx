@@ -78,6 +78,7 @@ export default function App() {
   const settingsCloseRef = useRef<HTMLButtonElement>(null);
   const settingsModalRef = useRef<HTMLDivElement>(null);
   const activeModalRef = useRef<ContentPage | null>(null);  // Tracks which modal is loading (prevents race conditions)
+  const modalLoadAbortRef = useRef<AbortController | null>(null);
   const modalTriggerRef = useRef<HTMLElement | null>(null); // Stores element that opened modal for focus restoration
   const modalCloseRef = useRef<HTMLButtonElement>(null);    // Close button ref for initial focus
   const modalRef = useRef<HTMLDivElement>(null);            // Modal container ref for focus trapping
@@ -272,6 +273,12 @@ export default function App() {
   // Opens a content modal (History, Credits, or Legal)
   // Focus Contract: Stores trigger element for later focus restoration (see contract item 1)
   const openModal = useCallback(async (page: ContentPage) => {
+    // Cancel any in-flight modal content fetch from a prior open call
+    modalLoadAbortRef.current?.abort();
+    const controller = new AbortController();
+    modalLoadAbortRef.current = controller;
+    const { signal } = controller;
+
     // Close other popovers when opening modal
     setIsBuildInfoOpen(false);
     setIsShareOpen(false);
@@ -280,28 +287,28 @@ export default function App() {
     // Focus Contract Item 1: Store the trigger element for focus restoration when modal closes
     modalTriggerRef.current = document.activeElement as HTMLElement;
 
-    // Track which modal we're loading to prevent race conditions
-    // (if user clicks another modal button before content loads)
+    // activeModalRef stays as defense in depth alongside abort signal
     activeModalRef.current = page;
     setActiveModal(page);
     setIsModalLoading(true);
     setModalContent('');
 
     try {
-      const data = await fetchJSON<ContentResponse>(`/api/content/${page}`);
-      // Only update content if this is still the active modal (prevents race condition)
+      const data = await fetchJSON<ContentResponse>(`/api/content/${page}`, { signal });
+      if (signal.aborted) return;
       if (activeModalRef.current === page) {
         // Sanitize HTML to prevent XSS attacks
         const sanitizedContent = DOMPurify.sanitize(data.content);
         setModalContent(sanitizedContent);
       }
     } catch (e) {
+      if (signal.aborted || (e instanceof DOMException && e.name === 'AbortError')) return;
       console.error('Failed to load content:', e);
       if (activeModalRef.current === page) {
         setModalContent('<p>Failed to load content. Please try again.</p>');
       }
     } finally {
-      if (activeModalRef.current === page) {
+      if (!signal.aborted && activeModalRef.current === page) {
         setIsModalLoading(false);
       }
     }
@@ -310,9 +317,11 @@ export default function App() {
   // Closes the content modal and restores focus
   // Focus Contract Items 5-6: Restores focus to trigger, safely handles null trigger
   const closeModal = useCallback(() => {
+    modalLoadAbortRef.current?.abort();
     activeModalRef.current = null;
     setActiveModal(null);
     setModalContent('');
+    setIsModalLoading(false);
     // Focus Contract Item 5: Restore focus to the element that triggered the modal
     // Focus Contract Item 6: Safely skip if no trigger element exists
     if (modalTriggerRef.current) {
