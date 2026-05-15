@@ -168,11 +168,15 @@ function deriveCampaignId(c: any, index: number): string {
   // Prefer explicit id (most stable across rename of hashtag/icon_path),
   // fall back to hashtag, then icon_path. Random-fallback is forbidden because
   // it breaks hash-URL deep linking across server restarts.
-  if (typeof c.id === 'string' && c.id.trim()) return slugify(c.id);
-  if (typeof c.hashtag === 'string' && c.hashtag.trim()) return slugify(c.hashtag);
-  if (typeof c.icon_path === 'string' && c.icon_path.trim()) return slugify(c.icon_path);
+  // slugify can produce an empty string from inputs with no alphanumerics
+  // (e.g. "@@@!!!"); in that case fall through to the next candidate.
+  for (const candidate of [c.id, c.hashtag, c.icon_path]) {
+    if (typeof candidate !== 'string' || !candidate.trim()) continue;
+    const slug = slugify(candidate);
+    if (slug) return slug;
+  }
   throw new Error(
-    `Campaign at index ${index} has no usable identifier (id, hashtag, or icon_path are all empty)`
+    `Campaign at index ${index} has no usable identifier (id, hashtag, and icon_path all empty or non-alphanumeric)`
   );
 }
 

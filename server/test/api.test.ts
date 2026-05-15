@@ -58,6 +58,39 @@ describe('API contract', () => {
       consoleSpy.mockRestore();
     });
 
+    it('returns 500 when all identifier fields slugify to empty strings', async () => {
+      // id/hashtag/icon_path are truthy strings but contain no alphanumerics,
+      // so slugify() collapses them all to ''. Must fail loudly rather than
+      // produce a campaign with id: '' that would shadow other entries.
+      const noSlugifiable =
+        'campaigns:\n' +
+        '  - id: "@@@"\n' +
+        '    hashtag: "!!!"\n' +
+        '    icon_path: "***"\n' +
+        '    episode: "Edge case"\n';
+      const fsSpy = jest.spyOn(fs, 'readFileSync').mockImplementationOnce(() => noSlugifiable);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const res = await request(app).get('/api/campaigns');
+      expect(res.status).toBe(500);
+      fsSpy.mockRestore();
+      consoleSpy.mockRestore();
+    });
+
+    it('falls through to hashtag when id is present but slugifies to empty', async () => {
+      // id is a non-empty string but produces an empty slug — should fall
+      // through to hashtag rather than throwing.
+      const fallthrough =
+        'campaigns:\n' +
+        '  - id: "@@@"\n' +
+        '    hashtag: "RealHashtag"\n' +
+        '    episode: "Test"\n';
+      const fsSpy = jest.spyOn(fs, 'readFileSync').mockImplementationOnce(() => fallthrough);
+      const res = await request(app).get('/api/campaigns');
+      expect(res.status).toBe(200);
+      expect(res.body.campaigns[0].id).toBe('realhashtag');
+      fsSpy.mockRestore();
+    });
+
     it('uses explicit id from yaml when provided', async () => {
       const yamlWithIds =
         'campaigns:\n' +
