@@ -118,6 +118,7 @@ export default function App() {
 
   // Load accessibility settings from localStorage on mount
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     try {
       const saved = localStorage.getItem('fringematrix-a11y');
       if (saved) {
@@ -133,6 +134,7 @@ export default function App() {
     const root = document.documentElement;
     root.classList.toggle('reduce-motion', reduceMotion);
     root.classList.toggle('reduce-effects', reduceEffects);
+    if (typeof window === 'undefined') return;
     try {
       localStorage.setItem('fringematrix-a11y', JSON.stringify({ reduceMotion, reduceEffects }));
     } catch { /* ignore storage errors */ }
