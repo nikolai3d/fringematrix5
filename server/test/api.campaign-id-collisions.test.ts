@@ -44,8 +44,8 @@ describe('GET /api/campaigns — duplicate campaign id detection', () => {
     expect(typeof res.body.error).toBe('string');
     // The route handler swallows detail into a generic message; the thrown error
     // message should mention "Duplicate" — verify the spy captured it.
-    const errorCalls = consoleSpy.mock.calls.map(args => String(args[0]));
-    const hasDuplicate = errorCalls.some(msg => /duplicate/i.test(msg));
+    const errorCalls = consoleSpy.mock.calls.map((args: unknown[]) => String(args[0]));
+    const hasDuplicate = errorCalls.some((msg: string) => /duplicate/i.test(msg));
     expect(hasDuplicate).toBe(true);
 
     fsSpy.mockRestore();
@@ -67,8 +67,8 @@ describe('GET /api/campaigns — duplicate campaign id detection', () => {
 
     expect(res.status).toBe(500);
     expect(res.body).toHaveProperty('error');
-    const errorCalls = consoleSpy.mock.calls.map(args => String(args[0]));
-    const hasDuplicate = errorCalls.some(msg => /duplicate/i.test(msg));
+    const errorCalls = consoleSpy.mock.calls.map((args: unknown[]) => String(args[0]));
+    const hasDuplicate = errorCalls.some((msg: string) => /duplicate/i.test(msg));
     expect(hasDuplicate).toBe(true);
 
     fsSpy.mockRestore();
@@ -110,11 +110,11 @@ describe('GET /api/campaigns — duplicate campaign id detection', () => {
 
     expect(res.status).toBe(500);
     // The error object passed to console.error should mention the duplicate id
-    const errorMessages = consoleSpy.mock.calls.map(args => {
+    const errorMessages = consoleSpy.mock.calls.map((args: unknown[]) => {
       const arg = args[0];
       return arg instanceof Error ? arg.message : String(arg);
     });
-    const duplicateMsg = errorMessages.find(msg => /duplicate/i.test(msg));
+    const duplicateMsg = errorMessages.find((msg: string) => /duplicate/i.test(msg));
     expect(duplicateMsg).toBeDefined();
     expect(duplicateMsg).toMatch(/collidingtag/i);
 

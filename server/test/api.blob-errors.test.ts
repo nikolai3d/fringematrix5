@@ -5,7 +5,7 @@ import { jest, describe, it, expect, beforeAll } from '@jest/globals';
 // upstream Vercel Blob failures as 503 (or 429 for rate limits) rather than
 // generic 500s or empty 200s, so the client can render an actionable error.
 
-const listMock = jest.fn();
+const listMock = jest.fn<() => Promise<unknown>>();
 
 jest.unstable_mockModule('@vercel/blob', () => ({
   list: listMock,
