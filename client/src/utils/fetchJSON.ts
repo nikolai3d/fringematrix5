@@ -1,5 +1,11 @@
-export async function fetchJSON<T = Record<string, unknown>>(url: string): Promise<T> {
-  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+export async function fetchJSON<T = Record<string, unknown>>(
+  url: string,
+  opts?: { signal?: AbortSignal }
+): Promise<T> {
+  const res = await fetch(url, {
+    headers: { Accept: 'application/json' },
+    signal: opts?.signal,
+  });
   if (!res.ok) {
     let body = '';
     try { body = await res.text(); } catch {}
@@ -13,5 +19,3 @@ export async function fetchJSON<T = Record<string, unknown>>(url: string): Promi
   }
   return res.json();
 }
-
-
