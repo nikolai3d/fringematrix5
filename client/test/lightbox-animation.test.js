@@ -15,8 +15,17 @@ const cssContent = fs.readFileSync(cssPath, 'utf-8');
 const hookPath = path.resolve(__dirname, '../src/hooks/useLightboxAnimations.ts');
 const hookContent = fs.readFileSync(hookPath, 'utf-8');
 
+// Concat App.tsx with extracted components so source-level regex checks find
+// the lightbox JSX whether it lives in App.tsx or LightboxContainer.tsx.
 const appPath = path.resolve(__dirname, '../src/App.tsx');
-const appContent = fs.readFileSync(appPath, 'utf-8');
+const componentDir = path.resolve(__dirname, '../src/components');
+const sourceFiles = [
+  appPath,
+  ...fs.readdirSync(componentDir)
+    .filter((f) => f.endsWith('.tsx'))
+    .map((f) => path.join(componentDir, f)),
+];
+const appContent = sourceFiles.map((p) => fs.readFileSync(p, 'utf-8')).join('\n');
 
 describe('Wireframe Element Structure', () => {
   it('ensureWireframeElement should create a container with a .wireframe-rect-img <img> child', () => {

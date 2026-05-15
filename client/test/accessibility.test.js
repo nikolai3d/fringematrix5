@@ -11,8 +11,17 @@ import path from 'path';
 const cssPath = path.resolve(__dirname, '../src/styles.css');
 const cssContent = fs.readFileSync(cssPath, 'utf-8');
 
+// Combine App.tsx with extracted components so accessibility checks survive
+// when JSX moves from App.tsx into a focused subcomponent.
 const appPath = path.resolve(__dirname, '../src/App.tsx');
-const appContent = fs.readFileSync(appPath, 'utf-8');
+const componentDir = path.resolve(__dirname, '../src/components');
+const sourceFiles = [
+  appPath,
+  ...fs.readdirSync(componentDir)
+    .filter((f) => f.endsWith('.tsx'))
+    .map((f) => path.join(componentDir, f)),
+];
+const appContent = sourceFiles.map((p) => fs.readFileSync(p, 'utf-8')).join('\n');
 
 // Helper: calculate relative luminance from sRGB channel (0-255)
 function sRGBtoLinear(channel) {
@@ -199,7 +208,9 @@ describe('ARIA Attributes in App.tsx', () => {
   });
 
   it('sidebar should have aria-hidden attribute', () => {
-    expect(appContent).toMatch(/aria-hidden=\{!isSidebarOpen\}/);
+    // Matches `aria-hidden={!<anything>}` on the sidebar <aside>, regardless
+    // of which component owns the open-state variable.
+    expect(appContent).toMatch(/id="campaign-sidebar"[\s\S]*?aria-hidden=\{!/);
   });
 
   it('content modal should have aria-modal and role="dialog"', () => {
