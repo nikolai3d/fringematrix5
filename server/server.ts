@@ -38,6 +38,8 @@ interface ListBlobsOptions {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const IS_DEV = process.env['NODE_ENV'] !== 'production';
+
 // Auto-load .env.local if it exists (like in our migration script)
 const ENV_LOCAL_PATH = path.join(__dirname, '..', '.env.local');
 if (fs.existsSync(ENV_LOCAL_PATH)) {
@@ -51,16 +53,18 @@ if (fs.existsSync(ENV_LOCAL_PATH)) {
       acc[key.trim()] = value;
       return acc;
     }, {});
-  
+
   // Set environment variables if they're not already set
   Object.entries(envVars).forEach(([key, value]) => {
     if (!process.env[key]) {
       process.env[key] = value;
     }
   });
-  
-  console.log('📋 Loaded environment variables from .env.local');
-  console.log('🔑 BLOB_READ_WRITE_TOKEN:', process.env['BLOB_READ_WRITE_TOKEN'] ? 'FOUND' : 'MISSING');
+
+  if (IS_DEV) {
+    console.log('📋 Loaded environment variables from .env.local');
+    console.log('🔑 BLOB_READ_WRITE_TOKEN:', process.env['BLOB_READ_WRITE_TOKEN'] ? 'FOUND' : 'MISSING');
+  }
 }
 
 const app: Application = express();
@@ -74,7 +78,6 @@ const PUBLIC_DIR = path.join(PROJECT_ROOT, 'public');
 const CLIENT_DIST_DIR = path.join(PROJECT_ROOT, 'client', 'dist');
 const HAS_CLIENT_BUILD = fs.existsSync(path.join(CLIENT_DIST_DIR, 'index.html'));
 const BUILD_INFO_PATH = path.join(PROJECT_ROOT, 'build-info.json');
-const IS_DEV = process.env['NODE_ENV'] !== 'production';
 
 // Simple cache for blob listings to reduce API calls during testing
 const blobCache = new Map<string, BlobCacheEntry>();
