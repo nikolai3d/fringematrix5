@@ -18,6 +18,10 @@ import type {
   ContentResponse
 } from './types/api';
 
+// A single hung image shouldn't freeze the whole gallery. After this much
+// time we treat the image as errored and let the rest of the batch finish.
+const IMAGE_PRELOAD_TIMEOUT_MS = 15_000;
+
 export default function App() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
@@ -162,12 +166,20 @@ export default function App() {
       const loadPromises = campaignImages.map((img: ApiImageData) =>
         new Promise<void>((resolve) => {
           const image = new Image();
+          let settled = false;
           const done = () => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
             if (signal.aborted) return resolve();
             loadedCount++;
             setCampaignLoadProgress(loadedCount);
             resolve();
           };
+          const timer = setTimeout(() => {
+            hasError = true;
+            done();
+          }, IMAGE_PRELOAD_TIMEOUT_MS);
           image.onload = done;
           image.onerror = () => {
             hasError = true;
@@ -422,12 +434,20 @@ export default function App() {
               const loadPromises = campaignImages.map((img: ApiImageData) =>
                 new Promise<void>((resolve) => {
                   const image = new Image();
+                  let settled = false;
                   const done = () => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timer);
                     if (signal.aborted) return resolve();
                     loadedCount++;
                     setCampaignLoadProgress(loadedCount);
                     resolve();
                   };
+                  const timer = setTimeout(() => {
+                    hasError = true;
+                    done();
+                  }, IMAGE_PRELOAD_TIMEOUT_MS);
                   image.onload = done;
                   image.onerror = () => {
                     hasError = true;
