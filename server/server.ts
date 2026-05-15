@@ -136,12 +136,22 @@ async function listBlobsWithCache(options: ListBlobsOptions): Promise<{ blobs: L
       console.log(`Rate limited, retrying in ${retryAfter} seconds...`);
       await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
       try {
-        return await list(options);
+        const retryResult = await list(options);
+        blobCache.set(cacheKey, { data: retryResult, timestamp: Date.now() });
+        return retryResult;
       } catch (retryErr: any) {
-        throw new BlobUnavailableError('Vercel Blob is rate-limited', {
-          retryAfterSeconds: retryErr.retryAfter || retryAfter,
-          rateLimited: true,
-        });
+        // Distinguish "still rate-limited on retry" from "retry hit a different
+        // failure (e.g. connection error)". The former is a 429; the latter is
+        // a 503 with no retry-after, since we don't have a meaningful hint.
+        if (retryErr.name === 'BlobServiceRateLimited') {
+          throw new BlobUnavailableError('Vercel Blob is rate-limited', {
+            retryAfterSeconds: retryErr.retryAfter || retryAfter,
+            rateLimited: true,
+          });
+        }
+        throw new BlobUnavailableError(
+          `Vercel Blob unavailable after retry: ${retryErr.message || retryErr.name || 'unknown error'}`
+        );
       }
     }
 

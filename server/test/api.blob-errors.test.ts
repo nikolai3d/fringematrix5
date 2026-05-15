@@ -61,4 +61,54 @@ describe('Blob failure surface', () => {
     consoleSpy.mockRestore();
     consoleLogSpy.mockRestore();
   });
+
+  it('returns 503 (not 429) when rate-limit retry hits a non-rate-limit error', async () => {
+    listMock.mockReset();
+    const rateLimitErr = Object.assign(new Error('rate limited'), {
+      name: 'BlobServiceRateLimited',
+      retryAfter: 1,
+    });
+    const connectErr = Object.assign(new Error('connect ECONNREFUSED'), { name: 'TypeError' });
+    // First call: rate-limited. Retry: connection error (not rate-limit).
+    // Should surface as 503 without Retry-After, since we have no meaningful hint.
+    listMock.mockRejectedValueOnce(rateLimitErr);
+    listMock.mockRejectedValueOnce(connectErr);
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    const res = await request(app).get('/api/glyphs');
+    expect(res.status).toBe(503);
+    expect(res.headers['retry-after']).toBeUndefined();
+    expect(res.body.error).toMatch(/after retry/i);
+
+    consoleSpy.mockRestore();
+    consoleLogSpy.mockRestore();
+  });
+
+  it('caches the retry result when first call is rate-limited but retry succeeds', async () => {
+    listMock.mockReset();
+    const rateLimitErr = Object.assign(new Error('rate limited'), {
+      name: 'BlobServiceRateLimited',
+      retryAfter: 1,
+    });
+    // First call rate-limited; retry succeeds; subsequent calls should hit
+    // the cache so listMock is called exactly twice total across two requests.
+    listMock.mockRejectedValueOnce(rateLimitErr);
+    listMock.mockResolvedValueOnce({ blobs: [{ pathname: 'avatars/_images/Glyphs/small/g.png', url: 'https://cdn/g.png', size: 1 }] });
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    const first = await request(app).get('/api/glyphs');
+    expect(first.status).toBe(200);
+    expect(first.body.glyphs).toEqual(['https://cdn/g.png']);
+
+    const second = await request(app).get('/api/glyphs');
+    expect(second.status).toBe(200);
+    expect(second.body.glyphs).toEqual(['https://cdn/g.png']);
+
+    expect(listMock).toHaveBeenCalledTimes(2);
+
+    consoleSpy.mockRestore();
+    consoleLogSpy.mockRestore();
+  });
 });
