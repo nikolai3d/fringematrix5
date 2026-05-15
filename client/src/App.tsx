@@ -25,6 +25,45 @@ import type {
 // time we treat the image as errored and let the rest of the batch finish.
 const IMAGE_PRELOAD_TIMEOUT_MS = 15_000;
 
+async function preloadCampaignImages(
+  campaignImages: ApiImageData[],
+  signal: AbortSignal,
+  onProgress: (loaded: number) => void,
+): Promise<{ hasError: boolean }> {
+  let loaded = 0;
+  let hasError = false;
+  await Promise.all(
+    campaignImages.map((img) =>
+      new Promise<void>((resolve) => {
+        if (signal.aborted) return resolve();
+        const image = new Image();
+        let settled = false;
+        // Abort short-circuits the wait so rapid campaign switching doesn't
+        // leave dozens of pending Image loads holding the Promise.all open
+        // for the full 15s timeout each.
+        const settle = (errored: boolean) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          signal.removeEventListener('abort', onAbort);
+          if (signal.aborted) return resolve();
+          if (errored) hasError = true;
+          loaded += 1;
+          onProgress(loaded);
+          resolve();
+        };
+        const onAbort = () => settle(false);
+        signal.addEventListener('abort', onAbort);
+        const timer = setTimeout(() => settle(true), IMAGE_PRELOAD_TIMEOUT_MS);
+        image.onload = () => settle(false);
+        image.onerror = () => settle(true);
+        image.src = img.src;
+      }),
+    ),
+  );
+  return { hasError };
+}
+
 export default function App() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
@@ -109,20 +148,14 @@ export default function App() {
     [campaigns, activeCampaignId]
   );
 
-  const selectCampaign = useCallback(async (id: string) => {
-    campaignLoadAbortRef.current?.abort();
-    const controller = new AbortController();
-    campaignLoadAbortRef.current = controller;
-    const { signal } = controller;
-
-    setActiveCampaignId(id);
-    window.history.replaceState({}, '', `#${id}`);
-
-    if (imagesByCampaign[id]) {
-      setImages(imagesByCampaign[id]);
-      return;
-    }
-
+  // Fetches a campaign's images and preloads them, writing progress/error
+  // state along the way. Shared by selectCampaign and the initial mount-load
+  // effect — keep both call sites in sync by editing here.
+  const loadCampaignImages = useCallback(async (
+    id: string,
+    signal: AbortSignal,
+    onImageCountKnown?: (count: number) => void,
+  ): Promise<void> => {
     setIsCampaignLoading(true);
     setCampaignLoadProgress(0);
     setCampaignLoadTotal(0);
@@ -134,10 +167,10 @@ export default function App() {
       const campaignImages = res.images || [];
 
       setCampaignLoadTotal(campaignImages.length);
+      onImageCountKnown?.(campaignImages.length);
 
       if (campaignImages.length === 0) {
         setImages([]);
-        setIsCampaignLoading(false);
         return;
       }
 
@@ -150,41 +183,10 @@ export default function App() {
       }));
       setImages(placeholderImages);
 
-      let loadedCount = 0;
-      let hasError = false;
-
-      const loadPromises = campaignImages.map((img: ApiImageData) =>
-        new Promise<void>((resolve) => {
-          const image = new Image();
-          let settled = false;
-          const done = () => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(timer);
-            if (signal.aborted) return resolve();
-            loadedCount++;
-            setCampaignLoadProgress(loadedCount);
-            resolve();
-          };
-          const timer = setTimeout(() => {
-            hasError = true;
-            done();
-          }, IMAGE_PRELOAD_TIMEOUT_MS);
-          image.onload = done;
-          image.onerror = () => {
-            hasError = true;
-            done();
-          };
-          image.src = img.src;
-        })
-      );
-
-      await Promise.all(loadPromises);
+      const { hasError } = await preloadCampaignImages(campaignImages, signal, setCampaignLoadProgress);
       if (signal.aborted) return;
 
-      if (hasError) {
-        setCampaignLoadError(true);
-      }
+      if (hasError) setCampaignLoadError(true);
 
       const fullyLoadedImages = campaignImages.map((img: ApiImageData) => ({
         ...img,
@@ -202,7 +204,25 @@ export default function App() {
     } finally {
       if (!signal.aborted) setIsCampaignLoading(false);
     }
-  }, [imagesByCampaign]);
+  }, []);
+
+  const selectCampaign = useCallback(async (id: string) => {
+    campaignLoadAbortRef.current?.abort();
+    const controller = new AbortController();
+    campaignLoadAbortRef.current = controller;
+    const { signal } = controller;
+
+    setActiveCampaignId(id);
+    window.history.replaceState({}, '', `#${id}`);
+
+    if (imagesByCampaign[id]) {
+      setImages(imagesByCampaign[id]);
+      setIsCampaignLoading(false);
+      return;
+    }
+
+    await loadCampaignImages(id, signal);
+  }, [imagesByCampaign, loadCampaignImages]);
 
   const activeIndex = useMemo(() => {
     if (!activeCampaignId) return -1;
@@ -395,92 +415,12 @@ export default function App() {
           // user clicking a different campaign before this finishes aborts cleanly.
           const controller = new AbortController();
           campaignLoadAbortRef.current = controller;
-          const { signal } = controller;
 
           setActiveCampaignId(initial.id);
           window.history.replaceState({}, '', `#${initial.id}`);
 
-          setIsCampaignLoading(true);
-          setCampaignLoadProgress(0);
-          setCampaignLoadTotal(0);
-          setCampaignLoadError(false);
-
-          try {
-            const res = await fetchJSON<CampaignImagesResponse>(`/api/campaigns/${initial.id}/images`, { signal });
-            if (signal.aborted) return;
-            const campaignImages = res.images || [];
-
-            setCampaignLoadTotal(campaignImages.length);
-            setLoadingImageCount(campaignImages.length);
-
-            if (campaignImages.length === 0) {
-              setImages([]);
-              setIsDataReady(true);
-            } else {
-              const placeholderImages = campaignImages.map((img: ApiImageData) => ({
-                fileName: img.fileName,
-                originalSrc: img.src,
-                src: null,
-                isLoading: true,
-                loadedSrc: null
-              }));
-              setImages(placeholderImages);
-
-              let loadedCount = 0;
-              let hasError = false;
-
-              const loadPromises = campaignImages.map((img: ApiImageData) =>
-                new Promise<void>((resolve) => {
-                  const image = new Image();
-                  let settled = false;
-                  const done = () => {
-                    if (settled) return;
-                    settled = true;
-                    clearTimeout(timer);
-                    if (signal.aborted) return resolve();
-                    loadedCount++;
-                    setCampaignLoadProgress(loadedCount);
-                    resolve();
-                  };
-                  const timer = setTimeout(() => {
-                    hasError = true;
-                    done();
-                  }, IMAGE_PRELOAD_TIMEOUT_MS);
-                  image.onload = done;
-                  image.onerror = () => {
-                    hasError = true;
-                    done();
-                  };
-                  image.src = img.src;
-                })
-              );
-
-              await Promise.all(loadPromises);
-              if (signal.aborted) return;
-
-              if (hasError) {
-                setCampaignLoadError(true);
-              }
-
-              const fullyLoadedImages = campaignImages.map((img: ApiImageData) => ({
-                ...img,
-                isLoading: false,
-                loadedSrc: img.src
-              }));
-
-              setImages(fullyLoadedImages);
-              setImagesByCampaign(prev => ({ ...prev, [initial.id]: campaignImages }));
-              if (isMounted) setIsDataReady(true);
-            }
-          } catch (error) {
-            if (signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) return;
-            console.error('Failed to load initial campaign images:', error);
-            setCampaignLoadError(true);
-            setImages([]);
-            if (isMounted) setIsDataReady(true);
-          } finally {
-            if (!signal.aborted) setIsCampaignLoading(false);
-          }
+          await loadCampaignImages(initial.id, controller.signal, setLoadingImageCount);
+          if (isMounted && !controller.signal.aborted) setIsDataReady(true);
         } else {
           // No initial campaign - still mark as ready
           if (isMounted) setIsDataReady(true);

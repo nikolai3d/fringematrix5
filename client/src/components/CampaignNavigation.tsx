@@ -35,6 +35,7 @@ export default function CampaignNavigation({
                 onClose();
               }}
               disabled={isCampaignLoading}
+              tabIndex={isOpen ? 0 : -1}
             >
               #{c.hashtag}
             </button>

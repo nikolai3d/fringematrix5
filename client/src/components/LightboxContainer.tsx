@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import type { MutableRefObject } from 'react';
 import type { ImageData } from '../types/api';
 
@@ -12,7 +12,7 @@ interface Props {
   lightboxIndex: number;
   isLightboxOpen: boolean;
   hideLightboxImage: boolean;
-  setLightboxIndex: (updater: (idx: number) => number) => void;
+  setLightboxIndex: React.Dispatch<React.SetStateAction<number>>;
   closeLightbox: () => void;
   isAnimatingRef: MutableRefObject<boolean>;
 }
@@ -42,8 +42,12 @@ export default function LightboxContainer({
         await navigator.share({ title: 'Fringe Matrix', text: img.fileName, url: shareUrl.toString() });
       } catch {}
     } else if (navigator.clipboard) {
-      await navigator.clipboard.writeText(shareUrl.toString());
-      alert('Link copied to clipboard');
+      try {
+        await navigator.clipboard.writeText(shareUrl.toString());
+        alert('Link copied to clipboard');
+      } catch {
+        // clipboard permission denied or insecure context — fail silently
+      }
     }
   }, [images, lightboxIndex]);
 
