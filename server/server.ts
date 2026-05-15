@@ -168,11 +168,6 @@ async function listBlobsWithCache(options: ListBlobsOptions): Promise<{ blobs: L
       }
     }
 
-    if (error.message && error.message.includes('No token found')) {
-      console.log('Blob token missing, returning empty blob list for testing');
-      return { blobs: [] };
-    }
-
     throw new BlobUnavailableError(`Vercel Blob unavailable: ${error.message || error.name || 'unknown error'}`);
   }
 }
