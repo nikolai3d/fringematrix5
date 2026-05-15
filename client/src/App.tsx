@@ -207,6 +207,13 @@ export default function App() {
   }, []);
 
   const selectCampaign = useCallback(async (id: string) => {
+    // All nav buttons are disabled while isCampaignLoading is true, so
+    // user-triggered calls to selectCampaign cannot overlap with an ongoing
+    // user-triggered load. The abort here is intentionally kept for one real
+    // race: the initial mount-load (which runs before buttons are rendered)
+    // overlapping with the first user click once the loading screen clears.
+    // Removing the abort would leave that mount → user-click transition
+    // unguarded, so we keep it even though it is a no-op for all other paths.
     campaignLoadAbortRef.current?.abort();
     const controller = new AbortController();
     campaignLoadAbortRef.current = controller;
