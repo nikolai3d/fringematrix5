@@ -84,6 +84,29 @@ const blobCache = new Map<string, BlobCacheEntry>();
 const CACHE_TTL = 30000; // 30 seconds cache during development/testing
 const HAS_BLOB_TOKEN = !!process.env['BLOB_READ_WRITE_TOKEN'];
 
+// Thrown when the upstream Vercel Blob API is unreachable or rate-limited and
+// no usable cache fallback exists. Route handlers translate this into a 503
+// (or 429) so the client can render an actionable error instead of a generic
+// "no images" empty state.
+class BlobUnavailableError extends Error {
+  retryAfterSeconds?: number;
+  rateLimited: boolean;
+  constructor(message: string, opts: { retryAfterSeconds?: number; rateLimited?: boolean } = {}) {
+    super(message);
+    this.name = 'BlobUnavailableError';
+    this.retryAfterSeconds = opts.retryAfterSeconds;
+    this.rateLimited = opts.rateLimited ?? false;
+  }
+}
+
+function sendBlobError(res: Response, err: BlobUnavailableError, fallbackMessage: string): void {
+  const status = err.rateLimited ? 429 : 503;
+  if (err.retryAfterSeconds !== undefined) {
+    res.setHeader('Retry-After', String(err.retryAfterSeconds));
+  }
+  res.status(status).json({ error: err.message || fallbackMessage });
+}
+
 // Cache for content pages (History, Credits, Legal).
 // TTL protects against stale reads if content/*.html is edited under a running
 // server; size cap is a safety net against unbounded growth if the set of
@@ -125,15 +148,22 @@ async function listBlobsWithCache(options: ListBlobsOptions): Promise<{ blobs: L
       const retryAfter = Math.min(error.retryAfter || 5, 10);
       console.log(`Rate limited, retrying in ${retryAfter} seconds...`);
       await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-      return await list(options);
+      try {
+        return await list(options);
+      } catch (retryErr: any) {
+        throw new BlobUnavailableError('Vercel Blob is rate-limited', {
+          retryAfterSeconds: retryErr.retryAfter || retryAfter,
+          rateLimited: true,
+        });
+      }
     }
-    
+
     if (error.message && error.message.includes('No token found')) {
       console.log('Blob token missing, returning empty blob list for testing');
       return { blobs: [] };
     }
-    
-    throw error;
+
+    throw new BlobUnavailableError(`Vercel Blob unavailable: ${error.message || error.name || 'unknown error'}`);
   }
 }
 
@@ -213,6 +243,11 @@ app.get('/avatars/*', async (req: Request, res: Response): Promise<void> => {
     // Redirect to the CDN URL
     res.redirect(302, blob.url);
   } catch (err: any) {
+    if (err instanceof BlobUnavailableError) {
+      console.error('Avatar redirect blob error:', err.message);
+      sendBlobError(res, err, 'Failed to serve avatar');
+      return;
+    }
     console.error('Avatar redirect error:', err);
     res.status(500).json({ error: 'Failed to serve avatar' });
   }
@@ -261,6 +296,11 @@ app.get('/api/campaigns/:id/images', async (req: Request, res: Response): Promis
 
     res.json({ images });
   } catch (err: any) {
+    if (err instanceof BlobUnavailableError) {
+      console.error('Campaign images blob error:', err.message);
+      sendBlobError(res, err, 'Failed to list images from CDN');
+      return;
+    }
     console.error('Blob listing error:', err);
     res.status(500).json({ error: 'Failed to list images from CDN' });
   }
@@ -360,6 +400,11 @@ app.get('/api/glyphs', async (_req: Request, res: Response): Promise<void> => {
 
     res.json({ glyphs });
   } catch (err: any) {
+    if (err instanceof BlobUnavailableError) {
+      console.error('Glyphs blob error:', err.message);
+      sendBlobError(res, err, 'Failed to list glyphs');
+      return;
+    }
     console.error('Glyphs listing error:', err);
     res.status(500).json({ error: 'Failed to list glyphs' });
   }

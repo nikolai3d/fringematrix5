@@ -60,8 +60,10 @@ describe('API contract', () => {
       }
       const firstId = campaigns[0]!.id;
       const res = await request(app).get(`/api/campaigns/${firstId}/images`);
-      // Could be 200 with images (possibly empty) or 500 if avatar paths are inaccessible
-      expect([200, 500]).toContain(res.status);
+      // Could be 200 with images (possibly empty), or 503 if the upstream blob
+      // service is unavailable. 500 stays in the set for legacy / unexpected
+      // server errors that aren't blob-related.
+      expect([200, 500, 503]).toContain(res.status);
       if (res.status === 200) {
         expect(res.body).toHaveProperty('images');
         expect(Array.isArray(res.body.images)).toBe(true);
