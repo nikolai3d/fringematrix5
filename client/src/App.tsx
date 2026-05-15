@@ -327,6 +327,7 @@ export default function App() {
   // Focus Contract Items 5-6: Restores focus to trigger, safely handles null trigger
   const closeModal = useCallback(() => {
     modalLoadAbortRef.current?.abort();
+    modalLoadAbortRef.current = null;
     activeModalRef.current = null;
     setActiveModal(null);
     setModalContent('');
