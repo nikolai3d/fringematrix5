@@ -379,8 +379,13 @@ app.get('/api/content/:page', async (req: Request, res: Response): Promise<void>
 
   try {
     const content = await fs.promises.readFile(contentPath, 'utf8');
-    // Evict the oldest entry if we're at capacity (Map preserves insertion order)
-    if (contentCache.size >= CONTENT_CACHE_MAX && !contentCache.has(page)) {
+    // Evict the oldest entry if we're at capacity (Map preserves insertion order).
+    // Delete-before-set on the refresh path so a re-cached entry moves to the
+    // end of the iteration order — otherwise Map.set on an existing key keeps
+    // its original position and the just-refreshed entry would be the next
+    // eviction target.
+    contentCache.delete(page);
+    if (contentCache.size >= CONTENT_CACHE_MAX) {
       const oldest = contentCache.keys().next().value;
       if (oldest !== undefined) contentCache.delete(oldest);
     }
