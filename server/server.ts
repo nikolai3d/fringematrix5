@@ -65,6 +65,8 @@ if (fs.existsSync(ENV_LOCAL_PATH)) {
 }
 
 const app: Application = express();
+// Remove the default X-Powered-By: Express header to avoid fingerprinting the server stack.
+app.disable('x-powered-by');
 const PORT = process.env['PORT'] || 3000;
 
 // Defense-in-depth: send a 503 if an async request handler takes longer than

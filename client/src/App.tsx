@@ -6,6 +6,7 @@ import { fetchJSON } from './utils/fetchJSON';
 import { formatTimePacific } from './utils/formatTimePacific';
 import { gitRemoteToHttps } from './utils/gitRemoteToHttps';
 import { closeSubwindowsState } from './utils/closeSubwindowsState';
+import { isSafeUrl } from './utils/isSafeUrl';
 import { applyTheme } from './config/theme';
 import { SITE_URL, SITE_SHARE_TEXT } from './config/site';
 import LoadingManager from './components/LoadingManager';
@@ -646,13 +647,13 @@ export default function App() {
                 <span>Path: {activeCampaign.icon_path}</span>
               </div>
               <div className="campaign-links">
-                {activeCampaign.fringenuity_link && (
+                {isSafeUrl(activeCampaign.fringenuity_link) && (
                   <a href={activeCampaign.fringenuity_link} target="_blank" rel="noreferrer noopener">Fringenuity</a>
                 )}
-                {activeCampaign.imdb_link && (
+                {isSafeUrl(activeCampaign.imdb_link) && (
                   <a href={activeCampaign.imdb_link} target="_blank" rel="noreferrer noopener">IMDB</a>
                 )}
-                {activeCampaign.wiki_link && (
+                {isSafeUrl(activeCampaign.wiki_link) && (
                   <a href={activeCampaign.wiki_link} target="_blank" rel="noreferrer noopener">Wiki</a>
                 )}
               </div>
