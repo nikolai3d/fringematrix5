@@ -373,3 +373,168 @@ test('Home button clears hash and navigates to first campaign', async ({ page })
   const finalCampaignText = await topNavbar.locator('.current-campaign').textContent();
   expect(finalCampaignText).toBe(firstCampaignText);
 });
+
+// ---------------------------------------------------------------------------
+// Settings modal
+// ---------------------------------------------------------------------------
+
+test.describe('Settings modal', () => {
+  // Helper: navigate to the app with a clean accessibility state
+  async function gotoClean(page: Parameters<typeof test.beforeEach>[0]['page']) {
+    // Inject a script that clears the a11y key before the app reads localStorage,
+    // ensuring toggles start in their default (off) state.
+    await page.addInitScript(() => {
+      localStorage.removeItem('fringematrix-a11y');
+    });
+    await page.goto('/');
+    const loader = page.getByRole('dialog', { name: 'Loading' });
+    if (await loader.isVisible().catch(() => false)) {
+      await loader.waitFor({ state: 'detached' });
+    }
+  }
+
+  test.beforeEach(async ({ page }) => {
+    await gotoClean(page);
+  });
+
+  test('opens and closes Settings modal', async ({ page }) => {
+    // Modal should not be present yet
+    await expect(page.getByRole('dialog', { name: 'Settings' })).toBeHidden();
+
+    // Open via toolbar button
+    await page.getByRole('button', { name: 'Settings' }).click();
+    const modal = page.getByRole('dialog', { name: 'Settings' });
+    await expect(modal).toBeVisible();
+
+    // Close via the close button
+    await modal.getByRole('button', { name: 'Close settings' }).click();
+    await expect(modal).toBeHidden();
+  });
+
+  test('Escape closes the Settings modal', async ({ page }) => {
+    await page.getByRole('button', { name: 'Settings' }).click();
+    const modal = page.getByRole('dialog', { name: 'Settings' });
+    await expect(modal).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(modal).toBeHidden();
+  });
+
+  test('toggling Reduce Effects adds reduce-effects class to <html>', async ({ page }) => {
+    await page.getByRole('button', { name: 'Settings' }).click();
+    const modal = page.getByRole('dialog', { name: 'Settings' });
+    await expect(modal).toBeVisible();
+
+    // Initially the class should not be present
+    const hasBefore = await page.evaluate(() =>
+      document.documentElement.classList.contains('reduce-effects')
+    );
+    expect(hasBefore).toBe(false);
+
+    // Toggle Reduce Effects on
+    const toggle = modal.getByRole('switch', { name: 'Reduce Effects' });
+    await expect(toggle).toHaveAttribute('aria-checked', 'false');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-checked', 'true');
+
+    const hasAfter = await page.evaluate(() =>
+      document.documentElement.classList.contains('reduce-effects')
+    );
+    expect(hasAfter).toBe(true);
+  });
+
+  test('Reduce Effects setting persists across page reload via localStorage', async ({ page, context }) => {
+    // Enable Reduce Effects via the UI — this writes to localStorage.
+    await page.getByRole('button', { name: 'Settings' }).click();
+    const modal = page.getByRole('dialog', { name: 'Settings' });
+    await modal.getByRole('switch', { name: 'Reduce Effects' }).click();
+
+    // Confirm both the class and the localStorage entry are applied.
+    expect(
+      await page.evaluate(() => document.documentElement.classList.contains('reduce-effects'))
+    ).toBe(true);
+    const storedValue = await page.evaluate(() => localStorage.getItem('fringematrix-a11y'));
+    expect(storedValue).not.toBeNull();
+    const parsed = JSON.parse(storedValue!);
+    expect(parsed.reduceEffects).toBe(true);
+
+    // Open a fresh page in the same browser context (shares localStorage) —
+    // this simulates a reload without triggering the addInitScript that the
+    // beforeEach registered, ensuring the persisted value is read by the app.
+    const freshPage = await context.newPage();
+    await freshPage.goto('/');
+    const loaderFresh = freshPage.getByRole('dialog', { name: 'Loading' });
+    if (await loaderFresh.isVisible().catch(() => false)) {
+      await loaderFresh.waitFor({ state: 'detached' });
+    }
+
+    expect(
+      await freshPage.evaluate(() => document.documentElement.classList.contains('reduce-effects'))
+    ).toBe(true);
+
+    await freshPage.close();
+  });
+
+  test('toggling Reduce Motion adds reduce-motion class to <html>', async ({ page }) => {
+    await page.getByRole('button', { name: 'Settings' }).click();
+    const modal = page.getByRole('dialog', { name: 'Settings' });
+    await expect(modal).toBeVisible();
+
+    const hasBefore = await page.evaluate(() =>
+      document.documentElement.classList.contains('reduce-motion')
+    );
+    expect(hasBefore).toBe(false);
+
+    const toggle = modal.getByRole('switch', { name: 'Reduce Motion' });
+    await expect(toggle).toHaveAttribute('aria-checked', 'false');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-checked', 'true');
+
+    expect(
+      await page.evaluate(() => document.documentElement.classList.contains('reduce-motion'))
+    ).toBe(true);
+  });
+
+  test('focus is trapped inside Settings modal (Tab wraps)', async ({ page }) => {
+    await page.getByRole('button', { name: 'Settings' }).click();
+    const modal = page.getByRole('dialog', { name: 'Settings' });
+    await expect(modal).toBeVisible();
+
+    // Initial focus is set via setTimeout(0) in the component; wait for the
+    // close button to receive focus before asserting.
+    const closeBtn = modal.getByRole('button', { name: 'Close settings' });
+    await expect(closeBtn).toBeFocused();
+
+    // Collect all focusable elements inside the modal
+    const focusableCount = await modal.evaluate((el) => {
+      const sel = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+      return el.querySelectorAll(sel).length;
+    });
+
+    // Tab through all elements — after the last one, focus must wrap back to the first
+    for (let i = 0; i < focusableCount; i++) {
+      await page.keyboard.press('Tab');
+    }
+
+    // Focus should have wrapped to the first focusable element inside the modal
+    const isInsideModal = await page.evaluate(() => {
+      const modalEl = document.querySelector('[aria-labelledby="settings-title"]');
+      return modalEl ? modalEl.contains(document.activeElement) : false;
+    });
+    expect(isInsideModal).toBe(true);
+  });
+
+  test('focus returns to Settings button after modal closes', async ({ page }) => {
+    const settingsBtn = page.getByRole('button', { name: 'Settings' });
+    await settingsBtn.click();
+    const modal = page.getByRole('dialog', { name: 'Settings' });
+    await expect(modal).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(modal).toBeHidden();
+
+    // Focus must have returned to the trigger element
+    const focusedLabel = await page.evaluate(() => document.activeElement?.textContent?.trim());
+    expect(focusedLabel).toBe('Settings');
+  });
+});
