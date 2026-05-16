@@ -44,7 +44,10 @@ export interface CampaignImagesResponse {
 
 export type BuildInfoResponse = BuildInfo;
 
-export type ContentPage = 'history' | 'credits' | 'legal';
+// ContentPage is the canonical shared type — do not redefine here.
+// To add a new page: update shared/types.ts and VALID_CONTENT_PAGES in server/server.ts.
+import type { ContentPage } from '../../../shared/types';
+export type { ContentPage };
 
 export interface ContentResponse {
   content: string;
