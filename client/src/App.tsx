@@ -227,7 +227,7 @@ export default function App() {
     setActiveCampaignId(id);
     window.history.replaceState({}, '', `#${id}`);
 
-    if (imageCache[id]) {
+    if (id in imageCache) {
       setCurrentImages(imageCache[id]);
       setCampaignLoadProgress(0);
       setCampaignLoadTotal(0);
