@@ -433,31 +433,41 @@ footer.navbar {
   align-items: center;
   justify-content: space-between;
   pointer-events: none;
-  padding: 0 8px;
+  padding: 0 6px;
 }
-.lightbox-side-arrows .nav-btn { pointer-events: auto; }
+.lightbox-side-arrows .nav-btn {
+  pointer-events: auto;
+  opacity: 0.78;
+  transition: opacity 0.18s ease, box-shadow 0.18s ease;
+}
+.lightbox-side-arrows .nav-btn:hover { opacity: 1; }
 .lightbox-details {
   width: 320px;
   min-height: 200px;
-  border: 1px solid rgba(var(--theme-accent-rgb), 0.25);
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(var(--theme-accent-rgb), 0.28);
+  border-radius: 16px;
+  background: rgba(6, 9, 15, 0.85);
   padding: 24px;
   box-sizing: border-box;
   color: var(--fg);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
   overflow-y: auto;
   max-height: 80vh;
+  box-shadow: 0 0 30px rgba(var(--theme-accent-rgb), 0.10), 0 10px 50px rgba(0,0,0,0.55);
+  backdrop-filter: blur(6px);
 }
 .lightbox-details-heading {
   color: var(--theme-accent);
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
+  font-family: 'Courier New', Courier, monospace;
   font-size: 14px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(var(--theme-accent-rgb), 0.25);
+  font-weight: 600;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(var(--theme-accent-rgb), 0.35);
+  text-shadow: 0 0 8px rgba(var(--theme-accent-rgb), 0.35);
 }
 .lightbox-details-row {
   display: flex;
@@ -465,10 +475,11 @@ footer.navbar {
   gap: 4px;
 }
 .lightbox-details-label {
-  color: rgba(var(--theme-accent-rgb), 0.75);
-  font-size: 11px;
-  letter-spacing: 0.12em;
+  color: rgba(var(--theme-accent-rgb), 0.8);
+  font-size: 10px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
+  font-family: 'Courier New', Courier, monospace;
 }
 .lightbox-details-value {
   font-size: 16px;
@@ -514,29 +525,37 @@ footer.navbar {
   gap: 10px;
   background: transparent;
   color: var(--fg);
-  border: 1px solid rgba(var(--theme-accent-rgb), 0.45);
-  padding: 12px 22px;
+  border: 1px solid rgba(var(--theme-accent-rgb), 0.5);
+  padding: 14px 26px;
   border-radius: 12px;
   cursor: pointer;
-  font-family: inherit;
-  font-size: 14px;
-  letter-spacing: 0.08em;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  min-width: 140px;
+  min-width: 160px;
   justify-content: center;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
 .lightbox-nav-btn:hover {
-  border-color: var(--accent);
+  border-color: var(--theme-accent);
+  background: rgba(var(--theme-accent-rgb), 0.08);
   box-shadow: 0 4px 16px rgba(var(--theme-accent-rgb), 0.25);
 }
+.lightbox-nav-btn:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 2px;
+}
 .lightbox-nav-btn--primary {
-  background: var(--accent);
+  background: var(--theme-accent);
   color: #001019;
-  border-color: var(--accent);
+  border-color: var(--theme-accent);
 }
 .lightbox-nav-btn--primary:hover {
+  background: var(--theme-accent);
   color: #001019;
-  box-shadow: 0 4px 24px rgba(var(--theme-accent-rgb), 0.55);
+  box-shadow: 0 0 24px rgba(var(--theme-accent-rgb), 0.55);
 }
 .lightbox-nav-btn-chevron { font-size: 18px; line-height: 1; }
 .lightbox-nav-btn-label { font-weight: 600; }
@@ -1386,13 +1405,25 @@ body::before {
   pointer-events: none;
 }
 
-/* Lightbox actions HUD panel */
-.lightbox-actions {
+/* Lightbox image wrapper — gives the picture a framed panel feel
+   (dark background, rounded corners, soft outer glow) matching the
+   concept's left card. */
+.lightbox-image-wrap {
+  background: rgba(6, 9, 15, 0.85);
+  border: 1px solid rgba(var(--theme-accent-rgb), 0.25);
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 0 30px rgba(var(--theme-accent-rgb), 0.12), 0 10px 50px rgba(0,0,0,0.6);
+}
+
+/* Lightbox nav toolbar HUD — same dark-panel/blur feel as the prior
+   .lightbox-actions but laid out as the new bottom row of pill buttons. */
+.lightbox-nav-toolbar {
   background: linear-gradient(180deg, rgba(6, 9, 15, 0.8), rgba(6, 9, 15, 0.95));
   border: 1px solid rgba(var(--theme-accent-rgb), 0.3);
   border-radius: 12px;
   backdrop-filter: blur(10px);
-  padding: 8px 16px;
+  padding: 6px;
   box-shadow: 0 0 20px rgba(var(--theme-accent-rgb), 0.15);
 }
 
@@ -1563,6 +1594,36 @@ body::before {
   .gallery-grid { gap: 10px; }
   .campaign-info { padding: 12px; }
   .campaign-info h1 { font-size: 18px; }
+
+  /* Lightbox: collapse two-pane layout to a single column on narrow
+     viewports. The sidebar drops out of the inline layout (the mobile
+     drawer in fringematrix5-7wp will bring it back behind a toggle). */
+  .lightbox-stage {
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+  }
+  .lightbox-details {
+    display: none;
+    width: 100%;
+    max-height: none;
+  }
+  .lightbox-image-wrap {
+    padding: 10px;
+    border-radius: 12px;
+  }
+  .lightbox-nav-toolbar {
+    width: 100%;
+    padding: 6px;
+    box-sizing: border-box;
+  }
+  .lightbox-nav-btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 12px 14px;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+  }
 }
 
 /* Tablet refinements */
