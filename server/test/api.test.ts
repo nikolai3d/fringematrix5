@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Import the Express app without starting the listener
-import app from '../server.ts';
+import app, { resetCampaignsCache } from '../server.ts';
 
 interface Campaign {
   id: string;
@@ -43,6 +43,7 @@ describe('API contract', () => {
     });
 
     it('handles data read failures with 500', async () => {
+      resetCampaignsCache();
       const fsSpy = jest.spyOn(fs, 'readFileSync').mockImplementationOnce(() => {
         throw new Error('test read error');
       });
@@ -55,6 +56,7 @@ describe('API contract', () => {
     });
 
     it('returns 500 when a campaign has no usable identifier', async () => {
+      resetCampaignsCache();
       const malformed = 'campaigns:\n  - episode: "Lonely entry with no id"\n';
       const fsSpy = jest.spyOn(fs, 'readFileSync').mockImplementationOnce(() => malformed);
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -69,6 +71,7 @@ describe('API contract', () => {
       // id/hashtag/icon_path are truthy strings but contain no alphanumerics,
       // so slugify() collapses them all to ''. Must fail loudly rather than
       // produce a campaign with id: '' that would shadow other entries.
+      resetCampaignsCache();
       const noSlugifiable =
         'campaigns:\n' +
         '  - id: "@@@"\n' +
@@ -86,6 +89,7 @@ describe('API contract', () => {
     it('falls through to hashtag when id is present but slugifies to empty', async () => {
       // id is a non-empty string but produces an empty slug — should fall
       // through to hashtag rather than throwing.
+      resetCampaignsCache();
       const fallthrough =
         'campaigns:\n' +
         '  - id: "@@@"\n' +
@@ -99,6 +103,7 @@ describe('API contract', () => {
     });
 
     it('uses explicit id from yaml when provided', async () => {
+      resetCampaignsCache();
       const yamlWithIds =
         'campaigns:\n' +
         '  - id: "my-explicit-id"\n' +
@@ -114,6 +119,7 @@ describe('API contract', () => {
 
   describe('GET /api/campaigns/:id/images', () => {
     it('returns images for a known campaign when present', async () => {
+      resetCampaignsCache();
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
       const campaignsRes = await request(app).get('/api/campaigns');
       expect(campaignsRes.status).toBe(200);
