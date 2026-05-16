@@ -13,6 +13,7 @@ import LoadingManager from './components/LoadingManager';
 import CampaignNavigation from './components/CampaignNavigation';
 import ContentModal from './components/ContentModal';
 import LightboxContainer from './components/LightboxContainer';
+import GalleryGrid from './components/GalleryGrid';
 import type {
   Campaign,
   ImageData,
@@ -661,36 +662,11 @@ export default function App() {
           )}
         </section>
 
-        <section id="gallery" className={`gallery-grid${activeCampaign && currentImages.length === 0 ? ' empty' : ''}`} aria-live="polite">
-          {activeCampaign && currentImages.length === 0 ? (
-            <div className="empty-state" role="status" aria-live="polite">
-              <div className="empty-emoji" aria-hidden>🖼️</div>
-              <div className="empty-title">No Images In Campaign</div>
-              <div className="empty-desc">This campaign has no uploaded images yet.</div>
-            </div>
-          ) : (
-            currentImages.map((img, i) => (
-              <div className="card" key={`${img.src}-${i}`}>
-                {img.isLoading ? (
-                  <div className="image-placeholder">
-                    <div className="placeholder-content">
-                      <div className="placeholder-icon">📷</div>
-                      <div className="placeholder-text">Loading...</div>
-                    </div>
-                  </div>
-                ) : (
-                  <img 
-                    src={img.loadedSrc || img.src || ''} 
-                    alt={img.fileName} 
-                    loading="lazy" 
-                    onClick={(e) => openLightbox(i, e.currentTarget)} 
-                  />
-                )}
-                <div className="filename">{img.fileName}</div>
-              </div>
-            ))
-          )}
-        </section>
+        <GalleryGrid
+          images={currentImages}
+          hasCampaign={!!activeCampaign}
+          onImageClick={openLightbox}
+        />
       </main>
 
       {/* Build info popover */}
