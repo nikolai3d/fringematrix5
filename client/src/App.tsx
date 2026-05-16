@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import DOMPurify from 'dompurify';
 import { useLightboxAnimations } from './hooks/useLightboxAnimations';
-import { useFocusTrap } from './hooks/useFocusTrap';
 import { fetchJSON } from './utils/fetchJSON';
 import { formatTimePacific } from './utils/formatTimePacific';
 import { gitRemoteToHttps } from './utils/gitRemoteToHttps';
@@ -12,6 +11,7 @@ import { SITE_URL, SITE_SHARE_TEXT } from './config/site';
 import LoadingManager from './components/LoadingManager';
 import CampaignNavigation from './components/CampaignNavigation';
 import ContentModal from './components/ContentModal';
+import SettingsModal from './components/SettingsModal';
 import LightboxContainer from './components/LightboxContainer';
 import GalleryGrid from './components/GalleryGrid';
 import type {
@@ -107,10 +107,8 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [reduceMotion, setReduceMotion] = useState<boolean>(false);
   const [reduceEffects, setReduceEffects] = useState<boolean>(false);
-  // Settings modal refs for focus management
+  // Settings modal: trigger ref for focus restoration on close
   const settingsTriggerRef = useRef<HTMLElement | null>(null);
-  const settingsCloseRef = useRef<HTMLButtonElement>(null);
-  const settingsModalRef = useRef<HTMLDivElement>(null);
   const modalLoadAbortRef = useRef<AbortController | null>(null);
   const modalTriggerRef = useRef<HTMLElement | null>(null);
 
@@ -497,22 +495,6 @@ export default function App() {
     settingsTriggerRef.current = null;
   }, []);
 
-  // Settings modal: trap Tab and handle Escape via shared hook
-  useFocusTrap(isSettingsOpen, settingsModalRef, closeSettings);
-
-  // Settings modal: focus the close button on open
-  useEffect(() => {
-    if (!isSettingsOpen) return;
-
-    const focusTimer = setTimeout(() => {
-      settingsCloseRef.current?.focus();
-    }, 0);
-
-    return () => {
-      clearTimeout(focusTimer);
-    };
-  }, [isSettingsOpen]);
-
   return (
     <div id="app">
       <LoadingManager
@@ -755,49 +737,14 @@ export default function App() {
       />
 
       {/* Settings Modal */}
-      {isSettingsOpen && (
-        <div className="content-modal-overlay" onClick={closeSettings} role="dialog" aria-modal={true} aria-labelledby="settings-title">
-          <div className="content-modal" ref={settingsModalRef} onClick={(e) => e.stopPropagation()}>
-            <div className="content-modal-header">
-              <span className="content-modal-title" id="settings-title">Settings</span>
-              <button className="content-modal-close" ref={settingsCloseRef} aria-label="Close settings" onClick={closeSettings}>✕</button>
-            </div>
-            <div className="content-modal-body settings-body">
-              <h3 style={{ marginTop: 0 }}>Accessibility</h3>
-              <div className="settings-row">
-                <div className="settings-label">
-                  <span className="settings-label-text" id="settings-reduce-motion-label">Reduce Motion</span>
-                  <span className="settings-label-desc">Disable animations and transitions</span>
-                </div>
-                <button
-                  className={`settings-toggle${reduceMotion ? ' active' : ''}`}
-                  role="switch"
-                  aria-checked={reduceMotion}
-                  aria-labelledby="settings-reduce-motion-label"
-                  onClick={() => setReduceMotion(v => !v)}
-                >
-                  <span className="settings-toggle-knob"></span>
-                </button>
-              </div>
-              <div className="settings-row">
-                <div className="settings-label">
-                  <span className="settings-label-text" id="settings-reduce-effects-label">Reduce Effects</span>
-                  <span className="settings-label-desc">Minimize glow, scanlines, and visual effects</span>
-                </div>
-                <button
-                  className={`settings-toggle${reduceEffects ? ' active' : ''}`}
-                  role="switch"
-                  aria-checked={reduceEffects}
-                  aria-labelledby="settings-reduce-effects-label"
-                  onClick={() => setReduceEffects(v => !v)}
-                >
-                  <span className="settings-toggle-knob"></span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={closeSettings}
+        isReduceMotion={reduceMotion}
+        isReduceEffects={reduceEffects}
+        onToggleReduceMotion={() => setReduceMotion(v => !v)}
+        onToggleReduceEffects={() => setReduceEffects(v => !v)}
+      />
 
       <ContentModal
         activeModal={activeModal}

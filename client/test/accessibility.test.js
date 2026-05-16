@@ -23,6 +23,10 @@ const sourceFiles = [
 ];
 const appContent = sourceFiles.map((p) => fs.readFileSync(p, 'utf-8')).join('\n');
 
+// Read SettingsModal.tsx directly so focus-trap assertions are scoped to that component
+const settingsModalPath = path.resolve(__dirname, '../src/components/SettingsModal.tsx');
+const settingsModalContent = fs.readFileSync(settingsModalPath, 'utf-8');
+
 // Helper: calculate relative luminance from sRGB channel (0-255)
 function sRGBtoLinear(channel) {
   const s = channel / 255;
@@ -229,8 +233,10 @@ describe('Settings Panel Accessibility', () => {
   });
 
   it('settings toggles should have aria-checked', () => {
-    expect(appContent).toMatch(/aria-checked=\{reduceMotion\}/);
-    expect(appContent).toMatch(/aria-checked=\{reduceEffects\}/);
+    // After SettingsModal extraction, the prop names are isReduceMotion/isReduceEffects
+    expect(appContent).toMatch(/aria-checked=\{is(?:Reduce|reduce)[A-Z]?[a-zA-Z]+\}/);
+    const ariaCheckedMatches = (appContent.match(/aria-checked=\{[^}]+\}/g) || []);
+    expect(ariaCheckedMatches.length).toBeGreaterThanOrEqual(2);
   });
 
   it('settings modal should have aria-labelledby', () => {
@@ -247,8 +253,10 @@ describe('Settings Panel Accessibility', () => {
   });
 
   it('settings modal should have focus trap via ref', () => {
-    expect(appContent).toMatch(/settingsModalRef/);
-    expect(appContent).toMatch(/settingsCloseRef/);
+    // Scope assertions to SettingsModal.tsx so ContentModal cannot satisfy them
+    expect(settingsModalContent).toMatch(/useFocusTrap/);
+    expect(settingsModalContent).toMatch(/useRef<HTMLDivElement>/);
+    expect(settingsModalContent).toMatch(/useRef<HTMLButtonElement>/);
   });
 
   it('settings modal should close on Escape', () => {
