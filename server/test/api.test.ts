@@ -2,13 +2,13 @@ import request from 'supertest';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { jest, describe, it, expect } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Import the Express app without starting the listener
-import app, { resetCampaignsCache } from '../server.ts';
+import app, { resetCampaignsCache, resetBuildInfoCache } from '../server.ts';
 
 interface Campaign {
   id: string;
@@ -157,6 +157,12 @@ describe('API contract', () => {
     const projectRoot = path.join(__dirname, '..', '..');
     const buildInfoPath = path.join(projectRoot, 'build-info.json');
 
+    // Reset the module-level cache before each test so that file or mock
+    // changes made within a test are picked up by getBuildInfo().
+    beforeEach(() => {
+      resetBuildInfoCache();
+    });
+
     it('includes Cache-Control header for CDN/browser caching', async () => {
       const res = await request(app).get('/api/build-info');
       expect(res.status).toBe(200);
@@ -168,9 +174,11 @@ describe('API contract', () => {
       const dir = path.dirname(filePath);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       const existed = fs.existsSync(filePath);
-      const backup = `${filePath}.bak.test`; 
+      const backup = `${filePath}.bak.test`;
       if (existed) fs.copyFileSync(filePath, backup);
       fs.writeFileSync(filePath, content);
+      // Reset the cache after writing the temp file so getBuildInfo() reads it.
+      resetBuildInfoCache();
       return fn()
         .finally(() => {
           if (existed) {

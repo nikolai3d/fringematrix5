@@ -136,6 +136,16 @@ function cacheBlobResult(key: string, result: BlobListResult): void {
 // for the lifetime of the process. campaigns.yaml never changes at runtime.
 let campaignsCache: Campaign[] | null = null;
 
+// Module-level build-info cache — populated once on first request and reused
+// for the lifetime of the process. build-info.json is generated at build time
+// and never changes while the server is running.
+interface BuildInfoResponse {
+  repoUrl: string | null;
+  commitHash: string | null;
+  builtAt: string | null;
+}
+let buildInfoCache: BuildInfoResponse | null = null;
+
 // Shape of the rate-limit error thrown by the @vercel/blob SDK.
 interface BlobRateLimitedError extends Error {
   name: 'BlobServiceRateLimited';
@@ -382,6 +392,47 @@ function ensureDevBuildInfo(): void {
 
 ensureDevBuildInfo();
 
+/**
+ * Reads and parses build-info.json, returning a normalized response object.
+ * Falls back to a DEV-LOCAL object when the file is absent in dev mode,
+ * or to all-nulls in production without a client build.
+ */
+function loadBuildInfo(): BuildInfoResponse {
+  if (fs.existsSync(BUILD_INFO_PATH)) {
+    const raw = fs.readFileSync(BUILD_INFO_PATH, 'utf8');
+    let data: Partial<BuildInfo> & { deployedAt?: string | null };
+    try {
+      data = JSON.parse(raw);
+    } catch (_) {
+      data = {};
+    }
+    return {
+      repoUrl: data.repoUrl || null,
+      commitHash: data.commitHash || null,
+      builtAt: data.builtAt || data.deployedAt || null // deployedAt was the field name before builtAt was introduced; kept for builds pre-dating the rename
+    };
+  }
+  if (IS_DEV || !HAS_CLIENT_BUILD) {
+    return {
+      repoUrl: null,
+      commitHash: 'DEV-LOCAL',
+      builtAt: new Date().toISOString()
+    };
+  }
+  return { repoUrl: null, commitHash: null, builtAt: null };
+}
+
+/**
+ * Returns the build-info, loading and caching it on the first call.
+ * build-info.json is immutable for the process lifetime (generated at build time).
+ */
+function getBuildInfo(): BuildInfoResponse {
+  if (buildInfoCache === null) {
+    buildInfoCache = loadBuildInfo();
+  }
+  return buildInfoCache;
+}
+
 // Log blob functionality status
 if (HAS_BLOB_TOKEN) {
   console.log('🔵 Blob API: Enabled (token found)');
@@ -483,40 +534,10 @@ app.get('/api/campaigns/:id/images', async (req: Request, res: Response): Promis
 app.get('/api/build-info', (_req: Request, res: Response): void => {
   const CACHE_HEADERS = 'public, max-age=3600, stale-while-revalidate=86400';
   try {
-    if (fs.existsSync(BUILD_INFO_PATH)) {
-      const raw = fs.readFileSync(BUILD_INFO_PATH, 'utf8');
-      let data: Partial<BuildInfo> & { deployedAt?: string | null };
-      try {
-        data = JSON.parse(raw);
-      } catch (_) {
-        data = {};
-      }
-      res.set('Cache-Control', CACHE_HEADERS);
-      res.set('Vary', 'Accept-Encoding');
-      res.json({
-        repoUrl: data.repoUrl || null,
-        commitHash: data.commitHash || null,
-        builtAt: data.builtAt || data.deployedAt || null // deployedAt was the field name before builtAt was introduced; kept for builds pre-dating the rename
-      });
-      return;
-    }
-    if (IS_DEV || !HAS_CLIENT_BUILD) {
-      res.set('Cache-Control', CACHE_HEADERS);
-      res.set('Vary', 'Accept-Encoding');
-      res.json({
-        repoUrl: null,
-        commitHash: 'DEV-LOCAL',
-        builtAt: new Date().toISOString()
-      });
-      return;
-    }
+    const info = getBuildInfo();
     res.set('Cache-Control', CACHE_HEADERS);
     res.set('Vary', 'Accept-Encoding');
-    res.json({
-      repoUrl: null,
-      commitHash: null,
-      builtAt: null
-    });
+    res.json(info);
   } catch (err: unknown) {
     console.error(err);
     res.status(500).json({ error: 'Failed to load build info' });
@@ -640,4 +661,13 @@ export { blobCache, CACHE_TTL, BLOB_CACHE_MAX, MAX_BLOB_ITEMS };
  */
 export function resetCampaignsCache(): void {
   campaignsCache = null;
+}
+
+/**
+ * Resets the module-level build-info cache.
+ * Exported for test isolation only — call before each test that writes or mocks
+ * build-info.json to ensure getBuildInfo() re-reads from the updated file.
+ */
+export function resetBuildInfoCache(): void {
+  buildInfoCache = null;
 }
