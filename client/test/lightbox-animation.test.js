@@ -724,10 +724,13 @@ describe('No-Blink Handoff: Wireframe to Lightbox Image', () => {
     expect(openEffect).not.toBeNull();
     // Reveal function should be defined and clear hideLightboxImage.
     expect(openEffect[0]).toMatch(/revealLightboxImage\s*=\s*\(\)\s*=>/);
-    const revealBlock = openEffect[0].match(/revealLightboxImage\s*=\s*\(\)\s*=>\s*\{([\s\S]*?)\n\s{6}\}/);
-    expect(revealBlock).not.toBeNull();
-    expect(revealBlock[1]).toMatch(/lightboxImg\.style\.opacity\s*=\s*''/);
-    expect(revealBlock[1]).toMatch(/setHideLightboxImage\(false\)/);
+    // Slice the source between the reveal definition and its first use in
+    // runWireframeAnimation — independent of indentation or formatting.
+    const revealStart = openEffect[0].indexOf('revealLightboxImage =');
+    const wireframeCall = openEffect[0].indexOf('runWireframeAnimation(', revealStart);
+    const revealBlock = openEffect[0].slice(revealStart, wireframeCall);
+    expect(revealBlock).toMatch(/lightboxImg\.style\.opacity\s*=\s*''/);
+    expect(revealBlock).toMatch(/setHideLightboxImage\(false\)/);
     // And it must be passed into runWireframeAnimation.
     expect(openEffect[0]).toMatch(/runWireframeAnimation\([^)]*revealLightboxImage\s*\)/);
   });
