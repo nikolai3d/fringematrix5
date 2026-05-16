@@ -15,18 +15,17 @@ import app, { resetCampaignsCache, resetBuildInfoCache } from '../server.ts';
 // straight from the in-memory cache.
 // ---------------------------------------------------------------------------
 
-// Suppress noisy console.error / console.log output during tests
-let consoleSpy: ReturnType<typeof jest.spyOn>;
-let consoleLogSpy: ReturnType<typeof jest.spyOn>;
-
+// Suppress noisy console.error / console.log output during tests.
+// Spies are registered here and restored wholesale by jest.restoreAllMocks() below.
 beforeEach(() => {
-  consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-  consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  jest.spyOn(console, 'error').mockImplementation(() => {});
+  jest.spyOn(console, 'log').mockImplementation(() => {});
 });
 
 afterEach(() => {
-  consoleSpy.mockRestore();
-  consoleLogSpy.mockRestore();
+  // Restore all spies (fsSpy, consoleSpy, consoleLogSpy, etc.) so a mid-test
+  // assertion failure cannot leak a spy into the next test.
+  jest.restoreAllMocks();
 });
 
 describe('getCampaigns() memoization', () => {
@@ -67,8 +66,6 @@ describe('getCampaigns() memoization', () => {
     // All three responses must return the same campaigns list
     expect(res1.body.campaigns).toEqual(res2.body.campaigns);
     expect(res2.body.campaigns).toEqual(res3.body.campaigns);
-
-    fsSpy.mockRestore();
   });
 
   it('re-reads campaigns.yaml after resetCampaignsCache() is called', async () => {
@@ -96,8 +93,6 @@ describe('getCampaigns() memoization', () => {
       ([p]) => typeof p === 'string' && p.toString().endsWith('campaigns.yaml')
     ).length;
     expect(callsAfterReset).toBe(2);
-
-    fsSpy.mockRestore();
   });
 });
 
@@ -138,8 +133,6 @@ describe('getBuildInfo() memoization', () => {
     // All three responses must return the same build-info payload
     expect(res1.body).toEqual(res2.body);
     expect(res2.body).toEqual(res3.body);
-
-    fsSpy.mockRestore();
   });
 
   it('re-reads build-info after resetBuildInfoCache() is called', async () => {
@@ -170,7 +163,5 @@ describe('getBuildInfo() memoization', () => {
     // calling readFileSync), so the count may stay at 0. What matters is that
     // the second call count is >= the first-call count — a fresh load was attempted.
     expect(callsAfterReset).toBeGreaterThanOrEqual(callsAfterFirst);
-
-    fsSpy.mockRestore();
   });
 });
