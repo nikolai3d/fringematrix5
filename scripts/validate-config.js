@@ -8,6 +8,7 @@
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import yaml from 'js-yaml';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -16,6 +17,16 @@ const CONFIG_PATH = resolve(__dirname, '../client/config.yaml');
 const VALID_LOADING_SCREENS = ['legacy', 'terminal', 'glyphs'];
 const MIN_FADE_DELAY = 0;
 const MAX_FADE_DELAY = 10000;
+
+// Sidebar animation limits, aligned with client/src/config/lightbox.ts
+const SIDEBAR_LIMITS = {
+  enterDurationMs:       { min: 0,  max: 2000, mustBePositive: false, integer: false },
+  exitDurationMs:        { min: 0,  max: 2000, mustBePositive: false, integer: false },
+  lineHoldMs:            { min: 0,  max: 1000, mustBePositive: false, integer: false },
+  lineBlinkCount:        { min: 0,  max: 10,   mustBePositive: false, integer: true  },
+  lineBlinkIntervalMs:   { min: 10, max: 1000, mustBePositive: true,  integer: false },
+  contentFadeInDelayMs:  { min: 0,  max: 2000, mustBePositive: false, integer: false },
+};
 
 let hasErrors = false;
 
@@ -29,57 +40,44 @@ function warn(message) {
 }
 
 /**
- * Simple YAML parser for our specific config structure.
- * Supports only the subset we need: key-value pairs with indentation.
+ * Validate a CSS color string.
+ * Accepts: hex (#rgb, #rrggbb, #rgba, #rrggbbaa), rgb(), rgba(),
+ * hsl(), hsla(), and CSS named colors.
  */
-function parseSimpleYaml(yamlContent) {
-  const lines = yamlContent.split('\n');
-  const config = { loadingScreen: {} };
-  let currentSection = null;
+function isValidCssColor(value) {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
 
-  for (const line of lines) {
-    const trimmed = line.trim();
-
-    // Skip comments and empty lines
-    if (trimmed.startsWith('#') || trimmed === '') continue;
-
-    // Detect top-level keys (no leading whitespace, ends with colon)
-    if (!line.startsWith(' ') && trimmed.match(/^(\w+):$/)) {
-      // Check if it's the loadingScreen section
-      if (trimmed === 'loadingScreen:') {
-        currentSection = 'loadingScreen';
-      } else {
-        // Reset currentSection for any other top-level key
-        currentSection = null;
-      }
-      continue;
-    }
-
-    // Parse key-value pairs under loadingScreen
-    if (currentSection === 'loadingScreen' && line.startsWith('  ')) {
-      const match = trimmed.match(/^(\w+):\s*(.*)$/);
-      if (match) {
-        const [, key, rawValue] = match;
-
-        // Strip surrounding quotes (single or double) from value
-        let value = rawValue.trim();
-        if (value === '') {
-          error(`Missing value for loadingScreen.${key}`);
-          continue;
-        }
-        if ((value.startsWith('"') && value.endsWith('"')) ||
-            (value.startsWith("'") && value.endsWith("'"))) {
-          value = value.slice(1, -1);
-        }
-
-        // Try to parse as number
-        const numValue = Number(value);
-        config.loadingScreen[key] = isNaN(numValue) ? value : numValue;
-      }
-    }
+  // Hex colors: #rgb, #rrggbb, #rgba, #rrggbbaa
+  if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(trimmed)) {
+    return true;
   }
 
-  return config;
+  // rgb() / rgba()
+  if (/^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+(\s*,\s*[\d.]+)?\s*\)$/.test(trimmed)) {
+    return true;
+  }
+
+  // hsl() / hsla()
+  if (/^hsla?\(\s*[\d.]+\s*,\s*[\d.]+%\s*,\s*[\d.]+%(\s*,\s*[\d.]+)?\s*\)$/.test(trimmed)) {
+    return true;
+  }
+
+  // CSS named colors (common subset + 'transparent')
+  const NAMED_COLORS = new Set([
+    'transparent', 'currentcolor', 'inherit', 'initial', 'unset',
+    'black', 'white', 'red', 'green', 'blue', 'yellow', 'orange',
+    'purple', 'pink', 'brown', 'gray', 'grey', 'cyan', 'magenta',
+    'lime', 'olive', 'teal', 'navy', 'maroon', 'aqua', 'fuchsia',
+    'silver', 'gold', 'indigo', 'violet', 'coral', 'salmon', 'khaki',
+    'lavender', 'beige', 'ivory', 'crimson', 'turquoise', 'sienna',
+    'tan', 'plum', 'orchid', 'peru', 'tomato', 'wheat', 'linen',
+  ]);
+  if (NAMED_COLORS.has(trimmed.toLowerCase())) {
+    return true;
+  }
+
+  return false;
 }
 
 function validateConfig() {
@@ -88,19 +86,24 @@ function validateConfig() {
   let config;
   try {
     const fileContents = readFileSync(CONFIG_PATH, 'utf8');
-    config = parseSimpleYaml(fileContents);
+    config = yaml.load(fileContents);
   } catch (err) {
-    error(`Failed to read config.yaml: ${err.message}`);
+    error(`Failed to read or parse config.yaml: ${err.message}`);
     process.exit(1);
   }
 
-  // Validate loadingScreen section exists
+  if (!config || typeof config !== 'object') {
+    error('config.yaml must be a YAML mapping');
+    process.exit(1);
+  }
+
+  // ── loadingScreen ────────────────────────────────────────────────────────
   if (!config.loadingScreen || Object.keys(config.loadingScreen).length === 0) {
     error('Missing required section: loadingScreen');
   } else {
     const { loadingScreen } = config;
 
-    // Validate loadingScreen.type
+    // loadingScreen.type
     if (!loadingScreen.type) {
       error('loadingScreen.type is required');
     } else if (!VALID_LOADING_SCREENS.includes(loadingScreen.type)) {
@@ -110,12 +113,11 @@ function validateConfig() {
       );
     }
 
-    // Validate loadingScreen.autoFadeDelayMs
+    // loadingScreen.autoFadeDelayMs
     if (loadingScreen.autoFadeDelayMs === undefined || loadingScreen.autoFadeDelayMs === null) {
       warn('loadingScreen.autoFadeDelayMs is not set, will use default (300ms)');
     } else {
       const delay = loadingScreen.autoFadeDelayMs;
-
       if (typeof delay !== 'number' || isNaN(delay)) {
         error(`loadingScreen.autoFadeDelayMs must be a number. Got: ${typeof delay}`);
       } else if (delay < MIN_FADE_DELAY || delay > MAX_FADE_DELAY) {
@@ -123,6 +125,67 @@ function validateConfig() {
           `loadingScreen.autoFadeDelayMs must be between ${MIN_FADE_DELAY}-${MAX_FADE_DELAY}ms. ` +
           `Got: ${delay}ms`
         );
+      }
+    }
+  }
+
+  // ── theme ────────────────────────────────────────────────────────────────
+  if (config.theme !== undefined) {
+    const { theme } = config;
+    if (typeof theme !== 'object' || theme === null) {
+      error('theme must be a mapping');
+    } else if (theme.accentColor !== undefined) {
+      if (!isValidCssColor(theme.accentColor)) {
+        error(
+          `theme.accentColor must be a valid CSS color (hex, rgb(), hsl(), or named color). ` +
+          `Got: "${theme.accentColor}"`
+        );
+      }
+    }
+  }
+
+  // ── lightbox.sidebarAnimation ────────────────────────────────────────────
+  if (config.lightbox !== undefined) {
+    const { lightbox } = config;
+    if (typeof lightbox !== 'object' || lightbox === null) {
+      error('lightbox must be a mapping');
+    } else if (lightbox.sidebarAnimation !== undefined) {
+      const sa = lightbox.sidebarAnimation;
+      if (typeof sa !== 'object' || sa === null) {
+        error('lightbox.sidebarAnimation must be a mapping');
+      } else {
+        for (const [field, limits] of Object.entries(SIDEBAR_LIMITS)) {
+          const value = sa[field];
+          if (value === undefined || value === null) continue; // optional; runtime uses defaults
+
+          if (typeof value !== 'number' || !Number.isFinite(value)) {
+            error(
+              `lightbox.sidebarAnimation.${field} must be a finite number. Got: "${value}"`
+            );
+            continue;
+          }
+
+          if (limits.integer && !Number.isInteger(value)) {
+            error(
+              `lightbox.sidebarAnimation.${field} must be an integer. Got: ${value}`
+            );
+            continue;
+          }
+
+          if (limits.mustBePositive && value <= 0) {
+            error(
+              `lightbox.sidebarAnimation.${field} must be a positive number (> 0). Got: ${value}`
+            );
+            continue;
+          }
+
+          if (value < limits.min || value > limits.max) {
+            error(
+              `lightbox.sidebarAnimation.${field} must be between ${limits.min}-${limits.max}. ` +
+              `Got: ${value}`
+            );
+          }
+        }
       }
     }
   }
