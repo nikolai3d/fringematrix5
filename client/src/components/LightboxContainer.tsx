@@ -40,6 +40,9 @@ export default function LightboxContainer({
   const lightboxRef = useRef<HTMLDivElement | null>(null);
   const drawerRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const sidebarRef = useRef<HTMLElement | null>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
   const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState<boolean>(false);
 
   const nextImage = useCallback((delta: number) => {
@@ -67,35 +70,18 @@ export default function LightboxContainer({
     // Animation-in-progress clicks would otherwise interrupt the open/close transition.
     if (isAnimatingRef.current) return;
 
-    const lightboxImage = document.getElementById('lightbox-image') as HTMLImageElement | null;
-    if (!lightboxImage) return;
-
-    const imageRect = lightboxImage.getBoundingClientRect();
-    const clickX = e.clientX;
-    const clickY = e.clientY;
-
-    const isInsideImage = (
-      clickX >= imageRect.left &&
-      clickX <= imageRect.right &&
-      clickY >= imageRect.top &&
-      clickY <= imageRect.bottom
-    );
+    const target = e.target as Node;
 
     // The lightbox has several interactive regions besides the image
     // itself: the right-side details sidebar (or its mobile drawer),
     // the bottom nav toolbar, and the info button. Clicks anywhere in
-    // those should NOT close the lightbox.
-    const isInsideZone = (selector: string): boolean => {
-      const el = document.querySelector(selector) as HTMLElement | null;
-      if (!el) return false;
-      const r = el.getBoundingClientRect();
-      return clickX >= r.left && clickX <= r.right && clickY >= r.top && clickY <= r.bottom;
-    };
-
-    const isInToolbarArea = isInsideZone('.lightbox-nav-toolbar');
-    const isInSidebarArea = isInsideZone('.lightbox-details');
-    const isInInfoBtnArea = isInsideZone('.lightbox-info-btn');
-    const isInDrawerArea = isInsideZone('.lightbox-details-drawer');
+    // those should NOT close the lightbox. Use ref.contains() to avoid
+    // document.querySelector + getBoundingClientRect layout flushes.
+    const isInsideImage = imageRef.current?.contains(target) ?? false;
+    const isInToolbarArea = toolbarRef.current?.contains(target) ?? false;
+    const isInSidebarArea = sidebarRef.current?.contains(target) ?? false;
+    const isInInfoBtnArea = infoBtnRef.current?.contains(target) ?? false;
+    const isInDrawerArea = drawerRef.current?.contains(target) ?? false;
 
     if (!isInsideImage && !isInToolbarArea && !isInSidebarArea && !isInInfoBtnArea && !isInDrawerArea) {
       closeLightbox();
@@ -255,6 +241,7 @@ export default function LightboxContainer({
           <div className="lightbox-image-wrap">
             <img
               id="lightbox-image"
+              ref={imageRef}
               alt="Selected"
               src={images[lightboxIndex]?.src || ''}
               style={{ opacity: hideLightboxImage ? 0 : 1 }}
@@ -263,13 +250,14 @@ export default function LightboxContainer({
 
           <aside
             className="lightbox-details"
+            ref={sidebarRef}
             aria-label="Image details"
           >
             <LightboxDetails campaign={activeCampaign} />
           </aside>
         </div>
 
-        <div className="lightbox-nav-toolbar" role="toolbar" aria-label="Lightbox navigation">
+        <div className="lightbox-nav-toolbar" ref={toolbarRef} role="toolbar" aria-label="Lightbox navigation">
           <button
             id="prev-btn"
             type="button"
