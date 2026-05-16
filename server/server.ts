@@ -5,6 +5,7 @@ import yaml from 'js-yaml';
 import dotenv from 'dotenv';
 import { list, ListBlobResultBlob } from '@vercel/blob';
 import { fileURLToPath } from 'url';
+import { VALID_CONTENT_PAGES } from '../shared/types.js';
 import type { ContentPage } from '../shared/types.js';
 
 interface Campaign {
@@ -543,12 +544,9 @@ app.get('/api/build-info', (_req: Request, res: Response): void => {
 });
 
 // Content pages (History, Credits, Legal)
-// ContentPage is the canonical type from shared/types.ts.
-// `satisfies readonly ContentPage[]` ensures every entry in this array is a
-// valid ContentPage slug (compile-time check), but does NOT enforce that all
-// ContentPage values appear here. When adding a new page, update both
-// shared/types.ts AND this array — see the comment in shared/types.ts.
-const VALID_CONTENT_PAGES = ['history', 'credits', 'legal'] as const satisfies readonly ContentPage[];
+// VALID_CONTENT_PAGES is imported from shared/types.ts, and ContentPage is
+// derived from it there — so adding a slug to VALID_CONTENT_PAGES in
+// shared/types.ts is the single change needed when adding a new page.
 
 app.get('/api/content/:page', async (req: Request, res: Response): Promise<void> => {
   const page = req.params['page'] as string;
