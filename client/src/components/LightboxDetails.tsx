@@ -29,8 +29,12 @@ function Row({ label, children }: RowProps) {
  *
  * If no active campaign is available the component renders a single
  * empty-state line so the sidebar is not a confusing blank panel.
+ *
+ * Wrapped in React.memo so that both instances rendered by LightboxContainer
+ * (inline sidebar + mobile drawer) skip re-computation when the campaign prop
+ * hasn't changed — e.g. during prev/next image navigation.
  */
-export default function LightboxDetails({ campaign }: Props) {
+function LightboxDetails({ campaign }: Props) {
   if (!campaign) {
     return (
       <>
@@ -69,3 +73,5 @@ export default function LightboxDetails({ campaign }: Props) {
     </>
   );
 }
+
+export default React.memo(LightboxDetails);
