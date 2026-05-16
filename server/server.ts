@@ -508,8 +508,11 @@ app.get('/api/build-info', (_req: Request, res: Response): void => {
 });
 
 // Content pages (History, Credits, Legal)
-// ContentPage is the canonical type from shared/types.ts — VALID_CONTENT_PAGES
-// provides the runtime validation array; both must stay in sync.
+// ContentPage is the canonical type from shared/types.ts.
+// `satisfies readonly ContentPage[]` ensures every entry in this array is a
+// valid ContentPage slug (compile-time check), but does NOT enforce that all
+// ContentPage values appear here. When adding a new page, update both
+// shared/types.ts AND this array — see the comment in shared/types.ts.
 const VALID_CONTENT_PAGES = ['history', 'credits', 'legal'] as const satisfies readonly ContentPage[];
 
 app.get('/api/content/:page', async (req: Request, res: Response): Promise<void> => {
