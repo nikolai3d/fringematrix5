@@ -3,13 +3,15 @@
  * (client/src/types/api.ts).
  *
  * ADDING A NEW CONTENT PAGE:
- *   1. Add the slug here (e.g. 'about').
- *   2. Add the same slug to VALID_CONTENT_PAGES in server/server.ts.
- *      TypeScript will catch values in VALID_CONTENT_PAGES that are NOT
- *      valid ContentPage slugs, but it will NOT catch slugs that are in
- *      ContentPage but missing from VALID_CONTENT_PAGES — those would cause
- *      the server to return 404 for the new page until step 2 is done.
+ *   1. Add the slug to VALID_CONTENT_PAGES below (e.g. 'about').
+ *   2. ContentPage is derived from VALID_CONTENT_PAGES, so the type stays in
+ *      sync automatically — no separate update needed.
+ *   3. The server imports VALID_CONTENT_PAGES directly and uses it for
+ *      validation, so the new page will be served without any other changes.
  */
 
 // The valid content-page slugs served by GET /api/content/:page.
-export type ContentPage = 'history' | 'credits' | 'legal';
+// ContentPage is derived from this array, ensuring the type and the runtime
+// validation list are always in sync (exhaustiveness guaranteed by derivation).
+export const VALID_CONTENT_PAGES = ['history', 'credits', 'legal'] as const;
+export type ContentPage = (typeof VALID_CONTENT_PAGES)[number];
