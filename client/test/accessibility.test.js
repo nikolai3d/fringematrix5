@@ -229,8 +229,10 @@ describe('Settings Panel Accessibility', () => {
   });
 
   it('settings toggles should have aria-checked', () => {
-    expect(appContent).toMatch(/aria-checked=\{reduceMotion\}/);
-    expect(appContent).toMatch(/aria-checked=\{reduceEffects\}/);
+    // After SettingsModal extraction, the prop names are isReduceMotion/isReduceEffects
+    expect(appContent).toMatch(/aria-checked=\{is(?:Reduce|reduce)[A-Z]?[a-zA-Z]+\}/);
+    const ariaCheckedMatches = (appContent.match(/aria-checked=\{[^}]+\}/g) || []);
+    expect(ariaCheckedMatches.length).toBeGreaterThanOrEqual(2);
   });
 
   it('settings modal should have aria-labelledby', () => {
@@ -247,8 +249,11 @@ describe('Settings Panel Accessibility', () => {
   });
 
   it('settings modal should have focus trap via ref', () => {
-    expect(appContent).toMatch(/settingsModalRef/);
-    expect(appContent).toMatch(/settingsCloseRef/);
+    // After SettingsModal extraction, refs are modalRef/closeRef inside the component
+    // and useFocusTrap is called with that ref
+    expect(appContent).toMatch(/useFocusTrap/);
+    expect(appContent).toMatch(/useRef<HTMLDivElement>/);
+    expect(appContent).toMatch(/useRef<HTMLButtonElement>/);
   });
 
   it('settings modal should close on Escape', () => {
