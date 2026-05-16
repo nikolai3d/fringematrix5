@@ -96,6 +96,7 @@ function Harness({ images, onReady }: { images: ImageData[]; onReady: (h: Harnes
     setLightboxIndex: setIdx,
     setIsLightboxOpen: setIsOpen,
     setHideLightboxImage: setHide,
+    getThumbElement: () => null,
   });
 
   // Hand the harness handle back exactly once.
