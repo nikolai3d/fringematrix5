@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import type { MutableRefObject } from 'react';
-import type { ImageData } from '../types/api';
+import type { Campaign, ImageData } from '../types/api';
 
 /** Minimum horizontal travel (px) required for a touch to count as a swipe. */
 const SWIPE_MIN_HORIZONTAL_PX = 50;
@@ -14,6 +14,7 @@ interface Props {
   lightboxIndex: number;
   isLightboxOpen: boolean;
   hideLightboxImage: boolean;
+  activeCampaign: Campaign | null;
   setLightboxIndex: React.Dispatch<React.SetStateAction<number>>;
   closeLightbox: () => void;
   isAnimatingRef: MutableRefObject<boolean>;
@@ -24,6 +25,7 @@ export default function LightboxContainer({
   lightboxIndex,
   isLightboxOpen,
   hideLightboxImage,
+  activeCampaign,
   setLightboxIndex,
   closeLightbox,
   isAnimatingRef,
@@ -33,25 +35,6 @@ export default function LightboxContainer({
   const nextImage = useCallback((delta: number) => {
     setLightboxIndex((idx) => (images.length === 0 ? 0 : (idx + delta + images.length) % images.length));
   }, [images.length, setLightboxIndex]);
-
-  const handleShare = useCallback(async () => {
-    const img = images[lightboxIndex];
-    if (!img || !img.src) return;
-    const shareUrl = new URL(window.location.href);
-    shareUrl.searchParams.set('img', img.src);
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: 'Fringe Matrix', text: img.fileName, url: shareUrl.toString() });
-      } catch {}
-    } else if (navigator.clipboard) {
-      try {
-        await navigator.clipboard.writeText(shareUrl.toString());
-        alert('Link copied to clipboard');
-      } catch {
-        // clipboard permission denied or insecure context — fail silently
-      }
-    }
-  }, [images, lightboxIndex]);
 
   const handleLightboxClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     // Animation-in-progress clicks would otherwise interrupt the open/close transition.
@@ -71,19 +54,22 @@ export default function LightboxContainer({
       clickY <= imageRect.bottom
     );
 
-    const toolbarElement = document.querySelector('.lightbox-actions') as HTMLElement | null;
-    let isInToolbarArea = false;
-    if (toolbarElement) {
-      const toolbarRect = toolbarElement.getBoundingClientRect();
-      isInToolbarArea = (
-        clickX >= toolbarRect.left &&
-        clickX <= toolbarRect.right &&
-        clickY >= toolbarRect.top &&
-        clickY <= toolbarRect.bottom
-      );
-    }
+    // The lightbox now has three interactive regions besides the image itself:
+    // the right-side details sidebar, the bottom nav toolbar, and the side
+    // ◀/▶ arrows overlay. Clicks anywhere in those should NOT close the
+    // lightbox.
+    const isInsideZone = (selector: string): boolean => {
+      const el = document.querySelector(selector) as HTMLElement | null;
+      if (!el) return false;
+      const r = el.getBoundingClientRect();
+      return clickX >= r.left && clickX <= r.right && clickY >= r.top && clickY <= r.bottom;
+    };
 
-    if (!isInsideImage && !isInToolbarArea) {
+    const isInToolbarArea = isInsideZone('.lightbox-nav-toolbar');
+    const isInSidebarArea = isInsideZone('.lightbox-details');
+    const isInSideArrowsArea = isInsideZone('.lightbox-side-arrows');
+
+    if (!isInsideImage && !isInToolbarArea && !isInSidebarArea && !isInSideArrowsArea) {
       closeLightbox();
     }
   }, [closeLightbox, isAnimatingRef]);
@@ -118,6 +104,11 @@ export default function LightboxContainer({
 
   if (!isLightboxOpen) return null;
 
+  // The activeCampaign prop is passed in here so a sibling bead (fringematrix5-bqz)
+  // can populate the IMAGE DETAILS sidebar without another round of plumbing.
+  // For now it stays a placeholder.
+  void activeCampaign;
+
   return (
     <div
       id="lightbox"
@@ -140,47 +131,64 @@ export default function LightboxContainer({
       >
         ✕
       </button>
-      <img
-        id="lightbox-image"
-        alt="Selected"
-        src={images[lightboxIndex]?.src || ''}
-        style={{ opacity: hideLightboxImage ? 0 : 1 }}
-      />
-      <div className="lightbox-actions">
-        <button
-          id="prev-btn"
-          className="nav-btn"
-          aria-label="Previous"
-          onClick={(e) => { e.stopPropagation(); nextImage(-1); }}
-        >
-          ◀
-        </button>
-        <div className="spacer"></div>
-        <a
-          id="download-btn"
-          className="action-btn"
-          download
-          href={images[lightboxIndex]?.src || '#'}
-          onClick={(e) => e.stopPropagation()}
-        >
-          Download
-        </a>
-        <button
-          id="share-btn"
-          className="action-btn"
-          onClick={(e) => { e.stopPropagation(); handleShare(); }}
-        >
-          Share
-        </button>
-        <div className="spacer"></div>
-        <button
-          id="next-btn"
-          className="nav-btn"
-          aria-label="Next"
-          onClick={(e) => { e.stopPropagation(); nextImage(1); }}
-        >
-          ▶
-        </button>
+
+      <div className="lightbox-layout">
+        <div className="lightbox-stage">
+          <div className="lightbox-image-wrap">
+            <img
+              id="lightbox-image"
+              alt="Selected"
+              src={images[lightboxIndex]?.src || ''}
+              style={{ opacity: hideLightboxImage ? 0 : 1 }}
+            />
+            <div className="lightbox-side-arrows" aria-hidden={false}>
+              <button
+                id="prev-btn"
+                className="nav-btn"
+                aria-label="Previous"
+                onClick={(e) => { e.stopPropagation(); nextImage(-1); }}
+              >
+                ◀
+              </button>
+              <button
+                id="next-btn"
+                className="nav-btn"
+                aria-label="Next"
+                onClick={(e) => { e.stopPropagation(); nextImage(1); }}
+              >
+                ▶
+              </button>
+            </div>
+          </div>
+
+          <aside
+            className="lightbox-details"
+            aria-label="Image details"
+          >
+            {/* Content populated by fringematrix5-bqz. */}
+          </aside>
+        </div>
+
+        <div className="lightbox-nav-toolbar" role="toolbar" aria-label="Lightbox navigation">
+          <button
+            type="button"
+            className="lightbox-nav-btn"
+            aria-label="Previous image"
+            onClick={(e) => { e.stopPropagation(); nextImage(-1); }}
+          >
+            <span className="lightbox-nav-btn-chevron" aria-hidden={true}>‹</span>
+            <span className="lightbox-nav-btn-label">PREVIOUS</span>
+          </button>
+          <button
+            type="button"
+            className="lightbox-nav-btn lightbox-nav-btn--primary"
+            aria-label="Next image"
+            onClick={(e) => { e.stopPropagation(); nextImage(1); }}
+          >
+            <span className="lightbox-nav-btn-label">NEXT</span>
+            <span className="lightbox-nav-btn-chevron" aria-hidden={true}>›</span>
+          </button>
+        </div>
       </div>
     </div>
   );
