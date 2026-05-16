@@ -197,7 +197,7 @@ export default function App() {
       }));
 
       setImages(fullyLoadedImages);
-      setImagesByCampaign(prev => ({ ...prev, [id]: campaignImages }));
+      setImagesByCampaign(prev => ({ ...prev, [id]: fullyLoadedImages }));
     } catch (error) {
       if (signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) return;
       console.error('Failed to load campaign images:', error);
