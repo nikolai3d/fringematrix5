@@ -64,18 +64,25 @@ if (fs.existsSync(ENV_LOCAL_PATH)) {
 const app: Application = express();
 const PORT = process.env['PORT'] || 3000;
 
-// Defense-in-depth: abort requests that take longer than 30 seconds.
-// This limits the blast radius of any slow-path attack (including ReDoS
-// on older path-to-regexp versions bundled by dependencies) by ensuring
-// the event loop is not held indefinitely on any single request.
+// Defense-in-depth: send a 503 if an async request handler takes longer than
+// 30 seconds. This handles cases such as an upstream dependency hanging or a
+// very slow network call. Note: a synchronous CPU-blocking operation (e.g. a
+// ReDoS in route matching) cannot be interrupted by a setTimeout callback;
+// protection against that class of attack comes from using a patched
+// path-to-regexp (via Express 5), not from this middleware.
 const REQUEST_TIMEOUT_MS = 30_000;
 app.use((_req: Request, res: Response, next) => {
+  let timedOut = false;
   const timer = setTimeout(() => {
+    timedOut = true;
     if (!res.headersSent) {
       res.status(503).json({ error: 'Request timeout' });
     }
   }, REQUEST_TIMEOUT_MS);
-  // Use res.on('finish') to clear the timer when the response completes
+  // Store the flag on res.locals so downstream handlers can skip writing
+  // their response after the timeout has already fired.
+  res.locals['timedOut'] = () => timedOut;
+  // Clear the timer when the response completes so it doesn't fire late.
   res.on('finish', () => clearTimeout(timer));
   res.on('close', () => clearTimeout(timer));
   next();
