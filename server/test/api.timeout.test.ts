@@ -181,6 +181,24 @@ describe('request timeout middleware', () => {
       expect(res._statusMock).not.toHaveBeenCalled();
     });
 
+    it('timedOut() returns false after close clears the timer', () => {
+      jest.useFakeTimers();
+
+      const res = makeMockRes();
+
+      timeoutMiddleware({}, res, jest.fn());
+
+      res.emit('close');
+
+      const timedOut = res.locals['timedOut'] as () => boolean;
+      // The flag starts false and the timer was cancelled, so it stays false.
+      expect(timedOut()).toBe(false);
+
+      // Confirm it stays false even after advancing past timeout.
+      jest.advanceTimersByTime(REQUEST_TIMEOUT_MS + 1);
+      expect(timedOut()).toBe(false);
+    });
+
     it('timedOut() returns false after finish clears the timer', () => {
       jest.useFakeTimers();
 
