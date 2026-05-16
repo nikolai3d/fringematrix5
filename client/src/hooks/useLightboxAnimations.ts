@@ -301,6 +301,7 @@ export function useLightboxAnimations({
         await expand.finished.catch(() => {});
         // Settle: clear inline overrides so reduce-effects toggles work later.
         sidebar.style.clipPath = '';
+        sidebar.style.opacity = '';
         content.forEach(el => { el.style.opacity = ''; });
       } else {
         const exitDuration = cfg.exitDurationMs;
