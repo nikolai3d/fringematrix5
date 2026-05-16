@@ -46,3 +46,6 @@ test-results/
 
 # Cursor / AI conversation logs — large, not needed in repo
 ai_logs/
+
+# Claude Code agent worktrees (created locally, never committed)
+.claude/worktrees/
