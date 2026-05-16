@@ -8,7 +8,7 @@ interface SharePopoverProps {
 
 export default function SharePopover({ style, threadsShareUrl, onClose }: SharePopoverProps) {
   return (
-    <div className="share-popover" role="dialog" aria-modal={false} style={style}>
+    <div className="share-popover" role="dialog" aria-label="Share" aria-modal={false} style={style}>
       <div className="share-header">
         <span>Share</span>
         <button

@@ -13,7 +13,7 @@ export default function BuildInfoPopover({ style, buildInfo, onClose }: BuildInf
   const repoHref = gitRemoteToHttps(buildInfo?.repoUrl || '');
 
   return (
-    <div className="build-info-popover" role="dialog" aria-modal={false} style={style}>
+    <div className="build-info-popover" role="dialog" aria-label="Build Info" aria-modal={false} style={style}>
       <div className="build-info-header">
         <span>Build Info</span>
         <button

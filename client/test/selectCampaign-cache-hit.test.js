@@ -41,7 +41,7 @@ describe('selectCampaign cache-hit branch — source guards', () => {
     ? hookSrc.slice(cacheHitStart, returnAfterCache + 'return;'.length)
     : '';
 
-  it('the cache-hit block exists in App.tsx', () => {
+  it('the cache-hit block exists in useCampaignLoader.ts', () => {
     expect(cacheHitBlock).not.toBe('');
   });
 
