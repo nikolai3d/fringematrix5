@@ -25,6 +25,7 @@ coverage/
 ############################
 # User-provided images; keep out of git by default
 avatars/**
+downloads/
 
 deploy/ip_address.md
 build-info.json

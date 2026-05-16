@@ -264,6 +264,38 @@ See `VERCEL_DEPLOYMENT.md` for migration notes from legacy deployment.
 3. Upload images to corresponding Blob storage path
 4. Restart server to pick up changes
 
+### Downloading Images Locally
+
+Use the `download-images.js` script to download all or filtered images from Vercel Blob storage locally.
+
+**Prerequisites:**
+- `BLOB_READ_WRITE_TOKEN` environment variable set (in `.env.local` or shell)
+
+**Usage:**
+
+```bash
+# Download all images
+BLOB_READ_WRITE_TOKEN=your_token node download-images.js
+
+# Download images from a specific campaign
+BLOB_READ_WRITE_TOKEN=your_token node download-images.js "campaign-path"
+```
+
+**Output:**
+- Downloaded images are saved to `downloads/` directory
+- Original directory structure is preserved (e.g., `downloads/campaign-1/episode-1/image.png`)
+- `downloads/` is in `.gitignore` to prevent committing large image files
+
+**Examples:**
+
+```bash
+# Download all images to downloads/all/
+node download-images.js
+
+# Download only Fringe Season 1 images to downloads/fringe-season-1/
+node download-images.js "fringe-season-1"
+```
+
 ### Build Information
 
 The app automatically generates build metadata in `build-info.json`:
