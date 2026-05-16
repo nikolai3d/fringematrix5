@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
 import type { Campaign, ImageData } from '../types/api';
 import LightboxDetails from './LightboxDetails';
@@ -9,6 +9,8 @@ const SWIPE_MIN_HORIZONTAL_PX = 50;
 const SWIPE_MAX_VERTICAL_PX = 75;
 /** Maximum gesture duration (ms); longer presses are not counted as swipes. */
 const SWIPE_MAX_DURATION_MS = 500;
+/** Viewport breakpoint (px) below which the inline sidebar gives way to a drawer. */
+const MOBILE_BREAKPOINT_PX = 768;
 
 interface Props {
   images: ImageData[];
@@ -32,6 +34,9 @@ export default function LightboxContainer({
   isAnimatingRef,
 }: Props) {
   const swipeRef = useRef<{ startX: number; startY: number; startTime: number } | null>(null);
+  const infoBtnRef = useRef<HTMLButtonElement | null>(null);
+  const drawerCloseBtnRef = useRef<HTMLButtonElement | null>(null);
+  const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState<boolean>(false);
 
   const nextImage = useCallback((delta: number) => {
     setLightboxIndex((idx) => (images.length === 0 ? 0 : (idx + delta + images.length) % images.length));
@@ -55,10 +60,10 @@ export default function LightboxContainer({
       clickY <= imageRect.bottom
     );
 
-    // The lightbox now has three interactive regions besides the image itself:
-    // the right-side details sidebar, the bottom nav toolbar, and the side
-    // ◀/▶ arrows overlay. Clicks anywhere in those should NOT close the
-    // lightbox.
+    // The lightbox now has several interactive regions besides the image
+    // itself: the right-side details sidebar (or its mobile drawer), the
+    // bottom nav toolbar, the side ◀/▶ arrows overlay, and the info button.
+    // Clicks anywhere in those should NOT close the lightbox.
     const isInsideZone = (selector: string): boolean => {
       const el = document.querySelector(selector) as HTMLElement | null;
       if (!el) return false;
@@ -69,8 +74,10 @@ export default function LightboxContainer({
     const isInToolbarArea = isInsideZone('.lightbox-nav-toolbar');
     const isInSidebarArea = isInsideZone('.lightbox-details');
     const isInSideArrowsArea = isInsideZone('.lightbox-side-arrows');
+    const isInInfoBtnArea = isInsideZone('.lightbox-info-btn');
+    const isInDrawerArea = isInsideZone('.lightbox-details-drawer');
 
-    if (!isInsideImage && !isInToolbarArea && !isInSidebarArea && !isInSideArrowsArea) {
+    if (!isInsideImage && !isInToolbarArea && !isInSidebarArea && !isInSideArrowsArea && !isInInfoBtnArea && !isInDrawerArea) {
       closeLightbox();
     }
   }, [closeLightbox, isAnimatingRef]);
@@ -92,16 +99,54 @@ export default function LightboxContainer({
     }
   }, [nextImage]);
 
+  const closeDrawer = useCallback(() => {
+    setIsDetailsDrawerOpen(false);
+    // Return focus to the info toggle so keyboard users can re-open easily.
+    requestAnimationFrame(() => { infoBtnRef.current?.focus(); });
+  }, []);
+
+  // Auto-close the drawer if the viewport widens past the mobile breakpoint
+  // (e.g. device rotation): the inline sidebar will be visible again, so the
+  // drawer is redundant and would obscure it.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = () => {
+      if (window.innerWidth >= MOBILE_BREAKPOINT_PX) setIsDetailsDrawerOpen(false);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // Reset drawer state when the lightbox itself closes.
+  useEffect(() => {
+    if (!isLightboxOpen) setIsDetailsDrawerOpen(false);
+  }, [isLightboxOpen]);
+
+  // Move focus into the drawer when it opens.
+  useEffect(() => {
+    if (!isDetailsDrawerOpen) return;
+    requestAnimationFrame(() => { drawerCloseBtnRef.current?.focus(); });
+  }, [isDetailsDrawerOpen]);
+
   useEffect(() => {
     if (!isLightboxOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeLightbox();
-      else if (e.key === 'ArrowRight') nextImage(1);
+      if (e.key === 'Escape') {
+        // Escape closes the drawer first if it is open; otherwise the
+        // whole lightbox. This matches the layered-modal pattern used
+        // in the content modal.
+        if (isDetailsDrawerOpen) {
+          e.stopPropagation();
+          closeDrawer();
+          return;
+        }
+        closeLightbox();
+      } else if (e.key === 'ArrowRight') nextImage(1);
       else if (e.key === 'ArrowLeft') nextImage(-1);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [isLightboxOpen, closeLightbox, nextImage]);
+  }, [isLightboxOpen, isDetailsDrawerOpen, closeDrawer, closeLightbox, nextImage]);
 
   if (!isLightboxOpen) return null;
 
@@ -126,6 +171,18 @@ export default function LightboxContainer({
         onClick={closeLightbox}
       >
         ✕
+      </button>
+
+      <button
+        ref={infoBtnRef}
+        type="button"
+        className="lightbox-info-btn"
+        aria-label={isDetailsDrawerOpen ? 'Hide image details' : 'Show image details'}
+        aria-expanded={isDetailsDrawerOpen}
+        aria-controls="lightbox-details-drawer"
+        onClick={(e) => { e.stopPropagation(); setIsDetailsDrawerOpen(v => !v); }}
+      >
+        <span aria-hidden={true}>i</span>
       </button>
 
       <div className="lightbox-layout">
@@ -186,6 +243,28 @@ export default function LightboxContainer({
           </button>
         </div>
       </div>
+
+      {isDetailsDrawerOpen && (
+        <div
+          id="lightbox-details-drawer"
+          className="lightbox-details-drawer"
+          role="dialog"
+          aria-modal={true}
+          aria-label="Image details"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            ref={drawerCloseBtnRef}
+            type="button"
+            className="lightbox-details-drawer-close"
+            aria-label="Close image details"
+            onClick={(e) => { e.stopPropagation(); closeDrawer(); }}
+          >
+            ✕
+          </button>
+          <LightboxDetails campaign={activeCampaign} />
+        </div>
+      )}
     </div>
   );
 }
