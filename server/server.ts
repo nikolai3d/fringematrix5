@@ -27,8 +27,10 @@ interface BuildInfo {
   builtAt: string | null;
 }
 
+type BlobListResult = { blobs: ListBlobResultBlob[] };
+
 interface BlobCacheEntry {
-  data: { blobs: ListBlobResultBlob[] };
+  data: BlobListResult;
   timestamp: number;
 }
 
@@ -103,6 +105,23 @@ const blobCache = new Map<string, BlobCacheEntry>();
 const CACHE_TTL = 30000; // 30 seconds cache during development/testing
 const BLOB_CACHE_MAX = 100; // Maximum number of unique cache entries (LRU eviction)
 const HAS_BLOB_TOKEN = !!process.env['BLOB_READ_WRITE_TOKEN'];
+
+/**
+ * Stores a blob list result in the cache under the given key, applying LRU
+ * eviction when the cache is at capacity.
+ *
+ * Delete-before-set moves an already-cached key to the tail of the Map's
+ * insertion-order iteration, so re-fetched entries are the last to be
+ * evicted rather than the next.
+ */
+function cacheBlobResult(key: string, result: BlobListResult): void {
+  blobCache.delete(key);
+  if (blobCache.size >= BLOB_CACHE_MAX) {
+    const oldest = blobCache.keys().next().value;
+    if (oldest !== undefined) blobCache.delete(oldest);
+  }
+  blobCache.set(key, { data: result, timestamp: Date.now() });
+}
 
 // Module-level campaigns cache — populated once on first request and reused
 // for the lifetime of the process. campaigns.yaml never changes at runtime.
@@ -223,14 +242,7 @@ async function listBlobsWithCache(options: ListBlobsOptions): Promise<{ blobs: L
       ? await list(options)
       : await fetchAllPages();
 
-    // Evict oldest entry when at capacity (Map preserves insertion order).
-    // Delete-before-set so a re-cached key moves to the tail of iteration order.
-    blobCache.delete(cacheKey);
-    if (blobCache.size >= BLOB_CACHE_MAX) {
-      const oldest = blobCache.keys().next().value;
-      if (oldest !== undefined) blobCache.delete(oldest);
-    }
-    blobCache.set(cacheKey, { data: result, timestamp: Date.now() });
+    cacheBlobResult(cacheKey, result);
     return result;
   } catch (error: unknown) {
     if (isBlobRateLimitedError(error)) {
@@ -247,12 +259,7 @@ async function listBlobsWithCache(options: ListBlobsOptions): Promise<{ blobs: L
         const retryResult = options.limit !== undefined
           ? await list(options)
           : await fetchAllPages();
-        blobCache.delete(cacheKey);
-        if (blobCache.size >= BLOB_CACHE_MAX) {
-          const oldest = blobCache.keys().next().value;
-          if (oldest !== undefined) blobCache.delete(oldest);
-        }
-        blobCache.set(cacheKey, { data: retryResult, timestamp: Date.now() });
+        cacheBlobResult(cacheKey, retryResult);
         return retryResult;
       } catch (retryErr: unknown) {
         // Distinguish "still rate-limited on retry" from "retry hit a different
