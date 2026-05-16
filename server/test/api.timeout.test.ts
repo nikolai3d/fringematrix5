@@ -1,42 +1,13 @@
 import { EventEmitter } from 'events';
 import { jest, describe, it, expect, afterEach } from '@jest/globals';
+import type { Request, Response, NextFunction } from 'express';
+import { timeoutMiddleware, REQUEST_TIMEOUT_MS } from '../middleware/timeout.js';
 
 // Unit tests for the request timeout middleware added in PR #77.
-// The middleware lives at the top of server.ts and:
+// The middleware lives in server/middleware/timeout.ts and:
 //   1. Sets a 30-second setTimeout that sends a 503 if the request is still open.
 //   2. Exposes res.locals['timedOut'] as a closure returning the flag.
 //   3. Clears the timer on res 'finish' or 'close' events.
-//
-// Strategy: extract the middleware under test by re-implementing it as a
-// standalone function (mirroring server.ts exactly) so we can unit-test it
-// without spinning up the full Express app. This lets us use jest fake timers
-// cleanly without the async complications of supertest + hanging routes.
-
-// ─── Middleware under test (mirrors server.ts verbatim) ───────────────────────
-const REQUEST_TIMEOUT_MS = 30_000;
-
-function timeoutMiddleware(
-  _req: unknown,
-  res: {
-    headersSent: boolean;
-    locals: Record<string, unknown>;
-    status(code: number): { json(body: unknown): void };
-    on(event: string, cb: () => void): void;
-  },
-  next: () => void,
-): void {
-  let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    if (!res.headersSent) {
-      res.status(503).json({ error: 'Request timeout' });
-    }
-  }, REQUEST_TIMEOUT_MS);
-  res.locals['timedOut'] = () => timedOut;
-  res.on('finish', () => clearTimeout(timer));
-  res.on('close', () => clearTimeout(timer));
-  next();
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -71,7 +42,7 @@ describe('request timeout middleware', () => {
       const res = makeMockRes();
       const next = jest.fn();
 
-      timeoutMiddleware({}, res, next);
+      timeoutMiddleware({} as Request, res as unknown as Response, next as unknown as NextFunction);
 
       // next() must be called synchronously so the request proceeds.
       expect(next).toHaveBeenCalledTimes(1);
@@ -92,7 +63,7 @@ describe('request timeout middleware', () => {
 
       const res = makeMockRes();
 
-      timeoutMiddleware({}, res, jest.fn());
+      timeoutMiddleware({} as Request, res as unknown as Response, jest.fn() as unknown as NextFunction);
 
       // Advance to just before the threshold.
       jest.advanceTimersByTime(REQUEST_TIMEOUT_MS - 1);
@@ -106,7 +77,7 @@ describe('request timeout middleware', () => {
       const res = makeMockRes();
       res.headersSent = true; // simulate response already completed
 
-      timeoutMiddleware({}, res, jest.fn());
+      timeoutMiddleware({} as Request, res as unknown as Response, jest.fn() as unknown as NextFunction);
 
       jest.advanceTimersByTime(REQUEST_TIMEOUT_MS);
 
@@ -124,7 +95,7 @@ describe('request timeout middleware', () => {
 
       const res = makeMockRes();
 
-      timeoutMiddleware({}, res, jest.fn());
+      timeoutMiddleware({} as Request, res as unknown as Response, jest.fn() as unknown as NextFunction);
 
       const timedOut = res.locals['timedOut'] as () => boolean;
       expect(typeof timedOut).toBe('function');
@@ -138,7 +109,7 @@ describe('request timeout middleware', () => {
       // Prevent .status().json() from throwing when headersSent is false.
       // (The mock already returns a json stub, so this is fine as-is.)
 
-      timeoutMiddleware({}, res, jest.fn());
+      timeoutMiddleware({} as Request, res as unknown as Response, jest.fn() as unknown as NextFunction);
 
       jest.advanceTimersByTime(REQUEST_TIMEOUT_MS);
 
@@ -153,7 +124,7 @@ describe('request timeout middleware', () => {
 
       const res = makeMockRes();
 
-      timeoutMiddleware({}, res, jest.fn());
+      timeoutMiddleware({} as Request, res as unknown as Response, jest.fn() as unknown as NextFunction);
 
       // Simulate the response completing well before the timeout.
       res.headersSent = true;
@@ -171,7 +142,7 @@ describe('request timeout middleware', () => {
 
       const res = makeMockRes();
 
-      timeoutMiddleware({}, res, jest.fn());
+      timeoutMiddleware({} as Request, res as unknown as Response, jest.fn() as unknown as NextFunction);
 
       res.headersSent = true;
       res.emit('close');
@@ -186,7 +157,7 @@ describe('request timeout middleware', () => {
 
       const res = makeMockRes();
 
-      timeoutMiddleware({}, res, jest.fn());
+      timeoutMiddleware({} as Request, res as unknown as Response, jest.fn() as unknown as NextFunction);
 
       res.emit('close');
 
@@ -204,7 +175,7 @@ describe('request timeout middleware', () => {
 
       const res = makeMockRes();
 
-      timeoutMiddleware({}, res, jest.fn());
+      timeoutMiddleware({} as Request, res as unknown as Response, jest.fn() as unknown as NextFunction);
 
       res.emit('finish');
 
