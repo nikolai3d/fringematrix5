@@ -225,6 +225,9 @@ export default function App() {
 
     if (imagesByCampaign[id]) {
       setImages(imagesByCampaign[id]);
+      setCampaignLoadProgress(0);
+      setCampaignLoadTotal(0);
+      setCampaignLoadError(false);
       setIsCampaignLoading(false);
       return;
     }
