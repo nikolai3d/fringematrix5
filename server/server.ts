@@ -478,7 +478,7 @@ app.get('/api/build-info', (_req: Request, res: Response): void => {
   try {
     if (fs.existsSync(BUILD_INFO_PATH)) {
       const raw = fs.readFileSync(BUILD_INFO_PATH, 'utf8');
-      let data: any;
+      let data: Partial<BuildInfo> & { deployedAt?: string | null };
       try {
         data = JSON.parse(raw);
       } catch (_) {
@@ -489,7 +489,7 @@ app.get('/api/build-info', (_req: Request, res: Response): void => {
       res.json({
         repoUrl: data.repoUrl || null,
         commitHash: data.commitHash || null,
-        builtAt: data.builtAt || data.deployedAt || null // backward compatibility
+        builtAt: data.builtAt || data.deployedAt || null // deployedAt was the field name before builtAt was introduced; kept for builds pre-dating the rename
       });
       return;
     }
