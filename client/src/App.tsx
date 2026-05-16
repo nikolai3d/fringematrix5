@@ -7,6 +7,7 @@ import { formatTimePacific } from './utils/formatTimePacific';
 import { gitRemoteToHttps } from './utils/gitRemoteToHttps';
 import { closeSubwindowsState } from './utils/closeSubwindowsState';
 import { applyTheme } from './config/theme';
+import { SITE_URL, SITE_SHARE_TEXT } from './config/site';
 import LoadingManager from './components/LoadingManager';
 import CampaignNavigation from './components/CampaignNavigation';
 import ContentModal from './components/ContentModal';
@@ -388,9 +389,7 @@ export default function App() {
   }, [onScrollOrResize]);
 
   const threadsShareUrl = useMemo(() => {
-    const text = 'Check out Fringe Matrix';
-    const url = 'https://fringematrix.art';
-    return `https://www.threads.net/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+    return `https://www.threads.net/intent/post?text=${encodeURIComponent(SITE_SHARE_TEXT)}&url=${encodeURIComponent(SITE_URL)}`;
   }, []);
 
   // Handler for when user dismisses the loading screen
