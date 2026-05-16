@@ -236,8 +236,8 @@ export function useLightboxAnimations({
    * midline, then the line fades out.
    *
    * Returns a Promise that resolves when the animation completes (or
-   * immediately if WAAPI is unavailable / sidebar is not in the DOM).
-   * Reduce-motion is handled by callers; this helper does not branch.
+   * immediately if WAAPI is unavailable / sidebar is not in the DOM, or any
+   * reduce-motion/reduce-effects mode is active).
    */
   const animateLightboxSidebar = useCallback(async (direction: 'in' | 'out'): Promise<void> => {
     // Defense-in-depth: openLightbox/closeLightbox already short-circuit when
