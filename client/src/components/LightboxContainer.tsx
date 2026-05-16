@@ -179,7 +179,6 @@ export default function LightboxContainer({
         className="lightbox-info-btn"
         aria-label={isDetailsDrawerOpen ? 'Hide image details' : 'Show image details'}
         aria-expanded={isDetailsDrawerOpen}
-        aria-controls="lightbox-details-drawer"
         onClick={(e) => { e.stopPropagation(); setIsDetailsDrawerOpen(v => !v); }}
       >
         <span aria-hidden={true}>i</span>
