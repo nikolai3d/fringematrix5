@@ -36,7 +36,12 @@ export default function LightboxContainer({
   const swipeRef = useRef<{ startX: number; startY: number; startTime: number } | null>(null);
   const infoBtnRef = useRef<HTMLButtonElement | null>(null);
   const drawerCloseBtnRef = useRef<HTMLButtonElement | null>(null);
+  const lightboxRef = useRef<HTMLDivElement | null>(null);
+  const drawerRef = useRef<HTMLDivElement | null>(null);
+  const closeBtnRef = useRef<HTMLButtonElement | null>(null);
   const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState<boolean>(false);
+  const FOCUSABLE_SELECTOR =
+    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
   const nextImage = useCallback((delta: number) => {
     setLightboxIndex((idx) => (images.length === 0 ? 0 : (idx + delta + images.length) % images.length));
@@ -143,10 +148,43 @@ export default function LightboxContainer({
         closeLightbox();
       } else if (e.key === 'ArrowRight') nextImage(1);
       else if (e.key === 'ArrowLeft') nextImage(-1);
+      else if (e.key === 'Tab') {
+        // Trap focus inside the active modal layer (drawer if open,
+        // otherwise the lightbox itself). Without this Tab eventually
+        // escapes to the underlying gallery, which screen-reader users
+        // perceive as "lost" focus.
+        const container = isDetailsDrawerOpen ? drawerRef.current : lightboxRef.current;
+        if (!container) return;
+        const focusable = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+          .filter(el => !el.hidden && el.offsetParent !== null);
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const active = document.activeElement as HTMLElement | null;
+        if (e.shiftKey) {
+          if (active === first || !container.contains(active)) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (active === last || !container.contains(active)) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [isLightboxOpen, isDetailsDrawerOpen, closeDrawer, closeLightbox, nextImage]);
+
+  // Move initial focus into the lightbox when it opens so keyboard users
+  // start inside the modal. The close (✕) button is the conventional
+  // landing spot for image lightboxes.
+  useEffect(() => {
+    if (!isLightboxOpen) return;
+    requestAnimationFrame(() => { closeBtnRef.current?.focus(); });
+  }, [isLightboxOpen]);
 
   if (!isLightboxOpen) return null;
 
@@ -154,6 +192,10 @@ export default function LightboxContainer({
     <div
       id="lightbox"
       className="lightbox"
+      ref={lightboxRef}
+      role="dialog"
+      aria-modal={true}
+      aria-label="Image viewer"
       aria-hidden={false}
       onClick={handleLightboxClick}
       onPointerDown={handlePointerDown}
@@ -161,12 +203,21 @@ export default function LightboxContainer({
       onPointerCancel={() => { swipeRef.current = null; }}
       style={{ touchAction: 'pan-y' }}
     >
+      {/* Visual HUD: aria-hidden because the same info lives in the
+          screen-reader-only live region just below, which announces
+          changes politely as the user navigates. */}
       <div className="lightbox-hud" aria-hidden={true}>
         FILE: {images[lightboxIndex]?.fileName || ''} {'// '}{lightboxIndex + 1} OF {images.length}
+      </div>
+      <div className="visually-hidden" aria-live="polite" aria-atomic={true}>
+        {images[lightboxIndex]?.fileName
+          ? `${images[lightboxIndex].fileName}, image ${lightboxIndex + 1} of ${images.length}`
+          : ''}
       </div>
       <button
         className="lightbox-close"
         id="lightbox-close"
+        ref={closeBtnRef}
         aria-label="Close"
         onClick={closeLightbox}
       >
@@ -247,6 +298,7 @@ export default function LightboxContainer({
         <div
           id="lightbox-details-drawer"
           className="lightbox-details-drawer"
+          ref={drawerRef}
           role="dialog"
           aria-modal={true}
           aria-label="Image details"
