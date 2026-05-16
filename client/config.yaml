@@ -13,3 +13,19 @@ theme:
   # This is the "Fringe blue" cyan color derived from the Fringe glyph images
   # Format: CSS hex color (e.g., "#00D4FF")
   accentColor: "#00D4FF"
+
+lightbox:
+  # Sidebar enter/exit animation for the zoomed-in image view.
+  # On open the IMAGE DETAILS sidebar expands from a thin blinking horizontal
+  # line into the full panel; on close it collapses back to a line and fades
+  # out. All timings are in milliseconds.
+  #
+  # When reduce-effects is active (in-app toggle or prefers-reduced-motion),
+  # these timings are ignored and the sidebar appears/disappears instantly.
+  sidebarAnimation:
+    enterDurationMs: 420       # total expand duration (line -> full panel)
+    exitDurationMs: 320        # total collapse duration (panel -> line -> gone)
+    lineHoldMs: 120            # how long the line is visible before expanding
+    lineBlinkCount: 2          # times the line blinks before expanding
+    lineBlinkIntervalMs: 90    # blink interval (ms per opacity toggle)
+    contentFadeInDelayMs: 180  # when sidebar content fades in (rel. to enter)
