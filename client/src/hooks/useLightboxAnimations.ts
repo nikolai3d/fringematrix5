@@ -236,10 +236,25 @@ export function useLightboxAnimations({
    * midline, then the line fades out.
    *
    * Returns a Promise that resolves when the animation completes (or
-   * immediately if WAAPI is unavailable / sidebar is not in the DOM).
-   * Reduce-motion is handled by callers; this helper does not branch.
+   * immediately if WAAPI is unavailable / sidebar is not in the DOM, or any
+   * reduce-motion/reduce-effects mode is active).
    */
   const animateLightboxSidebar = useCallback(async (direction: 'in' | 'out'): Promise<void> => {
+    // Defense-in-depth: openLightbox/closeLightbox already short-circuit when
+    // reduceMotion is true. This belt-and-suspenders check also bails when
+    // the user has toggled reduce-motion / reduce-effects via the in-app
+    // settings, or has prefers-reduced-motion: reduce at the OS level. WAAPI
+    // animations ignore CSS animation-duration overrides, so we must guard
+    // here in JS.
+    if (reduceMotion) return;
+    try {
+      const root = document.documentElement;
+      if (root.classList.contains('reduce-motion') || root.classList.contains('reduce-effects')) return;
+      if (typeof window !== 'undefined' && window.matchMedia) {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      }
+    } catch (_) { /* ignore — proceed with animation */ }
+
     const sidebar = document.querySelector('.lightbox-details') as HTMLElement | null;
     if (!sidebar) return;
     const content = sidebar.querySelectorAll<HTMLElement>(':scope > *');
@@ -350,7 +365,7 @@ export function useLightboxAnimations({
         content.forEach(el => { el.style.opacity = ''; });
       } catch (__) { /* ignore */ }
     }
-  }, []);
+  }, [reduceMotion]);
 
   const animateLightboxBackdrop = useCallback((direction: 'in' | 'out') => {
     const el = document.getElementById('lightbox');

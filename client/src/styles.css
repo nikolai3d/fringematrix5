@@ -1630,3 +1630,34 @@ html.reduce-effects .campaign-info h1 { animation: none !important; text-shadow:
 html.reduce-effects .current-campaign::after { animation: none !important; }
 html.reduce-effects .content-modal-header::after { display: none !important; }
 
+/* Lightbox sidebar: force visible immediately, no expand/collapse animation.
+   The JS animation hook also short-circuits in these modes, but inline
+   styles set during a mid-animation toggle (e.g. user enables reduce-motion
+   while the lightbox is open) need to be neutralised by !important. */
+html.reduce-motion .lightbox-details,
+html.reduce-effects .lightbox-details {
+  clip-path: none !important;
+  opacity: 1 !important;
+  animation: none !important;
+  transition: none !important;
+}
+html.reduce-motion .lightbox-details > *,
+html.reduce-effects .lightbox-details > * {
+  opacity: 1 !important;
+  animation: none !important;
+  transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lightbox-details {
+    clip-path: none !important;
+    opacity: 1 !important;
+    animation: none !important;
+    transition: none !important;
+  }
+  .lightbox-details > * {
+    opacity: 1 !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
