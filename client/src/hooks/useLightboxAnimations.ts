@@ -116,6 +116,14 @@ export function useLightboxAnimations({
    */
   const backdropDimmedRef = useRef<boolean>(false);
   /**
+   * Tracks whether the sidebar line→expand fade-in animation has already
+   * played for the current open session. The post-mount effect re-runs
+   * on every lightboxIndex change (PREVIOUS/NEXT, arrow keys, swipe);
+   * without this guard the sidebar would replay its enter animation on
+   * every navigation, producing a flicker. Reset on close / open.
+   */
+  const sidebarEnteredRef = useRef<boolean>(false);
+  /**
    * Generation counter to prevent stale closeLightbox finally blocks from
    * clearing lastOpenedThumbElRef when a new openLightbox call has already
    * reassigned it during the close animation's await.
@@ -393,6 +401,11 @@ export function useLightboxAnimations({
 
   const openLightbox = useCallback((index: number, thumbEl?: HTMLElement) => {
     openGenerationRef.current++;
+    // Reset sidebar-entered flag so the very first post-mount effect run
+    // for this open session fires the line→expand animation; subsequent
+    // runs (lightboxIndex changes from PREVIOUS/NEXT/arrow keys/swipe)
+    // skip it to avoid flicker.
+    sidebarEnteredRef.current = false;
     if (reduceMotion) {
       // Skip all animations - lightbox just appears instantly
       if (thumbEl) {
@@ -428,6 +441,11 @@ export function useLightboxAnimations({
 
   const closeLightbox = useCallback(async () => {
     const closeGeneration = openGenerationRef.current;
+    // Defense-in-depth: openLightbox is responsible for resetting the
+    // sidebar-entered flag on the next open, but clear it on close too
+    // so any abnormal re-entry path (e.g. open without going through
+    // openLightbox) still gets a clean enter animation.
+    sidebarEnteredRef.current = false;
     if (reduceMotion) {
       // Skip all animations - lightbox just disappears instantly
       backdropDimmedRef.current = false;
@@ -537,7 +555,12 @@ export function useLightboxAnimations({
     if (!startRect) {
       // Open the sidebar even when there is no thumbnail rect to animate
       // from (e.g. lightbox opened via direct link / URL hash).
-      animateLightboxSidebar('in');
+      // Only on the FIRST run of this effect per open session — see
+      // sidebarEnteredRef comment.
+      if (!sidebarEnteredRef.current) {
+        sidebarEnteredRef.current = true;
+        animateLightboxSidebar('in');
+      }
       if (needBackdropIn) {
         const anim = animateLightboxBackdrop('in');
         backdropDimmedRef.current = true;
@@ -569,7 +592,10 @@ export function useLightboxAnimations({
           animateLightboxBackdrop('in');
           backdropDimmedRef.current = true;
         }
-        animateLightboxSidebar('in');
+        if (!sidebarEnteredRef.current) {
+          sidebarEnteredRef.current = true;
+          animateLightboxSidebar('in');
+        }
         lightboxImg.style.opacity = '';
         setHideLightboxImage(false);
         pendingOpenStartRectRef.current = null;
@@ -584,10 +610,13 @@ export function useLightboxAnimations({
         backdropAnim = animateLightboxBackdrop('in');
         backdropDimmedRef.current = true;
       }
+      const sidebarPromise = sidebarEnteredRef.current
+        ? Promise.resolve()
+        : (sidebarEnteredRef.current = true, animateLightboxSidebar('in'));
       await Promise.all([
         runWireframeAnimation(startRect, endRect, imgSrc || undefined, 'open'),
         (backdropAnim?.finished || Promise.resolve()).catch(() => {}),
-        animateLightboxSidebar('in'),
+        sidebarPromise,
       ]);
       // Bail out if the effect was cleaned up during the animation.
       if (abortCtrl.signal.aborted) return;
