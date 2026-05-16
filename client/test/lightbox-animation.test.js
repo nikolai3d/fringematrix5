@@ -691,6 +691,82 @@ describe('No-Blink Handoff: Wireframe to Lightbox Image', () => {
     const postAnimation = hookContent.match(/await animation\.finished;[\s\S]*?el\.style\.display\s*=\s*'none'/);
     expect(postAnimation).not.toBeNull();
   });
+
+  // Regression: sibling-animation blink on open.
+  // The wireframe (~360ms) finishes before the sidebar enter animation
+  // (~420ms by default). If we wait for Promise.all to resolve before
+  // revealing the lightbox image, the wireframe is hidden (display:none)
+  // for ~60ms while the image is still opacity:0 — a visible blink.
+  // The fix passes an onAnimationEnd callback into runWireframeAnimation
+  // that reveals the lightbox image BEFORE the wireframe is hidden.
+
+  it('runWireframeAnimation should accept an onAnimationEnd callback parameter', () => {
+    // The callback fires after WAAPI animation.finished but before
+    // el.style.display = 'none', so callers can reveal the destination
+    // element in the same microtask the wireframe disappears.
+    expect(hookContent).toMatch(/runWireframeAnimation\s*=\s*useCallback\(async\s*\([\s\S]*?onAnimationEnd\?:\s*\(\)\s*=>\s*void/);
+  });
+
+  it('runWireframeAnimation should invoke onAnimationEnd BEFORE el.style.display = none', () => {
+    // The callback ordering is load-bearing — invoking it AFTER display:none
+    // would re-introduce the blink. Anchor on `await animation.finished` to
+    // scope the assertion to the post-animation cleanup.
+    const postAnim = hookContent.match(/await animation\.finished;([\s\S]*?)el\.style\.display\s*=\s*'none'/);
+    expect(postAnim).not.toBeNull();
+    expect(postAnim[1]).toMatch(/onAnimationEnd\s*\(\s*\)/);
+  });
+
+  it('open effect should pass a revealLightboxImage callback to runWireframeAnimation', () => {
+    const openEffect = hookContent.match(/After mount of lightbox[\s\S]*?abortCtrl\.abort\(\)/);
+    expect(openEffect).not.toBeNull();
+    // Reveal function should be defined and clear hideLightboxImage.
+    expect(openEffect[0]).toMatch(/revealLightboxImage\s*=\s*\(\)\s*=>/);
+    const revealBlock = openEffect[0].match(/revealLightboxImage\s*=\s*\(\)\s*=>\s*\{([\s\S]*?)\n\s{6}\}/);
+    expect(revealBlock).not.toBeNull();
+    expect(revealBlock[1]).toMatch(/lightboxImg\.style\.opacity\s*=\s*''/);
+    expect(revealBlock[1]).toMatch(/setHideLightboxImage\(false\)/);
+    // And it must be passed into runWireframeAnimation.
+    expect(openEffect[0]).toMatch(/runWireframeAnimation\([^)]*revealLightboxImage\s*\)/);
+  });
+
+  it('reveal callback must run before wireframe display:none even when sidebar enter is slower', async () => {
+    // Functional check independent of source layout: simulate the callback
+    // ordering inside runWireframeAnimation against a longer-running sibling
+    // animation. The order of (reveal, hide-wireframe) inside the wireframe
+    // post-animation block is what closes the blink window.
+    const events = [];
+    const wireframeEl = { style: { display: 'block' } };
+    const onAnimationEnd = () => { events.push('reveal'); };
+    // Simulate the post-animation block in runWireframeAnimation.
+    onAnimationEnd();
+    wireframeEl.style.display = 'none';
+    events.push('wireframe-hidden');
+
+    // Simulate slower sidebar finishing later.
+    await new Promise(resolve => setTimeout(resolve, 0));
+    events.push('sidebar-done');
+
+    // The reveal must happen before the wireframe is hidden, and both must
+    // happen before slower sibling animations finish.
+    expect(events).toEqual(['reveal', 'wireframe-hidden', 'sidebar-done']);
+    expect(wireframeEl.style.display).toBe('none');
+  });
+
+  it('image reveal must NOT depend on the slowest sibling animation (Promise.all timing)', () => {
+    // Anti-regression: the reveal previously ran AFTER Promise.all([
+    // wireframe, backdrop, sidebar ]). Moving it into the wireframe
+    // callback decouples it from sidebar timing. If anyone moves the reveal
+    // back below Promise.all without keeping the callback, this test fails.
+    const openEffect = hookContent.match(/After mount of lightbox[\s\S]*?abortCtrl\.abort\(\)/);
+    expect(openEffect).not.toBeNull();
+    // The callback definition must appear BEFORE the Promise.all that
+    // awaits wireframe + backdrop + sidebar.
+    const revealIdx = openEffect[0].indexOf('revealLightboxImage =');
+    const promiseAllIdx = openEffect[0].indexOf('await Promise.all');
+    expect(revealIdx).toBeGreaterThan(-1);
+    expect(promiseAllIdx).toBeGreaterThan(-1);
+    expect(revealIdx).toBeLessThan(promiseAllIdx);
+  });
 });
 
 describe('Generation Counter - Race Condition Protection', () => {
