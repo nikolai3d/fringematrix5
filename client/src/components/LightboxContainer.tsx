@@ -156,7 +156,7 @@ export default function LightboxContainer({
         const container = isDetailsDrawerOpen ? drawerRef.current : lightboxRef.current;
         if (!container) return;
         const focusable = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
-          .filter(el => !el.hidden && el.offsetParent !== null);
+          .filter(el => !el.hidden && (el.offsetParent !== null || getComputedStyle(el).position === 'fixed'));
         if (focusable.length === 0) return;
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
