@@ -444,19 +444,20 @@ describe('Lightbox Click Event Handling', () => {
       currentTarget: { click: vi.fn() }
     };
 
-    // Simulate click handlers for lightbox toolbar buttons
-    // These handlers should call stopPropagation. (The Share button was
-    // removed in fringematrix5-vp3; the surviving lightbox buttons are
-    // PREVIOUS, NEXT, and the side ◀/▶ arrows.)
+    // Simulate click handlers for lightbox bottom-toolbar buttons.
+    // All four (PREVIOUS / DOWNLOAD / SHARE / NEXT) call stopPropagation
+    // so the surrounding backdrop click handler does not dismiss the
+    // lightbox while the user clicks a toolbar control.
     const lightboxPrevHandler = (e) => { e.stopPropagation(); /* nextImage(-1) */ };
+    const lightboxDownloadHandler = (e) => { e.stopPropagation(); /* default anchor download */ };
+    const lightboxShareHandler = (e) => { e.stopPropagation(); /* handleShare() */ };
     const lightboxNextHandler = (e) => { e.stopPropagation(); /* nextImage(1) */ };
 
-    lightboxPrevHandler(mockEvent);
-    expect(mockEvent.stopPropagation).toHaveBeenCalledTimes(1);
-
-    mockEvent.stopPropagation.mockClear();
-    lightboxNextHandler(mockEvent);
-    expect(mockEvent.stopPropagation).toHaveBeenCalledTimes(1);
+    for (const handler of [lightboxPrevHandler, lightboxDownloadHandler, lightboxShareHandler, lightboxNextHandler]) {
+      mockEvent.stopPropagation.mockClear();
+      handler(mockEvent);
+      expect(mockEvent.stopPropagation).toHaveBeenCalledTimes(1);
+    }
   });
 
   it('main toolbar elements should NOT call stopPropagation to allow closure', () => {
