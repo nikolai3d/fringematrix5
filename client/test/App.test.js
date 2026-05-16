@@ -445,17 +445,13 @@ describe('Lightbox Click Event Handling', () => {
     };
 
     // Simulate click handlers for lightbox toolbar buttons
-    // These handlers should call stopPropagation
+    // These handlers should call stopPropagation. (The Share button was
+    // removed in fringematrix5-vp3; the surviving lightbox buttons are
+    // PREVIOUS, NEXT, and the side ◀/▶ arrows.)
     const lightboxPrevHandler = (e) => { e.stopPropagation(); /* nextImage(-1) */ };
-    const lightboxShareHandler = (e) => { e.stopPropagation(); /* handleShare() */ };
     const lightboxNextHandler = (e) => { e.stopPropagation(); /* nextImage(1) */ };
 
-    // Test each lightbox toolbar button
     lightboxPrevHandler(mockEvent);
-    expect(mockEvent.stopPropagation).toHaveBeenCalledTimes(1);
-
-    mockEvent.stopPropagation.mockClear();
-    lightboxShareHandler(mockEvent);
     expect(mockEvent.stopPropagation).toHaveBeenCalledTimes(1);
 
     mockEvent.stopPropagation.mockClear();
