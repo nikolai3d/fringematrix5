@@ -1,3 +1,4 @@
+import React from 'react';
 import type { Campaign } from '../types/api';
 
 interface Props {
@@ -9,7 +10,7 @@ interface Props {
   onClose: () => void;
 }
 
-export default function CampaignNavigation({
+function CampaignNavigation({
   campaigns,
   activeCampaignId,
   isOpen,
@@ -48,3 +49,5 @@ export default function CampaignNavigation({
     </>
   );
 }
+
+export default React.memo(CampaignNavigation);
