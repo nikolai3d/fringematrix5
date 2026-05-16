@@ -36,11 +36,28 @@ test.describe('Lightbox redesign — desktop layout', () => {
     await expect(sidebar.getByText(/^#\w+/)).toBeVisible();
   });
 
-  test('Download and Share buttons are gone from the lightbox', async ({ page }) => {
+  test('Download and Share buttons are in the bottom toolbar', async ({ page }) => {
     if (!(await openLightbox(page))) test.skip(true, 'No images available');
-    await expect(page.locator('#download-btn')).toHaveCount(0);
-    await expect(page.locator('#share-btn')).toHaveCount(0);
+    const toolbar = page.locator('.lightbox-nav-toolbar');
+    await expect(toolbar.locator('#download-btn')).toBeVisible();
+    await expect(toolbar.locator('#share-btn')).toBeVisible();
+
+    // Download anchor points at the current image src and has the
+    // download attribute so the browser saves it instead of navigating.
+    const download = toolbar.locator('#download-btn');
+    const lightboxImg = page.locator('#lightbox-image');
+    const src = await lightboxImg.getAttribute('src');
+    expect(src).toBeTruthy();
+    await expect(download).toHaveAttribute('href', src!);
+    await expect(download).toHaveAttribute('download', /.+/);
+
+    // .lightbox-actions is the OLD wrapper class — should still be gone.
     await expect(page.locator('.lightbox-actions')).toHaveCount(0);
+  });
+
+  test('side ◀/▶ arrows on the image are gone (nav lives only in the bottom toolbar)', async ({ page }) => {
+    if (!(await openLightbox(page))) test.skip(true, 'No images available');
+    await expect(page.locator('.lightbox-side-arrows')).toHaveCount(0);
   });
 
   test('IMDB link is external, opens in new tab, and matches the campaign url', async ({ page }) => {

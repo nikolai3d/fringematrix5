@@ -47,6 +47,23 @@ export default function LightboxContainer({
     setLightboxIndex((idx) => (images.length === 0 ? 0 : (idx + delta + images.length) % images.length));
   }, [images.length, setLightboxIndex]);
 
+  const handleShare = useCallback(async () => {
+    const img = images[lightboxIndex];
+    if (!img || !img.src) return;
+    const shareUrl = new URL(window.location.href);
+    shareUrl.searchParams.set('img', img.src);
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Fringe Matrix', text: img.fileName, url: shareUrl.toString() });
+      } catch { /* user cancelled or share rejected */ }
+    } else if (navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(shareUrl.toString());
+        alert('Link copied to clipboard');
+      } catch { /* clipboard permission denied or insecure context */ }
+    }
+  }, [images, lightboxIndex]);
+
   const handleLightboxClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     // Animation-in-progress clicks would otherwise interrupt the open/close transition.
     if (isAnimatingRef.current) return;
@@ -65,10 +82,10 @@ export default function LightboxContainer({
       clickY <= imageRect.bottom
     );
 
-    // The lightbox now has several interactive regions besides the image
-    // itself: the right-side details sidebar (or its mobile drawer), the
-    // bottom nav toolbar, the side ◀/▶ arrows overlay, and the info button.
-    // Clicks anywhere in those should NOT close the lightbox.
+    // The lightbox has several interactive regions besides the image
+    // itself: the right-side details sidebar (or its mobile drawer),
+    // the bottom nav toolbar, and the info button. Clicks anywhere in
+    // those should NOT close the lightbox.
     const isInsideZone = (selector: string): boolean => {
       const el = document.querySelector(selector) as HTMLElement | null;
       if (!el) return false;
@@ -78,11 +95,10 @@ export default function LightboxContainer({
 
     const isInToolbarArea = isInsideZone('.lightbox-nav-toolbar');
     const isInSidebarArea = isInsideZone('.lightbox-details');
-    const isInSideArrowsArea = isInsideZone('.lightbox-side-arrows');
     const isInInfoBtnArea = isInsideZone('.lightbox-info-btn');
     const isInDrawerArea = isInsideZone('.lightbox-details-drawer');
 
-    if (!isInsideImage && !isInToolbarArea && !isInSidebarArea && !isInSideArrowsArea && !isInInfoBtnArea && !isInDrawerArea) {
+    if (!isInsideImage && !isInToolbarArea && !isInSidebarArea && !isInInfoBtnArea && !isInDrawerArea) {
       closeLightbox();
     }
   }, [closeLightbox, isAnimatingRef]);
@@ -244,24 +260,6 @@ export default function LightboxContainer({
               src={images[lightboxIndex]?.src || ''}
               style={{ opacity: hideLightboxImage ? 0 : 1 }}
             />
-            <div className="lightbox-side-arrows" aria-hidden={false}>
-              <button
-                id="prev-btn"
-                className="nav-btn"
-                aria-label="Previous"
-                onClick={(e) => { e.stopPropagation(); nextImage(-1); }}
-              >
-                ◀
-              </button>
-              <button
-                id="next-btn"
-                className="nav-btn"
-                aria-label="Next"
-                onClick={(e) => { e.stopPropagation(); nextImage(1); }}
-              >
-                ▶
-              </button>
-            </div>
           </div>
 
           <aside
@@ -274,6 +272,7 @@ export default function LightboxContainer({
 
         <div className="lightbox-nav-toolbar" role="toolbar" aria-label="Lightbox navigation">
           <button
+            id="prev-btn"
             type="button"
             className="lightbox-nav-btn"
             aria-label="Previous image"
@@ -282,7 +281,37 @@ export default function LightboxContainer({
             <span className="lightbox-nav-btn-chevron" aria-hidden={true}>‹</span>
             <span className="lightbox-nav-btn-label">PREVIOUS</span>
           </button>
+          <a
+            id="download-btn"
+            className="lightbox-nav-btn"
+            href={images[lightboxIndex]?.src || '#'}
+            download={images[lightboxIndex]?.fileName || ''}
+            aria-label="Download image"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <svg className="lightbox-nav-btn-icon" aria-hidden={true} viewBox="0 0 24 24" width="16" height="16">
+              <path fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M12 4v12m0 0l-5-5m5 5l5-5M4 20h16" />
+            </svg>
+            <span className="lightbox-nav-btn-label">DOWNLOAD</span>
+          </a>
           <button
+            id="share-btn"
+            type="button"
+            className="lightbox-nav-btn"
+            aria-label="Share image"
+            onClick={(e) => { e.stopPropagation(); handleShare(); }}
+          >
+            <svg className="lightbox-nav-btn-icon" aria-hidden={true} viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="18" cy="5" r="3" />
+              <circle cx="6" cy="12" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+            </svg>
+            <span className="lightbox-nav-btn-label">SHARE</span>
+          </button>
+          <button
+            id="next-btn"
             type="button"
             className="lightbox-nav-btn lightbox-nav-btn--primary"
             aria-label="Next image"
