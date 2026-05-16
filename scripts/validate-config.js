@@ -20,13 +20,24 @@ const MAX_FADE_DELAY = 10000;
 
 // Sidebar animation limits, aligned with client/src/config/lightbox.ts
 const SIDEBAR_LIMITS = {
-  enterDurationMs:       { min: 0,  max: 2000, mustBePositive: false, integer: false },
-  exitDurationMs:        { min: 0,  max: 2000, mustBePositive: false, integer: false },
-  lineHoldMs:            { min: 0,  max: 1000, mustBePositive: false, integer: false },
-  lineBlinkCount:        { min: 0,  max: 10,   mustBePositive: false, integer: true  },
-  lineBlinkIntervalMs:   { min: 10, max: 1000, mustBePositive: true,  integer: false },
-  contentFadeInDelayMs:  { min: 0,  max: 2000, mustBePositive: false, integer: false },
+  enterDurationMs:       { min: 0,  max: 2000, integer: false },
+  exitDurationMs:        { min: 0,  max: 2000, integer: false },
+  lineHoldMs:            { min: 0,  max: 1000, integer: false },
+  lineBlinkCount:        { min: 0,  max: 10,   integer: true  },
+  lineBlinkIntervalMs:   { min: 10, max: 1000, integer: false },
+  contentFadeInDelayMs:  { min: 0,  max: 2000, integer: false },
 };
+
+// CSS named colors (common subset + 'transparent') — module-level to avoid re-allocation
+const NAMED_COLORS = new Set([
+  'transparent', 'currentcolor', 'inherit', 'initial', 'unset',
+  'black', 'white', 'red', 'green', 'blue', 'yellow', 'orange',
+  'purple', 'pink', 'brown', 'gray', 'grey', 'cyan', 'magenta',
+  'lime', 'olive', 'teal', 'navy', 'maroon', 'aqua', 'fuchsia',
+  'silver', 'gold', 'indigo', 'violet', 'coral', 'salmon', 'khaki',
+  'lavender', 'beige', 'ivory', 'crimson', 'turquoise', 'sienna',
+  'tan', 'plum', 'orchid', 'peru', 'tomato', 'wheat', 'linen',
+]);
 
 let hasErrors = false;
 
@@ -63,21 +74,7 @@ function isValidCssColor(value) {
     return true;
   }
 
-  // CSS named colors (common subset + 'transparent')
-  const NAMED_COLORS = new Set([
-    'transparent', 'currentcolor', 'inherit', 'initial', 'unset',
-    'black', 'white', 'red', 'green', 'blue', 'yellow', 'orange',
-    'purple', 'pink', 'brown', 'gray', 'grey', 'cyan', 'magenta',
-    'lime', 'olive', 'teal', 'navy', 'maroon', 'aqua', 'fuchsia',
-    'silver', 'gold', 'indigo', 'violet', 'coral', 'salmon', 'khaki',
-    'lavender', 'beige', 'ivory', 'crimson', 'turquoise', 'sienna',
-    'tan', 'plum', 'orchid', 'peru', 'tomato', 'wheat', 'linen',
-  ]);
-  if (NAMED_COLORS.has(trimmed.toLowerCase())) {
-    return true;
-  }
-
-  return false;
+  return NAMED_COLORS.has(trimmed.toLowerCase());
 }
 
 function validateConfig() {
@@ -86,7 +83,7 @@ function validateConfig() {
   let config;
   try {
     const fileContents = readFileSync(CONFIG_PATH, 'utf8');
-    config = yaml.load(fileContents);
+    config = yaml.load(fileContents, { schema: yaml.JSON_SCHEMA });
   } catch (err) {
     error(`Failed to read or parse config.yaml: ${err.message}`);
     process.exit(1);
@@ -168,13 +165,6 @@ function validateConfig() {
           if (limits.integer && !Number.isInteger(value)) {
             error(
               `lightbox.sidebarAnimation.${field} must be an integer. Got: ${value}`
-            );
-            continue;
-          }
-
-          if (limits.mustBePositive && value <= 0) {
-            error(
-              `lightbox.sidebarAnimation.${field} must be a positive number (> 0). Got: ${value}`
             );
             continue;
           }
