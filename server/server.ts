@@ -447,10 +447,7 @@ app.get('/api/campaigns/:id/images', async (req: Request, res: Response): Promis
 
 // Build info endpoint
 app.get('/api/build-info', (_req: Request, res: Response): void => {
-  // build-info is immutable for the lifetime of this process (written once at
-  // deploy time), so a longer max-age is safe.
-  res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
-  res.set('Vary', 'Accept-Encoding');
+  const CACHE_HEADERS = 'public, max-age=3600, stale-while-revalidate=86400';
   try {
     if (fs.existsSync(BUILD_INFO_PATH)) {
       const raw = fs.readFileSync(BUILD_INFO_PATH, 'utf8');
@@ -460,6 +457,8 @@ app.get('/api/build-info', (_req: Request, res: Response): void => {
       } catch (_) {
         data = {};
       }
+      res.set('Cache-Control', CACHE_HEADERS);
+      res.set('Vary', 'Accept-Encoding');
       res.json({
         repoUrl: data.repoUrl || null,
         commitHash: data.commitHash || null,
@@ -468,6 +467,8 @@ app.get('/api/build-info', (_req: Request, res: Response): void => {
       return;
     }
     if (IS_DEV || !HAS_CLIENT_BUILD) {
+      res.set('Cache-Control', CACHE_HEADERS);
+      res.set('Vary', 'Accept-Encoding');
       res.json({
         repoUrl: null,
         commitHash: 'DEV-LOCAL',
@@ -475,6 +476,8 @@ app.get('/api/build-info', (_req: Request, res: Response): void => {
       });
       return;
     }
+    res.set('Cache-Control', CACHE_HEADERS);
+    res.set('Vary', 'Accept-Encoding');
     res.json({
       repoUrl: null,
       commitHash: null,
