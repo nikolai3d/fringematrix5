@@ -227,7 +227,7 @@ function runCli() {
 // Only run the CLI when this file is the entry point (not when imported by tests).
 // In ESM there is no require.main; compare import.meta.url to process.argv[1].
 const isMain = process.argv[1] &&
-  fileURLToPath(import.meta.url) === (await import('path')).resolve(process.argv[1]);
+  fileURLToPath(import.meta.url) === resolve(process.argv[1]);
 if (isMain) {
   runCli();
 }
