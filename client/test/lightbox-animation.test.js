@@ -466,9 +466,11 @@ describe('Grid Thumbnail Class-Based Guaranteed Restoration', () => {
   });
 
   it('restore grid thumb effect should include safety sweep of lightbox-active-thumb class', () => {
-    const restoreBlock = hookContent.match(/Restore grid thumb on lightbox close[\s\S]*?Safety sweep[\s\S]*?\}, \[isLightboxOpen\]\)/);
+    // After the getThumbElement refactor, the safety sweep iterates images
+    // and calls getThumbElement(idx) instead of querySelectorAll.
+    const restoreBlock = hookContent.match(/Restore grid thumb on lightbox close[\s\S]*?Safety sweep[\s\S]*?\}, \[isLightboxOpen,\s*images,\s*getThumbElement\]\)/);
     expect(restoreBlock).not.toBeNull();
-    expect(restoreBlock[0]).toMatch(/querySelectorAll.*gallery-grid.*card img\.lightbox-active-thumb/);
+    expect(restoreBlock[0]).toMatch(/getThumbElement\(idx\)/);
     expect(restoreBlock[0]).toMatch(/classList\.remove\('lightbox-active-thumb'\)/);
   });
 });
@@ -649,8 +651,8 @@ describe('Hook Interface - reduceMotion Prop', () => {
     expect(hookContent).toMatch(/\[reduceMotion,\s*setHideLightboxImage/);
     expect(hookContent).toMatch(/\[reduceMotion,\s*images/);
     expect(hookContent).toMatch(/reduceMotion,\s*animateLightboxBackdrop/);
-    // Sync effect should also include reduceMotion
-    expect(hookContent).toMatch(/\[isLightboxOpen,\s*images,\s*lightboxIndex,\s*reduceMotion\]/);
+    // Sync effect should also include getThumbElement (replaced reduceMotion after refactor)
+    expect(hookContent).toMatch(/\[isLightboxOpen,\s*images,\s*lightboxIndex,\s*getThumbElement\]/);
   });
 });
 
@@ -805,6 +807,7 @@ describe('No-Blink Handoff: Wireframe to Lightbox Image', () => {
         reduceMotion: false,
         setLightboxIndex: () => {},
         setIsLightboxOpen: setIsOpen,
+        getThumbElement: () => null,
         setHideLightboxImage: (v) => {
           if (v === false) {
             revealCallCount++;

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { escapeForAttributeSelector } from '../utils/escapeForAttributeSelector';
 import { LIGHTBOX_SIDEBAR_ANIMATION } from '../config/lightbox';
 import type { ImageData } from '../types/api';
 
@@ -11,6 +10,12 @@ interface UseLightboxAnimationsProps {
   setLightboxIndex: (index: number) => void;
   setIsLightboxOpen: (open: boolean) => void;
   setHideLightboxImage: (hide: boolean) => void;
+  /**
+   * Returns the thumbnail <img> element for the given image index, or null if
+   * the element is not currently in the DOM.  Supplied by the gallery grid so
+   * the hook has no hard dependency on CSS class names or DOM structure.
+   */
+  getThumbElement: (index: number) => HTMLImageElement | null;
 }
 
 interface Rect {
@@ -78,6 +83,7 @@ export function useLightboxAnimations({
   setLightboxIndex,
   setIsLightboxOpen,
   setHideLightboxImage,
+  getThumbElement,
 }: UseLightboxAnimationsProps) {
   
   /**
@@ -492,8 +498,7 @@ export function useLightboxAnimations({
         return;
       }
       const startRect = lightboxImg.getBoundingClientRect();
-      const escapedSrc = escapeForAttributeSelector(img.src || '');
-      let thumbElement = document.querySelector(`.gallery-grid .card img[src="${escapedSrc}"]`) as HTMLElement | null;
+      let thumbElement = getThumbElement(lightboxIndex) as HTMLElement | null;
       if (!thumbElement && activeGridThumbRef.current && document.body.contains(activeGridThumbRef.current)) {
         thumbElement = activeGridThumbRef.current;
       }
@@ -550,7 +555,7 @@ export function useLightboxAnimations({
         lastOpenedThumbElRef.current = null;
       }
     }
-  }, [reduceMotion, images, lightboxIndex, animateLightboxBackdrop, runWireframeAnimation, animateLightboxSidebar, setHideLightboxImage, setIsLightboxOpen]);
+  }, [reduceMotion, images, lightboxIndex, getThumbElement, animateLightboxBackdrop, runWireframeAnimation, animateLightboxSidebar, setHideLightboxImage, setIsLightboxOpen]);
 
   // After mount of lightbox, animate wireframe and backdrop in
   useEffect(() => {
@@ -663,8 +668,7 @@ export function useLightboxAnimations({
     if (!isLightboxOpen) return;
     const current = images[lightboxIndex];
     if (!current) return;
-    const selector = `.gallery-grid .card img[src="${escapeForAttributeSelector(current.src || '')}"]`;
-    const newThumb = document.querySelector(selector) as HTMLElement | null;
+    const newThumb = getThumbElement(lightboxIndex) as HTMLElement | null;
 
     const prev = activeGridThumbRef.current;
     if (prev && prev !== newThumb && document.body.contains(prev)) {
@@ -676,7 +680,7 @@ export function useLightboxAnimations({
     } else {
       activeGridThumbRef.current = null;
     }
-  }, [isLightboxOpen, images, lightboxIndex, reduceMotion]);
+  }, [isLightboxOpen, images, lightboxIndex, getThumbElement]);
 
   // Restore grid thumb on lightbox close
   useEffect(() => {
@@ -686,14 +690,18 @@ export function useLightboxAnimations({
       try { el.classList.remove('lightbox-active-thumb'); } catch (_) { /* ignore */ }
     }
     activeGridThumbRef.current = null;
-    // Safety sweep: ensure no grid thumbnails are stuck invisible due to
-    // stale lightbox-active-thumb classes from interrupted interactions.
+    // Safety sweep: ensure no grid thumbnails tracked via getThumbElement are
+    // stuck invisible due to stale lightbox-active-thumb classes from
+    // interrupted interactions.
     try {
-      document.querySelectorAll<HTMLElement>('.gallery-grid .card img.lightbox-active-thumb').forEach(img => {
-        try { img.classList.remove('lightbox-active-thumb'); } catch (_) { /* ignore */ }
+      images.forEach((_img, idx) => {
+        const thumb = getThumbElement(idx);
+        if (thumb?.classList.contains('lightbox-active-thumb')) {
+          try { thumb.classList.remove('lightbox-active-thumb'); } catch (_) { /* ignore */ }
+        }
       });
     } catch (_) { /* ignore */ }
-  }, [isLightboxOpen]);
+  }, [isLightboxOpen, images, getThumbElement]);
 
   // Cleanup wireframe helper element on unmount to prevent leaks
   useEffect(() => {

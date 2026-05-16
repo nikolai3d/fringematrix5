@@ -13,7 +13,7 @@ import CampaignNavigation from './components/CampaignNavigation';
 import ContentModal from './components/ContentModal';
 import SettingsModal from './components/SettingsModal';
 import LightboxContainer from './components/LightboxContainer';
-import GalleryGrid from './components/GalleryGrid';
+import GalleryGrid, { type GalleryGridHandle } from './components/GalleryGrid';
 import type {
   Campaign,
   ImageData,
@@ -93,6 +93,7 @@ export default function App() {
   const [campaignLoadTotal, setCampaignLoadTotal] = useState<number>(0);
   const [campaignLoadError, setCampaignLoadError] = useState<boolean>(false);
   const campaignLoadAbortRef = useRef<AbortController | null>(null);
+  const galleryGridRef = useRef<GalleryGridHandle>(null);
   const shareBtnRef = useRef<HTMLButtonElement>(null);
   const buildBtnRef = useRef<HTMLButtonElement>(null);
   const [shareStyle, setShareStyle] = useState<React.CSSProperties>({});
@@ -452,6 +453,14 @@ export default function App() {
     return () => clearInterval(id);
   }, [isPreloading, isCampaignLoading]);
 
+  // Stable callback so the hook never re-creates its callbacks due to a new
+  // function reference.  galleryGridRef.current is read at call time, so the
+  // useCallback dep array is intentionally empty.
+  const getThumbElement = useCallback((index: number): HTMLImageElement | null => {
+    return galleryGridRef.current?.getThumbElement(index) ?? null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Lightbox animations are provided by the useLightboxAnimations hook
   const { openLightbox, closeLightbox, isAnimatingRef } = useLightboxAnimations({
     images: currentImages,
@@ -461,6 +470,7 @@ export default function App() {
     setLightboxIndex,
     setIsLightboxOpen,
     setHideLightboxImage,
+    getThumbElement,
   });
 
   // Centralized function to close all subwindows - add new subwindows here
@@ -645,6 +655,7 @@ export default function App() {
         </section>
 
         <GalleryGrid
+          ref={galleryGridRef}
           images={currentImages}
           hasCampaign={!!activeCampaign}
           onImageClick={openLightbox}
