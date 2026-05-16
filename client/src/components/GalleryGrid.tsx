@@ -38,13 +38,28 @@ const GalleryGrid = React.memo(React.forwardRef<GalleryGridHandle, GalleryGridPr
       },
     }), []);
 
-    /** Callback ref factory — registers or unregisters each <img> element. */
-    const setThumbRef = useCallback((index: number) => (el: HTMLImageElement | null) => {
-      if (el) {
-        thumbMapRef.current.set(index, el);
-      } else {
-        thumbMapRef.current.delete(index);
+    /**
+     * Cache of per-index callback refs so that the same function reference is
+     * reused across renders for a given index. Without this, `setThumbRef(i)`
+     * would produce a new closure on every render, causing React to call the
+     * old ref with `null` and the new one with the element on every re-render —
+     * unnecessary churn in `thumbMapRef`.
+     */
+    const refCallbackCacheRef = useRef<Map<number, (el: HTMLImageElement | null) => void>>(new Map());
+
+    const setThumbRef = useCallback((index: number): (el: HTMLImageElement | null) => void => {
+      let cb = refCallbackCacheRef.current.get(index);
+      if (!cb) {
+        cb = (el: HTMLImageElement | null) => {
+          if (el) {
+            thumbMapRef.current.set(index, el);
+          } else {
+            thumbMapRef.current.delete(index);
+          }
+        };
+        refCallbackCacheRef.current.set(index, cb);
       }
+      return cb;
     }, []);
 
     const isEmpty = hasCampaign && images.length === 0;

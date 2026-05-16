@@ -85,7 +85,17 @@ export function useLightboxAnimations({
   setHideLightboxImage,
   getThumbElement,
 }: UseLightboxAnimationsProps) {
-  
+  /**
+   * Keep latest `images` and `getThumbElement` in refs so the safety-sweep
+   * effect can read them without including them in its dependency array.
+   * This prevents the sweep from re-running whenever images load or the
+   * callback reference changes while the lightbox is already closed.
+   */
+  const imagesRef = useRef(images);
+  imagesRef.current = images;
+  const getThumbElementRef = useRef(getThumbElement);
+  getThumbElementRef.current = getThumbElement;
+
   /**
    * Ref to the wireframe DOM element used for animating transitions between thumbnail and lightbox.
    * Created and appended to the DOM as needed, and removed/hid after animation completes.
@@ -692,16 +702,18 @@ export function useLightboxAnimations({
     activeGridThumbRef.current = null;
     // Safety sweep: ensure no grid thumbnails tracked via getThumbElement are
     // stuck invisible due to stale lightbox-active-thumb classes from
-    // interrupted interactions.
+    // interrupted interactions. Read from refs so this effect only fires on
+    // the open→close transition (isLightboxOpen) and not on every images/
+    // getThumbElement change.
     try {
-      images.forEach((_img, idx) => {
-        const thumb = getThumbElement(idx);
+      imagesRef.current.forEach((_img, idx) => {
+        const thumb = getThumbElementRef.current(idx);
         if (thumb?.classList.contains('lightbox-active-thumb')) {
           try { thumb.classList.remove('lightbox-active-thumb'); } catch (_) { /* ignore */ }
         }
       });
     } catch (_) { /* ignore */ }
-  }, [isLightboxOpen, images, getThumbElement]);
+  }, [isLightboxOpen]);
 
   // Cleanup wireframe helper element on unmount to prevent leaks
   useEffect(() => {

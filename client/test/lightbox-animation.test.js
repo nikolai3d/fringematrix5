@@ -467,10 +467,12 @@ describe('Grid Thumbnail Class-Based Guaranteed Restoration', () => {
 
   it('restore grid thumb effect should include safety sweep of lightbox-active-thumb class', () => {
     // After the getThumbElement refactor, the safety sweep iterates images
-    // and calls getThumbElement(idx) instead of querySelectorAll.
-    const restoreBlock = hookContent.match(/Restore grid thumb on lightbox close[\s\S]*?Safety sweep[\s\S]*?\}, \[isLightboxOpen,\s*images,\s*getThumbElement\]\)/);
+    // via imagesRef and calls getThumbElementRef.current(idx) instead of
+    // querySelectorAll. The dep array stays [isLightboxOpen] only (images and
+    // getThumbElement are read from refs to avoid spurious re-runs).
+    const restoreBlock = hookContent.match(/Restore grid thumb on lightbox close[\s\S]*?Safety sweep[\s\S]*?\}, \[isLightboxOpen\]\)/);
     expect(restoreBlock).not.toBeNull();
-    expect(restoreBlock[0]).toMatch(/getThumbElement\(idx\)/);
+    expect(restoreBlock[0]).toMatch(/getThumbElementRef\.current\(idx\)/);
     expect(restoreBlock[0]).toMatch(/classList\.remove\('lightbox-active-thumb'\)/);
   });
 });
