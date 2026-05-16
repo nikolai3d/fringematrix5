@@ -50,12 +50,17 @@ async function downloadCampaignImages(campaignPath) {
       for (const blob of blobs) {
         if (!blob.pathname.match(/\.(png|jpg|jpeg|gif|webp|avif|bmp|svg)$/i)) continue;
 
-        const filename = path.basename(blob.pathname);
-        const filePath = path.join(localDir, filename);
+        // Preserve directory structure by removing 'avatars/' prefix
+        const relativePath = blob.pathname.replace(/^avatars\//, '');
+        const filePath = path.join(localDir, relativePath);
+
+        // Create subdirectories as needed
+        const dirname = path.dirname(filePath);
+        fs.mkdirSync(dirname, { recursive: true });
 
         try {
           await downloadBlob(blob.url, filePath);
-          console.log(`✅ Downloaded: ${filename}`);
+          console.log(`✅ Downloaded: ${relativePath}`);
           totalDownloaded++;
         } catch (err) {
           console.error(`❌ Failed to download ${filename}:`, err.message);
