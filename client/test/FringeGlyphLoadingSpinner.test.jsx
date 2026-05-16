@@ -368,40 +368,61 @@ describe('FringeGlyphLoadingSpinner - Shuffle Behavior', () => {
 
 describe('FringeGlyphLoadingSpinner - Cleanup', () => {
   it('should not throw after unmount during fetch', async () => {
+    // Spy on setInterval before rendering to capture any call made after unmount
+    // (e.g. if a pending setTimeout fires after cleanup and tries to start cycling).
+    const setIntervalSpy = vi.spyOn(window, 'setInterval');
+
     const { unmount } = render(<FringeGlyphLoadingSpinner />);
-    
-    // Unmount before operations complete
+
+    // Unmount before fetch/preload completes — the component never reaches the
+    // cycling stage, so no interval should ever be created.
     unmount();
-    
-    // Advance timers - should not throw
+
+    // Advance timers past the full startup sequence to let any orphaned callbacks fire.
     await act(async () => {
       vi.advanceTimersByTime(500);
       await Promise.resolve();
     });
-    
-    // If we get here without errors, cleanup worked
-    expect(true).toBe(true);
+
+    // No interval should have been created because the component was torn down
+    // before it became visible.
+    expect(setIntervalSpy).not.toHaveBeenCalled();
   });
 
   it('should clear timers on unmount', async () => {
+    const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
+    const clearIntervalSpy = vi.spyOn(window, 'clearInterval');
+
     const { unmount } = render(
-      <FringeGlyphLoadingSpinner 
-        displayDuration={100} 
-        crossDissolveDuration={50} 
+      <FringeGlyphLoadingSpinner
+        displayDuration={100}
+        crossDissolveDuration={50}
       />
     );
-    
+
+    // Let the component fully initialise and start cycling.
     await flushPromisesAndTimers();
-    
+
+    // Reset spy counts so we only observe calls that happen during unmount.
+    clearTimeoutSpy.mockClear();
+    clearIntervalSpy.mockClear();
+
     unmount();
-    
-    // Advance timers well past cycle time - should not throw
+
+    // After unmount the cleanup effect must have called clearTimeout and/or
+    // clearInterval to cancel the pending display-duration timer and the cycling
+    // interval (whichever are active at the moment of teardown).
+    const cleanupCleared =
+      clearTimeoutSpy.mock.calls.length > 0 || clearIntervalSpy.mock.calls.length > 0;
+    expect(cleanupCleared).toBe(true);
+
+    // Verify no further image cycling occurs after unmount.
+    const setIntervalAfterUnmount = vi.spyOn(window, 'setInterval');
     await act(async () => {
       vi.advanceTimersByTime(1000);
       await Promise.resolve();
     });
-    
-    expect(true).toBe(true);
+    expect(setIntervalAfterUnmount).not.toHaveBeenCalled();
   });
 });
 
