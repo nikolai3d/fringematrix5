@@ -566,6 +566,86 @@ footer.navbar {
 .lightbox-nav-btn-label { font-weight: 600; }
 
 .lightbox-close { position: fixed; top: 14px; right: 16px; background: transparent; color: var(--fg); border: none; font-size: 28px; cursor: pointer; }
+
+/* Info button (mobile) — toggles the IMAGE DETAILS drawer when the
+   inline sidebar is hidden by the < 768px media query. Hidden on
+   desktop where the sidebar is already visible inline. */
+.lightbox-info-btn {
+  display: none;
+  position: fixed;
+  top: 14px;
+  right: 56px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(6, 9, 15, 0.85);
+  border: 1px solid rgba(var(--theme-accent-rgb), 0.45);
+  color: var(--theme-accent);
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 18px;
+  font-weight: 700;
+  font-style: italic;
+  cursor: pointer;
+  z-index: 52;
+  padding: 0;
+}
+.lightbox-info-btn:hover {
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 12px rgba(var(--theme-accent-rgb), 0.4);
+}
+.lightbox-info-btn:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 2px;
+}
+
+/* IMAGE DETAILS drawer — slides up from the bottom on mobile when the
+   info button is tapped. Reuses .lightbox-details child styles. */
+.lightbox-details-drawer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: rgba(6, 9, 15, 0.96);
+  border-top: 1px solid rgba(var(--theme-accent-rgb), 0.35);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  box-shadow: 0 -10px 40px rgba(0,0,0,0.6), 0 0 30px rgba(var(--theme-accent-rgb), 0.18);
+  /* top padding must clear the absolute-positioned close button:
+     close top(8px) + height(36px) + breathing room(8px) = 52px */
+  padding: 52px 24px 24px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  animation: lightbox-drawer-slide-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.lightbox-details-drawer-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid rgba(var(--theme-accent-rgb), 0.35);
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.lightbox-details-drawer-close:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 2px;
+}
+@keyframes lightbox-drawer-slide-up {
+  from { transform: translateY(100%); opacity: 0.6; }
+  to { transform: translateY(0); opacity: 1; }
+}
 .action-btn, .nav-btn { background: linear-gradient(180deg, rgba(var(--theme-accent-rgb), 0.15), rgba(124,77,255,0.15)); color: var(--fg); border: 1px solid rgba(var(--theme-accent-rgb), 0.35); padding: 10px 14px; border-radius: 10px; cursor: pointer; text-decoration: none; }
 .action-btn:hover, .nav-btn:hover { border-color: var(--accent); box-shadow: 0 4px 16px rgba(var(--theme-accent-rgb), 0.25); }
 
@@ -1601,8 +1681,8 @@ body::before {
   .campaign-info h1 { font-size: 18px; }
 
   /* Lightbox: collapse two-pane layout to a single column on narrow
-     viewports. The sidebar drops out of the inline layout (the mobile
-     drawer in fringematrix5-7wp will bring it back behind a toggle). */
+     viewports. The inline sidebar is hidden; the IMAGE DETAILS drawer
+     (toggled by .lightbox-info-btn) takes its place. */
   .lightbox-stage {
     flex-direction: column;
     gap: 12px;
@@ -1629,6 +1709,7 @@ body::before {
     font-size: 12px;
     letter-spacing: 0.1em;
   }
+  .lightbox-info-btn { display: inline-flex; align-items: center; justify-content: center; }
 }
 
 /* Tablet refinements */
@@ -1710,6 +1791,11 @@ html.reduce-effects .lightbox-details {
 html.reduce-motion .lightbox-details > *,
 html.reduce-effects .lightbox-details > * {
   opacity: 1 !important;
+  animation: none !important;
+  transition: none !important;
+}
+html.reduce-motion .lightbox-details-drawer,
+html.reduce-effects .lightbox-details-drawer {
   animation: none !important;
   transition: none !important;
 }
