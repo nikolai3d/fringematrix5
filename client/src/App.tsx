@@ -5,6 +5,7 @@ import { useFocusTrap } from './hooks/useFocusTrap';
 import { fetchJSON } from './utils/fetchJSON';
 import { formatTimePacific } from './utils/formatTimePacific';
 import { gitRemoteToHttps } from './utils/gitRemoteToHttps';
+import { closeSubwindowsState } from './utils/closeSubwindowsState';
 import { applyTheme } from './config/theme';
 import LoadingManager from './components/LoadingManager';
 import CampaignNavigation from './components/CampaignNavigation';
@@ -466,11 +467,15 @@ export default function App() {
   // Centralized function to close all subwindows - add new subwindows here
   const closeAllSubwindows = useCallback(() => {
     if (isLightboxOpen) closeLightbox();
-    setIsSidebarOpen(false);
-    setIsBuildInfoOpen(false);
-    setIsShareOpen(false);
-    setActiveModal(null);
-    setIsSettingsOpen(false);
+    // Non-lightbox subwindow state is managed by the shared utility so that
+    // the exhaustive setter list lives in one testable place.
+    closeSubwindowsState({
+      setIsSidebarOpen,
+      setIsBuildInfoOpen,
+      setIsShareOpen,
+      setActiveModal,
+      setIsSettingsOpen,
+    });
   }, [isLightboxOpen, closeLightbox]);
 
   const goHome = useCallback(() => {

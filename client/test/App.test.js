@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
+import { closeSubwindowsState } from '../src/utils/closeSubwindowsState';
 
 // Note: Home Button navigation behavior is tested via e2e tests in e2e/app.spec.ts
 // which test the actual component behavior rather than duplicating implementation.
@@ -96,176 +97,122 @@ describe('Popover Positioning', () => {
   });
 });
 
-// Tests for goHome subwindow closing behavior
-describe('goHome Subwindow Closing', () => {
-  // Simulate the closeAllSubwindows function that goHome calls
-  const createCloseAllSubwindows = (setters) => () => {
-    setters.setIsLightboxOpen(false);
-    setters.setIsSidebarOpen(false);
-    setters.setIsBuildInfoOpen(false);
-    setters.setIsShareOpen(false);
-    setters.setActiveModal(null);
-  };
-
-  it('should close all subwindows when goHome is called', () => {
-    // Track which setters were called with what values
-    const calls = {
-      lightbox: [],
-      sidebar: [],
-      buildInfo: [],
-      share: [],
-      modal: []
-    };
-
-    const setters = {
-      setIsLightboxOpen: (val) => calls.lightbox.push(val),
-      setIsSidebarOpen: (val) => calls.sidebar.push(val),
-      setIsBuildInfoOpen: (val) => calls.buildInfo.push(val),
-      setIsShareOpen: (val) => calls.share.push(val),
-      setActiveModal: (val) => calls.modal.push(val)
-    };
-
-    const closeAllSubwindows = createCloseAllSubwindows(setters);
-    closeAllSubwindows();
-
-    // All subwindows should be set to false/null
-    expect(calls.lightbox).toContain(false);
-    expect(calls.sidebar).toContain(false);
-    expect(calls.buildInfo).toContain(false);
-    expect(calls.share).toContain(false);
-    expect(calls.modal).toContain(null);
+// Tests for closeSubwindowsState — the utility that closeAllSubwindows delegates to.
+// We import the real function so these tests actually enforce production behavior:
+// every subwindow setter that the utility calls will be covered here, and any new
+// subwindow added to closeSubwindowsState will be caught by CI if the test is not
+// updated to match.
+describe('closeSubwindowsState', () => {
+  const makeSetters = (overrides = {}) => ({
+    setIsSidebarOpen: vi.fn(),
+    setIsBuildInfoOpen: vi.fn(),
+    setIsShareOpen: vi.fn(),
+    setActiveModal: vi.fn(),
+    setIsSettingsOpen: vi.fn(),
+    ...overrides,
   });
 
-  it('should close lightbox when it was open', () => {
-    let lightboxOpen = true;
-    const setters = {
-      setIsLightboxOpen: (val) => { lightboxOpen = val; },
-      setIsSidebarOpen: vi.fn(),
-      setIsBuildInfoOpen: vi.fn(),
-      setIsShareOpen: vi.fn(),
-      setActiveModal: vi.fn()
-    };
+  it('should close all non-lightbox subwindows', () => {
+    const setters = makeSetters();
+    closeSubwindowsState(setters);
 
-    const closeAllSubwindows = createCloseAllSubwindows(setters);
-    closeAllSubwindows();
-
-    expect(lightboxOpen).toBe(false);
+    expect(setters.setIsSidebarOpen).toHaveBeenCalledWith(false);
+    expect(setters.setIsBuildInfoOpen).toHaveBeenCalledWith(false);
+    expect(setters.setIsShareOpen).toHaveBeenCalledWith(false);
+    expect(setters.setActiveModal).toHaveBeenCalledWith(null);
+    expect(setters.setIsSettingsOpen).toHaveBeenCalledWith(false);
   });
 
   it('should close sidebar (campaign list) when it was open', () => {
     let sidebarOpen = true;
-    const setters = {
-      setIsLightboxOpen: vi.fn(),
-      setIsSidebarOpen: (val) => { sidebarOpen = val; },
-      setIsBuildInfoOpen: vi.fn(),
-      setIsShareOpen: vi.fn(),
-      setActiveModal: vi.fn()
-    };
+    const setters = makeSetters({ setIsSidebarOpen: (val) => { sidebarOpen = val; } });
 
-    const closeAllSubwindows = createCloseAllSubwindows(setters);
-    closeAllSubwindows();
+    closeSubwindowsState(setters);
 
     expect(sidebarOpen).toBe(false);
   });
 
   it('should close build info popover when it was open', () => {
     let buildInfoOpen = true;
-    const setters = {
-      setIsLightboxOpen: vi.fn(),
-      setIsSidebarOpen: vi.fn(),
-      setIsBuildInfoOpen: (val) => { buildInfoOpen = val; },
-      setIsShareOpen: vi.fn(),
-      setActiveModal: vi.fn()
-    };
+    const setters = makeSetters({ setIsBuildInfoOpen: (val) => { buildInfoOpen = val; } });
 
-    const closeAllSubwindows = createCloseAllSubwindows(setters);
-    closeAllSubwindows();
+    closeSubwindowsState(setters);
 
     expect(buildInfoOpen).toBe(false);
   });
 
   it('should close share popover when it was open', () => {
     let shareOpen = true;
-    const setters = {
-      setIsLightboxOpen: vi.fn(),
-      setIsSidebarOpen: vi.fn(),
-      setIsBuildInfoOpen: vi.fn(),
-      setIsShareOpen: (val) => { shareOpen = val; },
-      setActiveModal: vi.fn()
-    };
+    const setters = makeSetters({ setIsShareOpen: (val) => { shareOpen = val; } });
 
-    const closeAllSubwindows = createCloseAllSubwindows(setters);
-    closeAllSubwindows();
+    closeSubwindowsState(setters);
 
     expect(shareOpen).toBe(false);
   });
 
   it('should close content modal when it was open', () => {
     let activeModal = 'history';
-    const setters = {
-      setIsLightboxOpen: vi.fn(),
-      setIsSidebarOpen: vi.fn(),
-      setIsBuildInfoOpen: vi.fn(),
-      setIsShareOpen: vi.fn(),
-      setActiveModal: (val) => { activeModal = val; }
-    };
+    const setters = makeSetters({ setActiveModal: (val) => { activeModal = val; } });
 
-    const closeAllSubwindows = createCloseAllSubwindows(setters);
-    closeAllSubwindows();
+    closeSubwindowsState(setters);
 
     expect(activeModal).toBe(null);
   });
 
+  it('should close settings panel when it was open', () => {
+    let settingsOpen = true;
+    const setters = makeSetters({ setIsSettingsOpen: (val) => { settingsOpen = val; } });
+
+    closeSubwindowsState(setters);
+
+    expect(settingsOpen).toBe(false);
+  });
+
   it('should close all subwindows when multiple are open simultaneously', () => {
-    // Simulate multiple subwindows being open at once
-    let lightboxOpen = true;
     let sidebarOpen = true;
     let buildInfoOpen = true;
     let shareOpen = true;
     let activeModal = 'credits';
+    let settingsOpen = true;
 
     const setters = {
-      setIsLightboxOpen: (val) => { lightboxOpen = val; },
       setIsSidebarOpen: (val) => { sidebarOpen = val; },
       setIsBuildInfoOpen: (val) => { buildInfoOpen = val; },
       setIsShareOpen: (val) => { shareOpen = val; },
-      setActiveModal: (val) => { activeModal = val; }
+      setActiveModal: (val) => { activeModal = val; },
+      setIsSettingsOpen: (val) => { settingsOpen = val; },
     };
 
-    const closeAllSubwindows = createCloseAllSubwindows(setters);
-    closeAllSubwindows();
+    closeSubwindowsState(setters);
 
-    expect(lightboxOpen).toBe(false);
     expect(sidebarOpen).toBe(false);
     expect(buildInfoOpen).toBe(false);
     expect(shareOpen).toBe(false);
     expect(activeModal).toBe(null);
+    expect(settingsOpen).toBe(false);
   });
 
   it('should be safe to call when all subwindows are already closed', () => {
-    let lightboxOpen = false;
     let sidebarOpen = false;
     let buildInfoOpen = false;
     let shareOpen = false;
     let activeModal = null;
+    let settingsOpen = false;
 
     const setters = {
-      setIsLightboxOpen: (val) => { lightboxOpen = val; },
       setIsSidebarOpen: (val) => { sidebarOpen = val; },
       setIsBuildInfoOpen: (val) => { buildInfoOpen = val; },
       setIsShareOpen: (val) => { shareOpen = val; },
-      setActiveModal: (val) => { activeModal = val; }
+      setActiveModal: (val) => { activeModal = val; },
+      setIsSettingsOpen: (val) => { settingsOpen = val; },
     };
 
-    const closeAllSubwindows = createCloseAllSubwindows(setters);
-
-    // Should not throw and all should remain false/null
-    expect(() => closeAllSubwindows()).not.toThrow();
-    expect(lightboxOpen).toBe(false);
+    expect(() => closeSubwindowsState(setters)).not.toThrow();
     expect(sidebarOpen).toBe(false);
     expect(buildInfoOpen).toBe(false);
     expect(shareOpen).toBe(false);
     expect(activeModal).toBe(null);
+    expect(settingsOpen).toBe(false);
   });
 });
 
