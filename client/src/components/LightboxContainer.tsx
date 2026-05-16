@@ -160,7 +160,6 @@ export default function LightboxContainer({
           <aside
             className="lightbox-details"
             aria-label="Image details"
-            aria-live="polite"
           >
             <LightboxDetails campaign={activeCampaign} />
           </aside>

@@ -56,6 +56,11 @@ describe('LightboxDetails', () => {
     expect(screen.queryByText('IMDB')).toBeNull();
   });
 
+  it('omits the IMDB row when imdb_link is an empty string', () => {
+    render(<LightboxDetails campaign={{ ...SAMPLE_CAMPAIGN, imdb_link: '' }} />);
+    expect(screen.queryByText('IMDB')).toBeNull();
+  });
+
   it('does NOT render Download, Share, or Author rows (scope decisions)', () => {
     render(<LightboxDetails campaign={SAMPLE_CAMPAIGN} />);
     expect(screen.queryByText(/^download$/i)).toBeNull();
