@@ -62,16 +62,20 @@ test.describe('Lightbox redesign — bottom nav toolbar', () => {
     if (count < 2) test.skip(true, 'Need at least 2 images');
     if (!(await openLightbox(page))) test.skip(true, 'No images available');
 
-    const hud = page.locator('.lightbox-hud');
-    const initial = await hud.innerText();
+    // Compare via the lightbox <img>'s src attribute — stable across
+    // CSS text-transform / innerText vs textContent differences in the
+    // HUD label.
+    const lightboxImg = page.locator('#lightbox-image');
+    const initialSrc = await lightboxImg.getAttribute('src');
+    expect(initialSrc).toBeTruthy();
 
     // Click the redesigned NEXT pill in the bottom toolbar (not the side ▶ arrow).
     await page.locator('.lightbox-nav-toolbar').getByRole('button', { name: /next image/i }).click();
-    await expect(hud).not.toHaveText(initial);
+    await expect.poll(async () => await lightboxImg.getAttribute('src')).not.toBe(initialSrc);
 
-    // Click PREVIOUS pill — should return to the original index.
+    // Click PREVIOUS pill — should return to the original src.
     await page.locator('.lightbox-nav-toolbar').getByRole('button', { name: /previous image/i }).click();
-    await expect(hud).toHaveText(initial);
+    await expect.poll(async () => await lightboxImg.getAttribute('src')).toBe(initialSrc);
   });
 
   test('the bottom NEXT button is styled as the primary action', async ({ page }) => {
