@@ -8,8 +8,7 @@
  *  - guarantee that every new subwindow is added in one place
  */
 
-/** Valid content-page identifiers — must stay in sync with ContentPage in types/api.ts */
-export type ContentPage = 'history' | 'credits' | 'legal';
+import type { ContentPage } from '../types/api';
 
 export interface SubwindowSetters {
   setIsSidebarOpen: (open: boolean) => void;
