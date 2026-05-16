@@ -10,13 +10,20 @@ async function downloadBlob(url, filePath) {
   return new Promise((resolve, reject) => {
     const file = fs.createWriteStream(filePath);
     https.get(url, (response) => {
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        file.destroy();
+        fs.unlink(filePath, () => {});
+        reject(new Error(`HTTP ${response.statusCode}`));
+        return;
+      }
       response.pipe(file);
       file.on('finish', () => {
         file.close();
         resolve();
       });
     }).on('error', (err) => {
-      fs.unlink(filePath, () => {}); // Delete on error
+      file.destroy();
+      fs.unlink(filePath, () => {});
       reject(err);
     });
   });
@@ -52,7 +59,11 @@ async function downloadCampaignImages(campaignPath) {
 
         // Preserve directory structure by removing 'avatars/' prefix
         const relativePath = blob.pathname.replace(/^avatars\//, '');
-        const filePath = path.join(localDir, relativePath);
+        const filePath = path.resolve(localDir, relativePath);
+        if (!filePath.startsWith(localDir + path.sep) && filePath !== localDir) {
+          console.error(`❌ Skipping unsafe path: ${blob.pathname}`);
+          continue;
+        }
 
         // Create subdirectories as needed
         const dirname = path.dirname(filePath);
@@ -63,7 +74,7 @@ async function downloadCampaignImages(campaignPath) {
           console.log(`✅ Downloaded: ${relativePath}`);
           totalDownloaded++;
         } catch (err) {
-          console.error(`❌ Failed to download ${filename}:`, err.message);
+          console.error(`❌ Failed to download ${relativePath}:`, err.message);
         }
       }
 
