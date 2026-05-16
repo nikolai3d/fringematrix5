@@ -624,9 +624,13 @@ export function useLightboxAnimations({
         backdropAnim = animateLightboxBackdrop('in');
         backdropDimmedRef.current = true;
       }
-      const sidebarPromise = sidebarEnteredRef.current
-        ? Promise.resolve()
-        : (sidebarEnteredRef.current = true, animateLightboxSidebar('in'));
+      let sidebarPromise: Promise<unknown>;
+      if (!sidebarEnteredRef.current) {
+        sidebarEnteredRef.current = true;
+        sidebarPromise = animateLightboxSidebar('in');
+      } else {
+        sidebarPromise = Promise.resolve();
+      }
       // Reveal the real lightbox image at the moment the wireframe animation
       // finishes (and before the wireframe is hidden), not after Promise.all
       // resolves. Otherwise a slower sibling animation (sidebar enter) keeps
