@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { escapeForAttributeSelector } from '../utils/escapeForAttributeSelector';
+import { LIGHTBOX_SIDEBAR_ANIMATION } from '../config/lightbox';
 import type { ImageData } from '../types/api';
 
 interface UseLightboxAnimationsProps {
@@ -224,6 +225,133 @@ export function useLightboxAnimations({
     }
   }, [ensureWireframeElement]);
 
+  /**
+   * Animate the IMAGE DETAILS sidebar on lightbox open/close.
+   *
+   * Enter: starts as a thin horizontal line (clipped to the vertical midline),
+   * blinks `lineBlinkCount` times at `lineBlinkIntervalMs`, holds for
+   * `lineHoldMs`, then expands to full size while content fades in.
+   *
+   * Exit: reverse — content fades out, sidebar collapses back to the
+   * midline, then the line fades out.
+   *
+   * Returns a Promise that resolves when the animation completes (or
+   * immediately if WAAPI is unavailable / sidebar is not in the DOM).
+   * Reduce-motion is handled by callers; this helper does not branch.
+   */
+  const animateLightboxSidebar = useCallback(async (direction: 'in' | 'out'): Promise<void> => {
+    const sidebar = document.querySelector('.lightbox-details') as HTMLElement | null;
+    if (!sidebar) return;
+    const content = sidebar.querySelectorAll<HTMLElement>(':scope > *');
+    const cfg = LIGHTBOX_SIDEBAR_ANIMATION;
+
+    // Collapsed: only the vertical midline strip is visible. Expanded: the
+    // whole panel is visible.
+    const COLLAPSED_CLIP = 'inset(calc(50% - 1px) 0 calc(50% - 1px) 0)';
+    const EXPANDED_CLIP = 'inset(0 0 0 0)';
+
+    try {
+      if (direction === 'in') {
+        const enterDuration = cfg.enterDurationMs;
+        const expandDuration = Math.max(0, enterDuration - cfg.lineHoldMs);
+
+        // Phase 0: paint the line state immediately so the panel is never
+        // shown briefly at full size before the animation starts.
+        sidebar.style.clipPath = COLLAPSED_CLIP;
+        sidebar.style.opacity = '1';
+        content.forEach(el => { el.style.opacity = '0'; });
+
+        // Phase 1: blink the line. Each blink is one full opacity cycle
+        // (1 → 0 → 1) spread over 2 * blinkInterval. If lineBlinkCount is 0
+        // the line is held at opacity 1.
+        const blinkFrames: Keyframe[] = [];
+        const totalBlinkSteps = Math.max(0, cfg.lineBlinkCount) * 2;
+        if (totalBlinkSteps > 0) {
+          for (let i = 0; i <= totalBlinkSteps; i++) {
+            blinkFrames.push({ opacity: i % 2 === 0 ? 1 : 0, offset: i / totalBlinkSteps });
+          }
+          const blinkDuration = Math.min(cfg.lineHoldMs, totalBlinkSteps * cfg.lineBlinkIntervalMs);
+          const blink = sidebar.animate(blinkFrames, { duration: blinkDuration, fill: 'forwards' });
+          await blink.finished.catch(() => {});
+        } else if (cfg.lineHoldMs > 0) {
+          await new Promise(resolve => setTimeout(resolve, cfg.lineHoldMs));
+        }
+
+        // Phase 2: expand the clip-path from midline to full.
+        sidebar.style.opacity = '1';
+        const expand = sidebar.animate(
+          [
+            { clipPath: COLLAPSED_CLIP, offset: 0 },
+            { clipPath: EXPANDED_CLIP, offset: 1 },
+          ],
+          { duration: expandDuration, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'forwards' },
+        );
+
+        // Phase 3: fade in content. Starts at contentFadeInDelayMs relative to
+        // the entire enter sequence (which started with phase 1).
+        const contentDelay = Math.max(0, cfg.contentFadeInDelayMs - cfg.lineHoldMs);
+        const contentDuration = Math.max(80, enterDuration - cfg.contentFadeInDelayMs);
+        content.forEach(el => {
+          el.animate(
+            [{ opacity: 0 }, { opacity: 1 }],
+            { duration: contentDuration, delay: contentDelay, easing: 'ease-out', fill: 'forwards' },
+          );
+        });
+
+        await expand.finished.catch(() => {});
+        // Settle: clear inline overrides so reduce-effects toggles work later.
+        sidebar.style.clipPath = '';
+        sidebar.style.opacity = '';
+        content.forEach(el => { el.style.opacity = ''; });
+      } else {
+        const exitDuration = cfg.exitDurationMs;
+        const contentFade = Math.min(exitDuration * 0.45, 160);
+        const collapseDelay = contentFade;
+
+        // Phase A: fade content out fast.
+        const fadeOuts = Array.from(content).map(el =>
+          el.animate(
+            [{ opacity: 1 }, { opacity: 0 }],
+            { duration: contentFade, easing: 'ease-in', fill: 'forwards' },
+          ),
+        );
+
+        // Phase B: collapse clip-path to midline.
+        const collapse = sidebar.animate(
+          [
+            { clipPath: EXPANDED_CLIP, offset: 0 },
+            { clipPath: EXPANDED_CLIP, offset: collapseDelay / exitDuration },
+            { clipPath: COLLAPSED_CLIP, offset: 1 },
+          ],
+          { duration: exitDuration, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' },
+        );
+
+        // Phase C: fade the line itself out at the tail.
+        const lineFade = sidebar.animate(
+          [
+            { opacity: 1, offset: 0 },
+            { opacity: 1, offset: Math.max(0, 1 - 0.15) },
+            { opacity: 0, offset: 1 },
+          ],
+          { duration: exitDuration, fill: 'forwards' },
+        );
+
+        await Promise.all([
+          ...fadeOuts.map(a => a.finished.catch(() => {})),
+          collapse.finished.catch(() => {}),
+          lineFade.finished.catch(() => {}),
+        ]);
+      }
+    } catch (_) {
+      // Best-effort: clear inline styles if WAAPI threw.
+      try {
+        sidebar.style.clipPath = '';
+        sidebar.style.opacity = '';
+        content.forEach(el => { el.style.opacity = ''; });
+      } catch (__) { /* ignore */ }
+    }
+  }, []);
+
   const animateLightboxBackdrop = useCallback((direction: 'in' | 'out') => {
     const el = document.getElementById('lightbox');
     if (!el) return { finished: Promise.resolve() };
@@ -327,7 +455,10 @@ export function useLightboxAnimations({
       }
       if (!thumbElement) {
         const backdropAnim = animateLightboxBackdrop('out');
-        await (backdropAnim?.finished || Promise.resolve()).catch(() => {});
+        await Promise.all([
+          (backdropAnim?.finished || Promise.resolve()).catch(() => {}),
+          animateLightboxSidebar('out'),
+        ]);
         backdropDimmedRef.current = false;
         setIsLightboxOpen(false);
         return;
@@ -337,7 +468,10 @@ export function useLightboxAnimations({
       // skip the wireframe animation and just close with a backdrop fade.
       if (!isValidRect(startRect) || !isValidRect(endRect)) {
         const backdropAnim = animateLightboxBackdrop('out');
-        await (backdropAnim?.finished || Promise.resolve()).catch(() => {});
+        await Promise.all([
+          (backdropAnim?.finished || Promise.resolve()).catch(() => {}),
+          animateLightboxSidebar('out'),
+        ]);
         backdropDimmedRef.current = false;
         return;
       }
@@ -348,6 +482,7 @@ export function useLightboxAnimations({
       await Promise.all([
         runWireframeAnimation(startRect, endRect, img.src || undefined, 'close'),
         (backdropAnim?.finished || Promise.resolve()).catch(() => {}),
+        animateLightboxSidebar('out'),
       ]);
       backdropDimmedRef.current = false;
     } finally {
@@ -368,7 +503,7 @@ export function useLightboxAnimations({
         lastOpenedThumbElRef.current = null;
       }
     }
-  }, [reduceMotion, images, lightboxIndex, animateLightboxBackdrop, runWireframeAnimation, setHideLightboxImage, setIsLightboxOpen]);
+  }, [reduceMotion, images, lightboxIndex, animateLightboxBackdrop, runWireframeAnimation, animateLightboxSidebar, setHideLightboxImage, setIsLightboxOpen]);
 
   // After mount of lightbox, animate wireframe and backdrop in
   useEffect(() => {
@@ -385,6 +520,9 @@ export function useLightboxAnimations({
     const imgSrc = pendingOpenImgSrcRef.current;
     const needBackdropIn = !backdropDimmedRef.current;
     if (!startRect) {
+      // Open the sidebar even when there is no thumbnail rect to animate
+      // from (e.g. lightbox opened via direct link / URL hash).
+      animateLightboxSidebar('in');
       if (needBackdropIn) {
         const anim = animateLightboxBackdrop('in');
         backdropDimmedRef.current = true;
@@ -416,6 +554,7 @@ export function useLightboxAnimations({
           animateLightboxBackdrop('in');
           backdropDimmedRef.current = true;
         }
+        animateLightboxSidebar('in');
         lightboxImg.style.opacity = '';
         setHideLightboxImage(false);
         pendingOpenStartRectRef.current = null;
@@ -433,6 +572,7 @@ export function useLightboxAnimations({
       await Promise.all([
         runWireframeAnimation(startRect, endRect, imgSrc || undefined, 'open'),
         (backdropAnim?.finished || Promise.resolve()).catch(() => {}),
+        animateLightboxSidebar('in'),
       ]);
       // Bail out if the effect was cleaned up during the animation.
       if (abortCtrl.signal.aborted) return;
@@ -443,7 +583,7 @@ export function useLightboxAnimations({
       isAnimatingRef.current = false;
     });
     return () => { cancelAnimationFrame(rAF); abortCtrl.abort(); };
-  }, [isLightboxOpen, lightboxIndex, reduceMotion, animateLightboxBackdrop, runWireframeAnimation, setHideLightboxImage]);
+  }, [isLightboxOpen, lightboxIndex, reduceMotion, animateLightboxBackdrop, runWireframeAnimation, animateLightboxSidebar, setHideLightboxImage]);
 
   // Keep grid thumbs in sync during lightbox navigation
   useEffect(() => {
