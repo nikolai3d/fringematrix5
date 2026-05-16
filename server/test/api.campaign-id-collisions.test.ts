@@ -3,7 +3,7 @@ import fs from 'fs';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 
 // Import the Express app without starting the listener
-import app from '../server.ts';
+import app, { resetCampaignsCache } from '../server.ts';
 
 // ---------------------------------------------------------------------------
 // Tests for duplicate campaign id detection in loadCampaigns().
@@ -18,6 +18,7 @@ let consoleSpy: ReturnType<typeof jest.spyOn>;
 
 beforeEach(() => {
   consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  resetCampaignsCache();
 });
 
 afterEach(() => {

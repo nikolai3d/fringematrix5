@@ -103,6 +103,10 @@ const CACHE_TTL = 30000; // 30 seconds cache during development/testing
 const BLOB_CACHE_MAX = 100; // Maximum number of unique cache entries (LRU eviction)
 const HAS_BLOB_TOKEN = !!process.env['BLOB_READ_WRITE_TOKEN'];
 
+// Module-level campaigns cache — populated once on first request and reused
+// for the lifetime of the process. campaigns.yaml never changes at runtime.
+let campaignsCache: Campaign[] | null = null;
+
 // Shape of the rate-limit error thrown by the @vercel/blob SDK.
 interface BlobRateLimitedError extends Error {
   name: 'BlobServiceRateLimited';
@@ -314,6 +318,19 @@ function loadCampaigns(): Campaign[] {
   return mapped;
 }
 
+/**
+ * Returns the campaigns list, loading and caching it on the first call.
+ * The data comes from campaigns.yaml which never changes during process
+ * lifetime, so parsing once at module level is safe and avoids repeated
+ * blocking FS reads + YAML parses on every hot-path request.
+ */
+function getCampaigns(): Campaign[] {
+  if (campaignsCache === null) {
+    campaignsCache = loadCampaigns();
+  }
+  return campaignsCache;
+}
+
 function slugify(str: string): string {
   return String(str)
     .trim()
@@ -394,7 +411,7 @@ app.get('/avatars/*path', async (req: Request, res: Response): Promise<void> => 
 // API endpoints
 app.get('/api/campaigns', (_req: Request, res: Response): void => {
   try {
-    const campaigns = loadCampaigns();
+    const campaigns = getCampaigns();
     res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
     res.set('Vary', 'Accept-Encoding');
     res.json({ campaigns });
@@ -406,7 +423,7 @@ app.get('/api/campaigns', (_req: Request, res: Response): void => {
 
 app.get('/api/campaigns/:id/images', async (req: Request, res: Response): Promise<void> => {
   try {
-    const campaigns = loadCampaigns();
+    const campaigns = getCampaigns();
     const campaign = campaigns.find((c) => c.id === req.params['id']);
     if (!campaign) {
       res.status(404).json({ error: 'Campaign not found' });
@@ -594,3 +611,12 @@ export default app;
 
 // Exported for tests only – do not use in application code
 export { blobCache, CACHE_TTL, BLOB_CACHE_MAX, MAX_BLOB_ITEMS };
+
+/**
+ * Resets the module-level campaigns cache.
+ * Exported for test isolation only — call before each test that mocks
+ * fs.readFileSync to ensure getCampaigns() re-reads from the mock.
+ */
+export function resetCampaignsCache(): void {
+  campaignsCache = null;
+}
