@@ -445,12 +445,12 @@ export default function App() {
     };
   }, [loadCampaignImages]); // On mount: loadCampaignImages is a stable useCallback([]) so this runs once
 
-  // Animated dots for the CRT loader
+  // Animated dots for the CRT loader and campaign-switch progress bar
   useEffect(() => {
-    if (!isPreloading) return;
+    if (!isPreloading && !isCampaignLoading) return;
     const id = setInterval(() => setLoadingDots((d) => (d + 1) % 4), 400);
     return () => clearInterval(id);
-  }, [isPreloading]);
+  }, [isPreloading, isCampaignLoading]);
 
   // Lightbox animations are provided by the useLightboxAnimations hook
   const { openLightbox, closeLightbox, isAnimatingRef } = useLightboxAnimations({
