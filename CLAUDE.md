@@ -115,7 +115,7 @@ data/
 
 **Lightbox Sidebar Animation:**
 - The zoomed-in image view's IMAGE DETAILS sidebar uses a custom enter/exit animation: it expands from a thin blinking horizontal line into the full panel on open, and collapses back to a line on close.
-- Timings live in `client/config.yaml` under `lightbox.sidebarAnimation` (`enterDurationMs`, `exitDurationMs`, `lineHoldMs`, `lineBlinkCount`, `lineBlinkIntervalMs`, `contentFadeInDelayMs`). Out-of-range values are clamped and a default is used; see `client/src/config/lightbox.ts`.
+- Timings live in `client/config.yaml` under `lightbox.sidebarAnimation` (`enterDurationMs`, `exitDurationMs`, `lineHoldMs`, `lineBlinkCount`, `lineBlinkIntervalMs`, `contentFadeInDelayMs`). Out-of-range or invalid values fall back to defaults with a `console.warn`; see `client/src/config/lightbox.ts`.
 - In reduce-effects mode (in-app toggle or `prefers-reduced-motion`), the timings are ignored and the sidebar appears/disappears instantly.
 
 **Build Info:**

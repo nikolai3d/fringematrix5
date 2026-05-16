@@ -65,7 +65,7 @@ function pickNumber(
   return value;
 }
 
-function resolveSidebarAnimation(
+export function resolveSidebarAnimation(
   raw: LightboxSidebarAnimationConfig | undefined,
 ): ResolvedSidebarAnimation {
   return {
