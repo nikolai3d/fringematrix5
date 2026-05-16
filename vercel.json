@@ -35,7 +35,7 @@
       "destination": "/api/index.js"
     },
     {
-      "source": "/((?!api|avatars|.*\\.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?)).*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
