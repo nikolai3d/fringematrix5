@@ -444,6 +444,62 @@ footer.navbar {
   background: rgba(0, 0, 0, 0.55);
   padding: 24px;
   box-sizing: border-box;
+  color: var(--fg);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  max-height: 80vh;
+}
+.lightbox-details-heading {
+  color: var(--theme-accent);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(var(--theme-accent-rgb), 0.25);
+}
+.lightbox-details-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.lightbox-details-label {
+  color: rgba(var(--theme-accent-rgb), 0.75);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.lightbox-details-value {
+  font-size: 16px;
+  line-height: 1.3;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  word-break: break-word;
+}
+.lightbox-details-link {
+  color: var(--theme-accent);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.lightbox-details-link:hover { text-decoration: underline; }
+.lightbox-details-external { font-size: 0.85em; }
+.lightbox-details-empty {
+  color: rgba(255, 255, 255, 0.55);
+  font-style: italic;
+  font-size: 14px;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 .lightbox-nav-toolbar {
   display: flex;
