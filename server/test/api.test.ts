@@ -35,6 +35,13 @@ describe('API contract', () => {
       }
     });
 
+    it('includes Cache-Control header for CDN/browser caching', async () => {
+      const res = await request(app).get('/api/campaigns');
+      expect(res.status).toBe(200);
+      expect(res.headers['cache-control']).toBe('public, max-age=3600, stale-while-revalidate=86400');
+      expect(res.headers['vary']).toContain('Accept-Encoding');
+    });
+
     it('handles data read failures with 500', async () => {
       const fsSpy = jest.spyOn(fs, 'readFileSync').mockImplementationOnce(() => {
         throw new Error('test read error');
@@ -143,6 +150,13 @@ describe('API contract', () => {
   describe('GET /api/build-info', () => {
     const projectRoot = path.join(__dirname, '..', '..');
     const buildInfoPath = path.join(projectRoot, 'build-info.json');
+
+    it('includes Cache-Control header for CDN/browser caching', async () => {
+      const res = await request(app).get('/api/build-info');
+      expect(res.status).toBe(200);
+      expect(res.headers['cache-control']).toBe('public, max-age=3600, stale-while-revalidate=86400');
+      expect(res.headers['vary']).toContain('Accept-Encoding');
+    });
 
     function withTempFile<T>(filePath: string, content: string, fn: () => Promise<T>): Promise<T> {
       const dir = path.dirname(filePath);

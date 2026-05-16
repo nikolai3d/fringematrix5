@@ -395,6 +395,8 @@ app.get('/avatars/*path', async (req: Request, res: Response): Promise<void> => 
 app.get('/api/campaigns', (_req: Request, res: Response): void => {
   try {
     const campaigns = loadCampaigns();
+    res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+    res.set('Vary', 'Accept-Encoding');
     res.json({ campaigns });
   } catch (err: unknown) {
     console.error(err);
@@ -445,6 +447,7 @@ app.get('/api/campaigns/:id/images', async (req: Request, res: Response): Promis
 
 // Build info endpoint
 app.get('/api/build-info', (_req: Request, res: Response): void => {
+  const CACHE_HEADERS = 'public, max-age=3600, stale-while-revalidate=86400';
   try {
     if (fs.existsSync(BUILD_INFO_PATH)) {
       const raw = fs.readFileSync(BUILD_INFO_PATH, 'utf8');
@@ -454,6 +457,8 @@ app.get('/api/build-info', (_req: Request, res: Response): void => {
       } catch (_) {
         data = {};
       }
+      res.set('Cache-Control', CACHE_HEADERS);
+      res.set('Vary', 'Accept-Encoding');
       res.json({
         repoUrl: data.repoUrl || null,
         commitHash: data.commitHash || null,
@@ -462,16 +467,20 @@ app.get('/api/build-info', (_req: Request, res: Response): void => {
       return;
     }
     if (IS_DEV || !HAS_CLIENT_BUILD) {
-      res.json({ 
-        repoUrl: null, 
-        commitHash: 'DEV-LOCAL', 
+      res.set('Cache-Control', CACHE_HEADERS);
+      res.set('Vary', 'Accept-Encoding');
+      res.json({
+        repoUrl: null,
+        commitHash: 'DEV-LOCAL',
         builtAt: new Date().toISOString()
       });
       return;
     }
-    res.json({ 
-      repoUrl: null, 
-      commitHash: null, 
+    res.set('Cache-Control', CACHE_HEADERS);
+    res.set('Vary', 'Accept-Encoding');
+    res.json({
+      repoUrl: null,
+      commitHash: null,
       builtAt: null
     });
   } catch (err: unknown) {
