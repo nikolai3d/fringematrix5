@@ -38,6 +38,15 @@ interface ListBlobsOptions {
   limit?: number;
 }
 
+/** Raw shape of a campaign entry as parsed from campaigns.yaml. */
+interface RawCampaign {
+  id?: string;
+  hashtag?: string;
+  icon_path?: string;
+  name?: string;
+  [key: string]: unknown;
+}
+
 // Maximum total blobs collected across all pages in a single paginated fetch.
 // Guards against runaway memory usage if a prefix contains an unexpectedly
 // large number of items. At ~1 KB per blob metadata entry, 10 000 entries
@@ -274,7 +283,7 @@ async function listBlobsWithCache(options: ListBlobsOptions): Promise<{ blobs: L
   }
 }
 
-function deriveCampaignId(c: any, index: number): string {
+function deriveCampaignId(c: RawCampaign, index: number): string {
   // Prefer explicit id (most stable across rename of hashtag/icon_path),
   // fall back to hashtag, then icon_path. Random-fallback is forbidden because
   // it breaks hash-URL deep linking across server restarts.
@@ -293,8 +302,8 @@ function deriveCampaignId(c: any, index: number): string {
 function loadCampaigns(): Campaign[] {
   const yamlPath = path.join(DATA_DIR, 'campaigns.yaml');
   const file = fs.readFileSync(yamlPath, 'utf8');
-  const data = yaml.load(file) as { campaigns?: any[] } | null;
-  const campaigns = Array.isArray(data?.campaigns) ? data.campaigns : [];
+  const data = yaml.load(file) as { campaigns?: RawCampaign[] } | null;
+  const campaigns: RawCampaign[] = Array.isArray(data?.campaigns) ? data.campaigns : [];
   const mapped = campaigns.map((c, i) => ({
     ...c,
     id: deriveCampaignId(c, i),

@@ -42,7 +42,7 @@ const LIMITS = {
 } as const;
 
 function pickNumber(
-  value: number | undefined,
+  value: number | null | undefined,
   field: keyof ResolvedSidebarAnimation,
 ): number {
   const fallback = DEFAULTS[field];
