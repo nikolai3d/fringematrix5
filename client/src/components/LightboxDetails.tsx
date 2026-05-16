@@ -2,6 +2,7 @@ import React from 'react';
 import type { Campaign } from '../types/api';
 import { parseEpisodeId } from '../utils/parseEpisodeId';
 import { extractImdbId } from '../utils/extractImdbId';
+import { isSafeUrl } from '../utils/isSafeUrl';
 
 interface Props {
   campaign: Campaign | null;
@@ -51,7 +52,7 @@ export default function LightboxDetails({ campaign }: Props) {
       <Row label="SEASON / NUMBER">{seasonNumberLabel}</Row>
       <Row label="AIR DATE">{campaign.date}</Row>
       <Row label="HASHTAG">{`#${campaign.hashtag}`}</Row>
-      {campaign.imdb_link && imdbLinkText ? (
+      {isSafeUrl(campaign.imdb_link) && imdbLinkText ? (
         <Row label="IMDB">
           <a
             className="lightbox-details-link"
