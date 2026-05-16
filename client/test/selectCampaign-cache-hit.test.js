@@ -30,10 +30,10 @@ const appSrc = fs.readFileSync(
 // 1. Source-level guards
 // ---------------------------------------------------------------------------
 describe('selectCampaign cache-hit branch — source guards', () => {
-  // Locate the cache-hit block by finding the `if (imageCache[id]) {` guard
+  // Locate the cache-hit block by finding the `if (id in imageCache) {` guard
   // and extracting its body (everything up to the closing `return;` on the
   // same indentation level).
-  const cacheHitStart = appSrc.indexOf('if (imageCache[id])');
+  const cacheHitStart = appSrc.indexOf('if (id in imageCache)');
   const returnAfterCache = appSrc.indexOf('return;', cacheHitStart);
   const cacheHitBlock = cacheHitStart > -1 && returnAfterCache > -1
     ? appSrc.slice(cacheHitStart, returnAfterCache + 'return;'.length)
@@ -72,7 +72,9 @@ describe('selectCampaign cache-hit branch — source guards', () => {
 
 /**
  * Minimal simulation of the selectCampaign cache-hit branch.
- * The logic mirrors lines 230-237 of App.tsx exactly.
+ * The logic mirrors App.tsx exactly: guard is `id in imageCache`
+ * (not `imageCache[id]`, which was fixed in fringematrix5-0q7 to
+ * correctly handle campaigns with empty image arrays).
  */
 function makeState(overrides = {}) {
   return {
@@ -91,7 +93,7 @@ function simulateSelectCampaign(state, id) {
   // Mirrors App.tsx: setActiveCampaignId
   state.activeCampaignId = id;
 
-  if (state.imageCache[id]) {
+  if (id in state.imageCache) {
     // Cache-hit branch — mirrors lines 231-236 of App.tsx
     state.currentImages = state.imageCache[id];
     state.campaignLoadProgress = 0;
