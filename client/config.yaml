@@ -14,6 +14,12 @@ theme:
   # Format: CSS hex color (e.g., "#00D4FF")
   accentColor: "#00D4FF"
 
+site:
+  # Canonical production URL used for share links (e.g. Threads)
+  url: "https://fringematrix.art"
+  # Default text prepended to share links
+  shareText: "Check out Fringe Matrix"
+
 lightbox:
   # Sidebar enter/exit animation for the zoomed-in image view.
   # On open the IMAGE DETAILS sidebar expands from a thin blinking horizontal
