@@ -23,6 +23,11 @@ export interface LightboxConfig {
   sidebarAnimation?: LightboxSidebarAnimationConfig;
 }
 
+export interface SiteConfig {
+  url?: string;
+  shareText?: string;
+}
+
 export interface AppConfig {
   loadingScreen?: {
     type?: LoadingScreenType;
@@ -30,4 +35,5 @@ export interface AppConfig {
   };
   theme?: ThemeConfig;
   lightbox?: LightboxConfig;
+  site?: SiteConfig;
 }

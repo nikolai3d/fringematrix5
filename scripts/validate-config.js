@@ -141,6 +141,31 @@ function validateConfig() {
     }
   }
 
+  // ── site ────────────────────────────────────────────────────────────────
+  if (config.site !== undefined) {
+    const { site } = config;
+    if (typeof site !== 'object' || site === null) {
+      error('site must be a mapping');
+    } else {
+      if (site.url !== undefined) {
+        if (typeof site.url !== 'string' || site.url.trim().length === 0) {
+          error('site.url must be a non-empty string');
+        } else {
+          try {
+            new URL(site.url);
+          } catch {
+            error(`site.url must be a valid URL. Got: "${site.url}"`);
+          }
+        }
+      }
+      if (site.shareText !== undefined) {
+        if (typeof site.shareText !== 'string' || site.shareText.trim().length === 0) {
+          error('site.shareText must be a non-empty string');
+        }
+      }
+    }
+  }
+
   // ── lightbox.sidebarAnimation ────────────────────────────────────────────
   if (config.lightbox !== undefined) {
     const { lightbox } = config;
