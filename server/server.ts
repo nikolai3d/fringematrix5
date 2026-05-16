@@ -139,12 +139,7 @@ let campaignsCache: Campaign[] | null = null;
 // Module-level build-info cache — populated once on first request and reused
 // for the lifetime of the process. build-info.json is generated at build time
 // and never changes while the server is running.
-interface BuildInfoResponse {
-  repoUrl: string | null;
-  commitHash: string | null;
-  builtAt: string | null;
-}
-let buildInfoCache: BuildInfoResponse | null = null;
+let buildInfoCache: BuildInfo | null = null;
 
 // Shape of the rate-limit error thrown by the @vercel/blob SDK.
 interface BlobRateLimitedError extends Error {
@@ -393,11 +388,12 @@ function ensureDevBuildInfo(): void {
 ensureDevBuildInfo();
 
 /**
- * Reads and parses build-info.json, returning a normalized response object.
- * Falls back to a DEV-LOCAL object when the file is absent in dev mode,
- * or to all-nulls in production without a client build.
+ * Reads and parses build-info.json, returning a normalized BuildInfo object.
+ * When the file is present it is parsed and returned directly.
+ * When the file is absent: returns a DEV-LOCAL object in dev mode or when there
+ * is no client build, and returns all-nulls only in production with a client build.
  */
-function loadBuildInfo(): BuildInfoResponse {
+function loadBuildInfo(): BuildInfo {
   if (fs.existsSync(BUILD_INFO_PATH)) {
     const raw = fs.readFileSync(BUILD_INFO_PATH, 'utf8');
     let data: Partial<BuildInfo> & { deployedAt?: string | null };
@@ -426,7 +422,7 @@ function loadBuildInfo(): BuildInfoResponse {
  * Returns the build-info, loading and caching it on the first call.
  * build-info.json is immutable for the process lifetime (generated at build time).
  */
-function getBuildInfo(): BuildInfoResponse {
+function getBuildInfo(): BuildInfo {
   if (buildInfoCache === null) {
     buildInfoCache = loadBuildInfo();
   }
