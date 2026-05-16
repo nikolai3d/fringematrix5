@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import type { MutableRefObject } from 'react';
 import type { Campaign, ImageData } from '../types/api';
+import LightboxDetails from './LightboxDetails';
 
 /** Minimum horizontal travel (px) required for a touch to count as a swipe. */
 const SWIPE_MIN_HORIZONTAL_PX = 50;
@@ -104,11 +105,6 @@ export default function LightboxContainer({
 
   if (!isLightboxOpen) return null;
 
-  // The activeCampaign prop is passed in here so a sibling bead (fringematrix5-bqz)
-  // can populate the IMAGE DETAILS sidebar without another round of plumbing.
-  // For now it stays a placeholder.
-  void activeCampaign;
-
   return (
     <div
       id="lightbox"
@@ -164,8 +160,9 @@ export default function LightboxContainer({
           <aside
             className="lightbox-details"
             aria-label="Image details"
+            aria-live="polite"
           >
-            {/* Content populated by fringematrix5-bqz. */}
+            <LightboxDetails campaign={activeCampaign} />
           </aside>
         </div>
 
