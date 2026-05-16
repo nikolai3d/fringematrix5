@@ -407,14 +407,15 @@ export default function App() {
 
         const data = await fetchJSON<CampaignsResponse>('/api/campaigns');
         if (!isMounted) return;
-        setCampaigns(data.campaigns || []);
+        const campaignList = data.campaigns || [];
+        setCampaigns(campaignList);
 
         // Update loading screen with campaign count
-        setLoadingCampaignCount((data.campaigns || []).length);
+        setLoadingCampaignCount(campaignList.length);
 
         // Choose initial campaign and load its images
         const hash = window.location.hash.replace('#', '');
-        const initial = (data.campaigns || []).find((c: Campaign) => c.id === hash) || (data.campaigns || [])[0];
+        const initial = campaignList.find((c: Campaign) => c.id === hash) || campaignList[0];
         
         if (initial) {
           // Mount-time initial campaign load. Shares campaignLoadAbortRef so a
