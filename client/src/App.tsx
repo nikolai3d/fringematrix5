@@ -71,8 +71,8 @@ async function preloadCampaignImages(
 export default function App() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
-  const [images, setImages] = useState<ImageData[]>([]);
-  const [imagesByCampaign, setImagesByCampaign] = useState<Record<string, ImageData[]>>({});
+  const [currentImages, setCurrentImages] = useState<ImageData[]>([]);
+  const [imageCache, setImageCache] = useState<Record<string, ImageData[]>>({});
   const [lightboxIndex, setLightboxIndex] = useState<number>(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState<boolean>(false);
   const [hideLightboxImage, setHideLightboxImage] = useState<boolean>(false);
@@ -174,7 +174,7 @@ export default function App() {
       onImageCountKnown?.(campaignImages.length);
 
       if (campaignImages.length === 0) {
-        setImages([]);
+        setCurrentImages([]);
         return;
       }
 
@@ -185,7 +185,7 @@ export default function App() {
         isLoading: true,
         loadedSrc: null
       }));
-      setImages(placeholderImages);
+      setCurrentImages(placeholderImages);
 
       const { hasError } = await preloadCampaignImages(campaignImages, signal, setCampaignLoadProgress);
       if (signal.aborted) return;
@@ -198,13 +198,13 @@ export default function App() {
         loadedSrc: img.src
       }));
 
-      setImages(fullyLoadedImages);
-      setImagesByCampaign(prev => ({ ...prev, [id]: fullyLoadedImages }));
+      setCurrentImages(fullyLoadedImages);
+      setImageCache(prev => ({ ...prev, [id]: fullyLoadedImages }));
     } catch (error) {
       if (signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) return;
       console.error('Failed to load campaign images:', error);
       setCampaignLoadError(true);
-      setImages([]);
+      setCurrentImages([]);
     } finally {
       if (!signal.aborted) setIsCampaignLoading(false);
     }
@@ -226,8 +226,8 @@ export default function App() {
     setActiveCampaignId(id);
     window.history.replaceState({}, '', `#${id}`);
 
-    if (imagesByCampaign[id]) {
-      setImages(imagesByCampaign[id]);
+    if (imageCache[id]) {
+      setCurrentImages(imageCache[id]);
       setCampaignLoadProgress(0);
       setCampaignLoadTotal(0);
       setCampaignLoadError(false);
@@ -236,7 +236,7 @@ export default function App() {
     }
 
     await loadCampaignImages(id, signal);
-  }, [imagesByCampaign, loadCampaignImages]);
+  }, [imageCache, loadCampaignImages]);
 
   const activeIndex = useMemo(() => {
     if (!activeCampaignId) return -1;
@@ -455,7 +455,7 @@ export default function App() {
 
   // Lightbox animations are provided by the useLightboxAnimations hook
   const { openLightbox, closeLightbox, isAnimatingRef } = useLightboxAnimations({
-    images,
+    images: currentImages,
     isLightboxOpen,
     lightboxIndex,
     reduceMotion,
@@ -661,15 +661,15 @@ export default function App() {
           )}
         </section>
 
-        <section id="gallery" className={`gallery-grid${activeCampaign && images.length === 0 ? ' empty' : ''}`} aria-live="polite">
-          {activeCampaign && images.length === 0 ? (
+        <section id="gallery" className={`gallery-grid${activeCampaign && currentImages.length === 0 ? ' empty' : ''}`} aria-live="polite">
+          {activeCampaign && currentImages.length === 0 ? (
             <div className="empty-state" role="status" aria-live="polite">
               <div className="empty-emoji" aria-hidden>🖼️</div>
               <div className="empty-title">No Images In Campaign</div>
               <div className="empty-desc">This campaign has no uploaded images yet.</div>
             </div>
           ) : (
-            images.map((img, i) => (
+            currentImages.map((img, i) => (
               <div className="card" key={`${img.src}-${i}`}>
                 {img.isLoading ? (
                   <div className="image-placeholder">
@@ -768,7 +768,7 @@ export default function App() {
       </footer>
 
       <LightboxContainer
-        images={images}
+        images={currentImages}
         lightboxIndex={lightboxIndex}
         isLightboxOpen={isLightboxOpen}
         hideLightboxImage={hideLightboxImage}
