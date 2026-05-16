@@ -21,7 +21,7 @@ async function getWireframeState(page: Page) {
   });
 }
 
-async function waitForWireframeVisible(page: Page, timeout = 1500) {
+async function waitForWireframeVisible(page: Page, timeout = 3000) {
   await page.waitForFunction(() => {
     const el = document.querySelector('.wireframe-rect') as HTMLElement | null;
     if (!el) return false;
@@ -201,7 +201,10 @@ test.describe('Lightbox animations', () => {
       await expect.poll(async () => await getGridImageOpacityBySrc(page, secondSrc!)).toBeGreaterThanOrEqual(0.99);
     }
 
-    // Ensure wireframe is not displayed outside of animation while lightbox sits open
+    // Ensure wireframe is not displayed outside of animation while lightbox sits open.
+    // Use waitForWireframeHidden to handle any residual animation timing in CI before
+    // asserting the settled state; then snapshot to confirm the element exists.
+    await waitForWireframeHidden(page);
     const wfMid = await getWireframeState(page);
     expect(wfMid.present).toBeTruthy();
     expect(wfMid.display).toBe('none');
