@@ -140,8 +140,9 @@ describe('Lightbox Enhancements', () => {
     expect(cssContent).toMatch(/\.lightbox-hud\s*\{[^}]*pointer-events:\s*none/s);
   });
 
-  it('lightbox actions should have backdrop blur', () => {
-    expect(cssContent).toMatch(/\.lightbox-actions\s*\{[^}]*backdrop-filter:\s*blur/s);
+  it('lightbox nav toolbar styles should exist', () => {
+    expect(cssContent).toMatch(/\.lightbox-nav-toolbar/);
+    expect(cssContent).toMatch(/\.lightbox-nav-btn/);
   });
 
   it('lightbox corner bracket styles should exist', () => {

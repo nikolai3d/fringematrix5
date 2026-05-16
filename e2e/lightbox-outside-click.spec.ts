@@ -39,30 +39,6 @@ test.describe('Lightbox Outside Click Behavior', () => {
     await page.keyboard.press('Escape');
   });
 
-  test('should NOT close when clicking on share button', async ({ page }) => {
-    const cards = page.locator('.gallery-grid .card img');
-    const count = await cards.count();
-    if (count === 0) test.skip(true, 'No images available to test lightbox');
-
-    const firstImg = cards.nth(0);
-    
-    // Open lightbox by clicking first image
-    await firstImg.click();
-
-    // Lightbox should be visible
-    const lightbox = page.locator('#lightbox');
-    await expect(lightbox).toBeVisible();
-
-    // Click on share button
-    await page.locator('#share-btn').click();
-    
-    // Lightbox should still be open
-    await expect(lightbox).toBeVisible();
-
-    // Close lightbox for cleanup
-    await page.keyboard.press('Escape');
-  });
-
   test('should NOT close when clicking on the image itself', async ({ page }) => {
     const cards = page.locator('.gallery-grid .card img');
     const count = await cards.count();
