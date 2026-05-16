@@ -174,7 +174,13 @@ export function useLightboxAnimations({
     return container;
   }, []);
 
-  const runWireframeAnimation = useCallback(async (fromRect: Rect, toRect: Rect, imgSrc?: string, direction: 'open' | 'close' = 'open') => {
+  const runWireframeAnimation = useCallback(async (
+    fromRect: Rect,
+    toRect: Rect,
+    imgSrc?: string,
+    direction: 'open' | 'close' = 'open',
+    onAnimationEnd?: () => void,
+  ) => {
     let fitSwitchTimeout: ReturnType<typeof setTimeout> | undefined;
     try {
       const el = ensureWireframeElement();
@@ -221,6 +227,14 @@ export function useLightboxAnimations({
         width: `${toRect.width}px`,
         height: `${toRect.height}px`,
       });
+      // Reveal the destination element BEFORE hiding the wireframe so there's
+      // no frame where both the wireframe and the destination are invisible.
+      // Hiding the wireframe first produced a blink on open when a sibling
+      // animation (sidebar enter) outlasted the wireframe — the lightbox
+      // image stayed hidden waiting for Promise.all to resolve.
+      if (onAnimationEnd) {
+        try { onAnimationEnd(); } catch (_) { /* ignore */ }
+      }
       el.style.display = 'none';
       if (img) img.style.display = 'none';
     } catch (animErr) {
@@ -613,13 +627,24 @@ export function useLightboxAnimations({
       const sidebarPromise = sidebarEnteredRef.current
         ? Promise.resolve()
         : (sidebarEnteredRef.current = true, animateLightboxSidebar('in'));
+      // Reveal the real lightbox image at the moment the wireframe animation
+      // finishes (and before the wireframe is hidden), not after Promise.all
+      // resolves. Otherwise a slower sibling animation (sidebar enter) keeps
+      // the image hidden after the wireframe disappears, producing a blink.
+      const revealLightboxImage = () => {
+        if (abortCtrl.signal.aborted) return;
+        lightboxImg.style.opacity = '';
+        setHideLightboxImage(false);
+      };
       await Promise.all([
-        runWireframeAnimation(startRect, endRect, imgSrc || undefined, 'open'),
+        runWireframeAnimation(startRect, endRect, imgSrc || undefined, 'open', revealLightboxImage),
         (backdropAnim?.finished || Promise.resolve()).catch(() => {}),
         sidebarPromise,
       ]);
       // Bail out if the effect was cleaned up during the animation.
       if (abortCtrl.signal.aborted) return;
+      // revealLightboxImage already ran inside the wireframe callback; the
+      // assignments below are a no-op safety net in case it was skipped.
       lightboxImg.style.opacity = '';
       setHideLightboxImage(false);
       pendingOpenStartRectRef.current = null;

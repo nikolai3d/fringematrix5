@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, act } from '@testing-library/react';
+import React, { useState, useRef } from 'react';
+import { useLightboxAnimations } from '../src/hooks/useLightboxAnimations';
 import fs from 'fs';
 import path from 'path';
 
@@ -690,6 +693,199 @@ describe('No-Blink Handoff: Wireframe to Lightbox Image', () => {
     // not by fading opacity. This ensures the lightbox image can take over instantly.
     const postAnimation = hookContent.match(/await animation\.finished;[\s\S]*?el\.style\.display\s*=\s*'none'/);
     expect(postAnimation).not.toBeNull();
+  });
+
+  // Regression: sibling-animation blink on open.
+  // The wireframe (~360ms) finishes before the sidebar enter animation
+  // (~420ms by default). If we wait for Promise.all to resolve before
+  // revealing the lightbox image, the wireframe is hidden (display:none)
+  // for ~60ms while the image is still opacity:0 — a visible blink.
+  // The fix passes an onAnimationEnd callback into runWireframeAnimation
+  // that reveals the lightbox image BEFORE the wireframe is hidden.
+
+  it('runWireframeAnimation should accept an onAnimationEnd callback parameter', () => {
+    // The callback fires after WAAPI animation.finished but before
+    // el.style.display = 'none', so callers can reveal the destination
+    // element in the same microtask the wireframe disappears.
+    expect(hookContent).toMatch(/runWireframeAnimation\s*=\s*useCallback\(async\s*\([\s\S]*?onAnimationEnd\?:\s*\(\)\s*=>\s*void/);
+  });
+
+  it('runWireframeAnimation should invoke onAnimationEnd BEFORE el.style.display = none', () => {
+    // The callback ordering is load-bearing — invoking it AFTER display:none
+    // would re-introduce the blink. Anchor on `await animation.finished` to
+    // scope the assertion to the post-animation cleanup.
+    const postAnim = hookContent.match(/await animation\.finished;([\s\S]*?)el\.style\.display\s*=\s*'none'/);
+    expect(postAnim).not.toBeNull();
+    expect(postAnim[1]).toMatch(/onAnimationEnd\s*\(\s*\)/);
+  });
+
+  it('open effect should pass a revealLightboxImage callback to runWireframeAnimation', () => {
+    const openEffect = hookContent.match(/After mount of lightbox[\s\S]*?abortCtrl\.abort\(\)/);
+    expect(openEffect).not.toBeNull();
+    // Reveal function should be defined and clear hideLightboxImage.
+    expect(openEffect[0]).toMatch(/revealLightboxImage\s*=\s*\(\)\s*=>/);
+    // Slice the source between the reveal definition and its first use in
+    // runWireframeAnimation — independent of indentation or formatting.
+    const revealStart = openEffect[0].indexOf('revealLightboxImage =');
+    const wireframeCall = openEffect[0].indexOf('runWireframeAnimation(', revealStart);
+    const revealBlock = openEffect[0].slice(revealStart, wireframeCall);
+    expect(revealBlock).toMatch(/lightboxImg\.style\.opacity\s*=\s*''/);
+    expect(revealBlock).toMatch(/setHideLightboxImage\(false\)/);
+    // And it must be passed into runWireframeAnimation.
+    expect(openEffect[0]).toMatch(/runWireframeAnimation\([^)]*revealLightboxImage\s*\)/);
+  });
+
+  it('lightbox image is revealed (opacity cleared) before wireframe is hidden via the real hook', async () => {
+    // Behavioral regression test: drives the full open path through the real
+    // hook and asserts that setHideLightboxImage(false) fires INSIDE the
+    // wireframe animation callback — before the wireframe element's display is
+    // set to 'none'. This catches the original blink regression where the
+    // reveal was gated on Promise.all (including the slower sidebar animation).
+    //
+    // jsdom limitations handled here:
+    //   - getBoundingClientRect() returns zeros → mock it for thumb and
+    //     lightbox-image so the hook takes the wireframe animation path.
+    //   - element.animate is not implemented → stub it to resolve immediately.
+    //   - requestAnimationFrame fires via setInterval at ~16ms in jsdom, which
+    //     doesn't advance with setTimeout(r,0). Mock it to fire synchronously
+    //     so the hook's open-animation rAF callback runs within act().
+
+    const images = [{ fileName: 'a.png', src: 'http://example.com/a.png' }];
+
+    let revealCallCount = 0;
+    let revealFiredBeforeWireframeHidden = false;
+    let openLightboxFn = null;
+
+    // 1. Mock requestAnimationFrame to fire synchronously inside the callback.
+    //    This lets act() flush the hook's open-animation rAF callback.
+    const originalRAF = window.requestAnimationFrame;
+    const originalCAF = window.cancelAnimationFrame;
+    const pendingRAFs = new Map();
+    let rafId = 0;
+    window.requestAnimationFrame = (cb) => {
+      const id = ++rafId;
+      pendingRAFs.set(id, cb);
+      // Schedule via Promise so it runs in the same microtask queue as act().
+      Promise.resolve().then(() => {
+        const fn = pendingRAFs.get(id);
+        if (fn) { pendingRAFs.delete(id); fn(performance.now()); }
+      });
+      return id;
+    };
+    window.cancelAnimationFrame = (id) => { pendingRAFs.delete(id); };
+
+    // 2. Stub element.animate so WAAPI resolves immediately.
+    const originalAnimate = HTMLElement.prototype.animate;
+    Object.defineProperty(HTMLElement.prototype, 'animate', {
+      configurable: true, writable: true,
+      value: function () {
+        return { finished: Promise.resolve(), cancel: () => {}, currentTime: 0 };
+      },
+    });
+
+    // 3. Mock getBoundingClientRect to return non-zero rects so the hook
+    //    takes the wireframe animation path rather than the zero-rect fallback.
+    const originalGetBCR = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function () {
+      if (this.id === 'lightbox-image' || this.classList?.contains('card')) {
+        return { left: 10, top: 10, width: 200, height: 150, right: 210, bottom: 160, x: 10, y: 10, toJSON: () => {} };
+      }
+      return { left: 0, top: 0, width: 0, height: 0, right: 0, bottom: 0, x: 0, y: 0, toJSON: () => {} };
+    };
+
+    function Harness() {
+      const [isOpen, setIsOpen] = React.useState(false);
+      const [idx] = React.useState(0);
+      const [, setHide] = React.useState(true);
+
+      const { openLightbox } = useLightboxAnimations({
+        images,
+        isLightboxOpen: isOpen,
+        lightboxIndex: idx,
+        reduceMotion: false,
+        setLightboxIndex: () => {},
+        setIsLightboxOpen: setIsOpen,
+        setHideLightboxImage: (v) => {
+          if (v === false) {
+            revealCallCount++;
+            // At the moment of reveal, the wireframe must NOT yet be hidden.
+            // If it's already display:none, the blink has already occurred.
+            const wireframe = document.querySelector('.wireframe-rect');
+            if (!wireframe || wireframe.style.display !== 'none') {
+              revealFiredBeforeWireframeHidden = true;
+            }
+          }
+          setHide(v);
+        },
+      });
+
+      const initRef = React.useRef(false);
+      if (!initRef.current) {
+        initRef.current = true;
+        openLightboxFn = openLightbox;
+      }
+
+      return React.createElement('div', null,
+        isOpen && React.createElement('div', { id: 'lightbox' },
+          React.createElement('img', { id: 'lightbox-image', alt: '', src: images[0].src }),
+          React.createElement('aside', { className: 'lightbox-details' })
+        )
+      );
+    }
+
+    render(React.createElement(Harness));
+
+    // Build a thumb element so the hook stores pendingOpenStartRectRef,
+    // causing runWireframeAnimation (and revealLightboxImage callback) to run.
+    const thumbEl = document.createElement('div');
+    thumbEl.className = 'card';
+    const thumbImg = document.createElement('img');
+    thumbImg.src = images[0].src;
+    thumbEl.appendChild(thumbImg);
+    document.body.appendChild(thumbEl);
+
+    // Open the lightbox with the thumb element.
+    await act(async () => { openLightboxFn(0, thumbEl); });
+
+    // Flush async work: rAF → await animation.finished → microtasks → state updates.
+    for (let i = 0; i < 12; i++) {
+      await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+    }
+
+    // revealCallCount > 0 means the wireframe animation path ran.
+    expect(revealCallCount).toBeGreaterThan(0);
+    // revealFiredBeforeWireframeHidden means the callback ran BEFORE display:none —
+    // i.e., the blink-fix callback ordering is correct.
+    expect(revealFiredBeforeWireframeHidden).toBe(true);
+
+    // Cleanup.
+    window.requestAnimationFrame = originalRAF;
+    window.cancelAnimationFrame = originalCAF;
+    Element.prototype.getBoundingClientRect = originalGetBCR;
+    if (originalAnimate === undefined) {
+      delete HTMLElement.prototype.animate;
+    } else {
+      Object.defineProperty(HTMLElement.prototype, 'animate', {
+        configurable: true, writable: true, value: originalAnimate,
+      });
+    }
+    document.body.innerHTML = '';
+  });
+
+  it('image reveal must NOT depend on the slowest sibling animation (Promise.all timing)', () => {
+    // Anti-regression: the reveal previously ran AFTER Promise.all([
+    // wireframe, backdrop, sidebar ]). Moving it into the wireframe
+    // callback decouples it from sidebar timing. If anyone moves the reveal
+    // back below Promise.all without keeping the callback, this test fails.
+    const openEffect = hookContent.match(/After mount of lightbox[\s\S]*?abortCtrl\.abort\(\)/);
+    expect(openEffect).not.toBeNull();
+    // The callback definition must appear BEFORE the Promise.all that
+    // awaits wireframe + backdrop + sidebar.
+    const revealIdx = openEffect[0].indexOf('revealLightboxImage =');
+    const promiseAllIdx = openEffect[0].indexOf('await Promise.all');
+    expect(revealIdx).toBeGreaterThan(-1);
+    expect(promiseAllIdx).toBeGreaterThan(-1);
+    expect(revealIdx).toBeLessThan(promiseAllIdx);
   });
 });
 
