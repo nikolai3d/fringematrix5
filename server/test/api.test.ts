@@ -289,4 +289,11 @@ describe('API contract', () => {
       expect(res.body.content).toMatch(/<\/p>/);
     });
   });
+
+  describe('Security headers', () => {
+    it('does not emit X-Powered-By header', async () => {
+      const res = await request(app).get('/api/campaigns');
+      expect(res.headers['x-powered-by']).toBeUndefined();
+    });
+  });
 });
