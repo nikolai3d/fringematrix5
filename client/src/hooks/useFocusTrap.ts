@@ -1,7 +1,5 @@
 import { useEffect } from 'react';
-
-const FOCUSABLE_SELECTOR =
-  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+import { FOCUSABLE_SELECTOR } from '../utils/focusable';
 
 /**
  * Traps keyboard focus inside `modalRef` while `active` is true.

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
 import type { Campaign, ImageData } from '../types/api';
 import LightboxDetails from './LightboxDetails';
+import { FOCUSABLE_SELECTOR } from '../utils/focusable';
 
 /** Minimum horizontal travel (px) required for a touch to count as a swipe. */
 const SWIPE_MIN_HORIZONTAL_PX = 50;
@@ -40,8 +41,6 @@ export default function LightboxContainer({
   const drawerRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
   const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState<boolean>(false);
-  const FOCUSABLE_SELECTOR =
-    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
   const nextImage = useCallback((delta: number) => {
     setLightboxIndex((idx) => (images.length === 0 ? 0 : (idx + delta + images.length) % images.length));
