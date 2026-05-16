@@ -405,6 +405,51 @@ describe('FringeGlyphLoadingSpinner - Cleanup', () => {
   });
 });
 
+describe('FringeGlyphLoadingSpinner - Early Unmount (setInterval leak regression)', () => {
+  // Regression test for fringematrix5-haw / PR #83:
+  // intervalRef was added to prevent setInterval leaking when the component
+  // unmounts before displayDuration elapses. If that fix were reverted, the
+  // setTimeout callback would still fire after unmount and create a dangling
+  // setInterval. This test pins that behaviour.
+  it('should never call setInterval when unmounted before displayDuration elapses', async () => {
+    const displayDuration = 1000;
+    const crossDissolveDuration = 200;
+
+    // Spy BEFORE rendering so we capture every call, including ones that
+    // happen inside the setTimeout callback after unmount.
+    const setIntervalSpy = vi.spyOn(window, 'setInterval');
+
+    const { unmount } = render(
+      <FringeGlyphLoadingSpinner
+        displayDuration={displayDuration}
+        crossDissolveDuration={crossDissolveDuration}
+      />
+    );
+
+    // Let the component reach componentVisible=true (fetch + preload + 50ms delay).
+    await act(async () => {
+      await Promise.resolve(); // flush fetch microtask
+      vi.advanceTimersByTime(100); // past the 50ms visibility delay
+      await Promise.resolve(); // flush resulting state updates
+    });
+
+    // Unmount BEFORE displayDuration has elapsed — this is the race condition
+    // the fix addresses. The pending setTimeout has not fired yet.
+    unmount();
+
+    // Now advance timers past displayDuration so the setTimeout callback would
+    // fire if it had not been cancelled by the cleanup.
+    await act(async () => {
+      vi.advanceTimersByTime(displayDuration + crossDissolveDuration + 100);
+      await Promise.resolve();
+    });
+
+    // setInterval must never have been called — neither the cancelled setTimeout
+    // path nor any other code path should have created an interval.
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+  });
+});
+
 describe('FringeGlyphLoadingSpinner - Square Aspect Ratio', () => {
   it('should always be square (width equals height)', async () => {
     const sizes = [50, 100, 200, 300];
