@@ -15,13 +15,11 @@ import app, { resetCampaignsCache, resetBuildInfoCache } from '../server.ts';
 // straight from the in-memory cache.
 // ---------------------------------------------------------------------------
 
-// Suppress noisy console.error / console.log output during tests
-let consoleSpy: ReturnType<typeof jest.spyOn>;
-let consoleLogSpy: ReturnType<typeof jest.spyOn>;
-
+// Suppress noisy console.error / console.log output during tests.
+// Spies are registered here and restored wholesale by jest.restoreAllMocks() below.
 beforeEach(() => {
-  consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-  consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  jest.spyOn(console, 'error').mockImplementation(() => {});
+  jest.spyOn(console, 'log').mockImplementation(() => {});
 });
 
 afterEach(() => {
