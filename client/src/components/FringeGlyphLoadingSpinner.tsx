@@ -42,6 +42,7 @@ export default function FringeGlyphLoadingSpinner({
   const [isTransitioning, setIsTransitioning] = useState(false);
   
   const timerRef = useRef<number | null>(null);
+  const intervalRef = useRef<number | null>(null); // tracks the cycling setInterval so cleanup can cancel it even if timeout hasn't fired
   const imageIndexRef = useRef(0); // tracks current position in sequence
   const activeSlotRef = useRef<0 | 1>(0); // tracks active slot without triggering re-renders
   const mountedRef = useRef(true); // tracks if component is mounted
@@ -51,10 +52,14 @@ export default function FringeGlyphLoadingSpinner({
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      // Clear any pending timeout on unmount
+      // Clear any pending timeout and interval on unmount
       if (timerRef.current) {
         window.clearTimeout(timerRef.current);
         timerRef.current = null;
+      }
+      if (intervalRef.current) {
+        window.clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
   }, []);
@@ -190,12 +195,14 @@ export default function FringeGlyphLoadingSpinner({
     if (!componentVisible || glyphs.length <= 1) return;
 
     const intervalTime = displayDuration + crossDissolveDuration;
-    let interval: number | null = null;
 
-    // First transition after displayDuration, then interval for subsequent
+    // First transition after displayDuration, then interval for subsequent.
+    // The interval ID is stored in intervalRef so the cleanup function can always
+    // cancel it — even if the component unmounts before the timeout fires and the
+    // local variable would still be null.
     timerRef.current = window.setTimeout(() => {
       advanceToNextImage();
-      interval = window.setInterval(advanceToNextImage, intervalTime);
+      intervalRef.current = window.setInterval(advanceToNextImage, intervalTime);
     }, displayDuration);
 
     return () => {
@@ -203,8 +210,9 @@ export default function FringeGlyphLoadingSpinner({
         window.clearTimeout(timerRef.current);
         timerRef.current = null;
       }
-      if (interval) {
-        window.clearInterval(interval);
+      if (intervalRef.current) {
+        window.clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
   }, [componentVisible, glyphs.length, displayDuration, crossDissolveDuration, advanceToNextImage]);
