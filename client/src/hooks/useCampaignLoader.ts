@@ -51,7 +51,6 @@ async function preloadCampaignImages(
 
 export interface CampaignLoaderState {
   currentImages: ImageData[];
-  imageCache: Record<string, ImageData[]>;
   isCampaignLoading: boolean;
   campaignLoadProgress: number;
   campaignLoadTotal: number;
@@ -166,7 +165,6 @@ export function useCampaignLoader(): CampaignLoaderState {
 
   return {
     currentImages,
-    imageCache,
     isCampaignLoading,
     campaignLoadProgress,
     campaignLoadTotal,
