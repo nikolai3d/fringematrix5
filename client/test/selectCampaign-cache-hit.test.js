@@ -19,10 +19,12 @@ import fs from 'fs';
 import path from 'path';
 
 // ---------------------------------------------------------------------------
-// Read the source once for all source-level assertions
+// Read the source once for all source-level assertions.
+// The cache-hit logic now lives in useCampaignLoader.ts (extracted from
+// App.tsx in fringematrix5-1yg).
 // ---------------------------------------------------------------------------
-const appSrc = fs.readFileSync(
-  path.resolve(__dirname, '../src/App.tsx'),
+const hookSrc = fs.readFileSync(
+  path.resolve(__dirname, '../src/hooks/useCampaignLoader.ts'),
   'utf-8',
 );
 
@@ -33,13 +35,13 @@ describe('selectCampaign cache-hit branch — source guards', () => {
   // Locate the cache-hit block by finding the `if (id in imageCache) {` guard
   // and extracting its body (everything up to the closing `return;` on the
   // same indentation level).
-  const cacheHitStart = appSrc.indexOf('if (id in imageCache)');
-  const returnAfterCache = appSrc.indexOf('return;', cacheHitStart);
+  const cacheHitStart = hookSrc.indexOf('if (id in imageCache)');
+  const returnAfterCache = hookSrc.indexOf('return;', cacheHitStart);
   const cacheHitBlock = cacheHitStart > -1 && returnAfterCache > -1
-    ? appSrc.slice(cacheHitStart, returnAfterCache + 'return;'.length)
+    ? hookSrc.slice(cacheHitStart, returnAfterCache + 'return;'.length)
     : '';
 
-  it('the cache-hit block exists in App.tsx', () => {
+  it('the cache-hit block exists in useCampaignLoader.ts', () => {
     expect(cacheHitBlock).not.toBe('');
   });
 

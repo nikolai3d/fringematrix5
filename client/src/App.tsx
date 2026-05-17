@@ -1,79 +1,42 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import DOMPurify from 'dompurify';
 import { useLightboxAnimations } from './hooks/useLightboxAnimations';
+import { useCampaignLoader } from './hooks/useCampaignLoader';
 import { fetchJSON } from './utils/fetchJSON';
-import { formatTimePacific } from './utils/formatTimePacific';
-import { gitRemoteToHttps } from './utils/gitRemoteToHttps';
 import { closeSubwindowsState } from './utils/closeSubwindowsState';
 import { isSafeUrl } from './utils/isSafeUrl';
 import { applyTheme } from './config/theme';
 import { SITE_URL, SITE_SHARE_TEXT } from './config/site';
 import LoadingManager from './components/LoadingManager';
 import CampaignNavigation from './components/CampaignNavigation';
+import BuildInfoPopover from './components/BuildInfoPopover';
+import SharePopover from './components/SharePopover';
 import ContentModal from './components/ContentModal';
 import SettingsModal from './components/SettingsModal';
 import LightboxContainer from './components/LightboxContainer';
 import GalleryGrid, { type GalleryGridHandle } from './components/GalleryGrid';
 import type {
   Campaign,
-  ImageData,
-  ApiImageData,
   BuildInfo,
   CampaignsResponse,
-  CampaignImagesResponse,
   BuildInfoResponse,
   ContentPage,
   ContentResponse
 } from './types/api';
 
-// A single hung image shouldn't freeze the whole gallery. After this much
-// time we treat the image as errored and let the rest of the batch finish.
-const IMAGE_PRELOAD_TIMEOUT_MS = 15_000;
-
-async function preloadCampaignImages(
-  campaignImages: ApiImageData[],
-  signal: AbortSignal,
-  onProgress: (loaded: number) => void,
-): Promise<{ hasError: boolean }> {
-  let loaded = 0;
-  let hasError = false;
-  await Promise.all(
-    campaignImages.map((img) =>
-      new Promise<void>((resolve) => {
-        if (signal.aborted) return resolve();
-        const image = new Image();
-        let settled = false;
-        // Abort short-circuits the wait so rapid campaign switching doesn't
-        // leave dozens of pending Image loads holding the Promise.all open
-        // for the full 15s timeout each.
-        const settle = (errored: boolean) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          signal.removeEventListener('abort', onAbort);
-          if (signal.aborted) return resolve();
-          if (errored) hasError = true;
-          loaded += 1;
-          onProgress(loaded);
-          resolve();
-        };
-        const onAbort = () => settle(false);
-        signal.addEventListener('abort', onAbort);
-        const timer = setTimeout(() => settle(true), IMAGE_PRELOAD_TIMEOUT_MS);
-        image.onload = () => settle(false);
-        image.onerror = () => settle(true);
-        image.src = img.src;
-      }),
-    ),
-  );
-  return { hasError };
-}
-
 export default function App() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
-  const [currentImages, setCurrentImages] = useState<ImageData[]>([]);
-  const [imageCache, setImageCache] = useState<Record<string, ImageData[]>>({});
+  const {
+    currentImages,
+    isCampaignLoading,
+    campaignLoadProgress,
+    campaignLoadTotal,
+    campaignLoadError,
+    campaignLoadAbortRef,
+    loadCampaignImages,
+    selectCampaign: selectCampaignFromHook,
+  } = useCampaignLoader();
   const [lightboxIndex, setLightboxIndex] = useState<number>(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState<boolean>(false);
   const [hideLightboxImage, setHideLightboxImage] = useState<boolean>(false);
@@ -88,11 +51,6 @@ export default function App() {
   const [isDataReady, setIsDataReady] = useState<boolean>(false);
   const [loadingDots, setLoadingDots] = useState<number>(0);
   const [loadingError, setLoadingError] = useState<boolean>(false);
-  const [isCampaignLoading, setIsCampaignLoading] = useState<boolean>(false);
-  const [campaignLoadProgress, setCampaignLoadProgress] = useState<number>(0);
-  const [campaignLoadTotal, setCampaignLoadTotal] = useState<number>(0);
-  const [campaignLoadError, setCampaignLoadError] = useState<boolean>(false);
-  const campaignLoadAbortRef = useRef<AbortController | null>(null);
   const galleryGridRef = useRef<GalleryGridHandle>(null);
   const shareBtnRef = useRef<HTMLButtonElement>(null);
   const buildBtnRef = useRef<HTMLButtonElement>(null);
@@ -142,101 +100,17 @@ export default function App() {
     } catch { /* ignore storage errors */ }
   }, [reduceMotion, reduceEffects]);
 
-  const repoHref = useMemo(
-    () => gitRemoteToHttps(buildInfo?.repoUrl || ''),
-    [buildInfo?.repoUrl]
-  );
-
   const activeCampaign = useMemo(
     () => campaigns.find((c) => c.id === activeCampaignId) || null,
     [campaigns, activeCampaignId]
   );
 
-  // Fetches a campaign's images and preloads them, writing progress/error
-  // state along the way. Shared by selectCampaign and the initial mount-load
-  // effect — keep both call sites in sync by editing here.
-  const loadCampaignImages = useCallback(async (
-    id: string,
-    signal: AbortSignal,
-    onImageCountKnown?: (count: number) => void,
-  ): Promise<void> => {
-    setIsCampaignLoading(true);
-    setCampaignLoadProgress(0);
-    setCampaignLoadTotal(0);
-    setCampaignLoadError(false);
-
-    try {
-      const res = await fetchJSON<CampaignImagesResponse>(`/api/campaigns/${id}/images`, { signal });
-      if (signal.aborted) return;
-      const campaignImages = res.images || [];
-
-      setCampaignLoadTotal(campaignImages.length);
-      onImageCountKnown?.(campaignImages.length);
-
-      if (campaignImages.length === 0) {
-        setCurrentImages([]);
-        return;
-      }
-
-      const placeholderImages = campaignImages.map((img: ApiImageData) => ({
-        fileName: img.fileName,
-        originalSrc: img.src,
-        src: null,
-        isLoading: true,
-        loadedSrc: null
-      }));
-      setCurrentImages(placeholderImages);
-
-      const { hasError } = await preloadCampaignImages(campaignImages, signal, setCampaignLoadProgress);
-      if (signal.aborted) return;
-
-      if (hasError) setCampaignLoadError(true);
-
-      const fullyLoadedImages = campaignImages.map((img: ApiImageData) => ({
-        ...img,
-        isLoading: false,
-        loadedSrc: img.src
-      }));
-
-      setCurrentImages(fullyLoadedImages);
-      setImageCache(prev => ({ ...prev, [id]: fullyLoadedImages }));
-    } catch (error) {
-      if (signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) return;
-      console.error('Failed to load campaign images:', error);
-      setCampaignLoadError(true);
-      setCurrentImages([]);
-    } finally {
-      if (!signal.aborted) setIsCampaignLoading(false);
-    }
-  }, []);
-
   const selectCampaign = useCallback(async (id: string) => {
-    // All nav buttons are disabled while isCampaignLoading is true, so
-    // user-triggered calls to selectCampaign cannot overlap with an ongoing
-    // user-triggered load. The abort here is intentionally kept for one real
-    // race: the initial mount-load (which runs before buttons are rendered)
-    // overlapping with the first user click once the loading screen clears.
-    // Removing the abort would leave that mount → user-click transition
-    // unguarded, so we keep it even though it is a no-op for all other paths.
-    campaignLoadAbortRef.current?.abort();
-    const controller = new AbortController();
-    campaignLoadAbortRef.current = controller;
-    const { signal } = controller;
-
-    setActiveCampaignId(id);
-    window.history.replaceState({}, '', `#${id}`);
-
-    if (id in imageCache) {
-      setCurrentImages(imageCache[id]);
-      setCampaignLoadProgress(0);
-      setCampaignLoadTotal(0);
-      setCampaignLoadError(false);
-      setIsCampaignLoading(false);
-      return;
-    }
-
-    await loadCampaignImages(id, signal);
-  }, [imageCache, loadCampaignImages]);
+    await selectCampaignFromHook(id, (campaignId) => {
+      setActiveCampaignId(campaignId);
+      window.history.replaceState({}, '', `#${campaignId}`);
+    });
+  }, [selectCampaignFromHook]);
 
   const activeIndex = useMemo(() => {
     if (!activeCampaignId) return -1;
@@ -416,7 +290,7 @@ export default function App() {
         // Choose initial campaign and load its images
         const hash = window.location.hash.replace('#', '');
         const initial = campaignList.find((c: Campaign) => c.id === hash) || campaignList[0];
-        
+
         if (initial) {
           // Mount-time initial campaign load. Shares campaignLoadAbortRef so a
           // user clicking a different campaign before this finishes aborts cleanly.
@@ -603,7 +477,7 @@ export default function App() {
             </div>
             <div className="campaign-progress-container">
               <div className="campaign-progress-bar">
-                <div 
+                <div
                   className="campaign-progress-fill"
                   style={{ width: campaignLoadTotal > 0 ? `${(campaignLoadProgress / campaignLoadTotal) * 100}%` : '0%' }}
                 ></div>
@@ -665,66 +539,20 @@ export default function App() {
 
       {/* Build info popover */}
       {isBuildInfoOpen && (
-        <div className="build-info-popover" role="dialog" aria-modal={false} style={buildStyle}>
-          <div className="build-info-header">
-            <span>Build Info</span>
-            <button
-              className="build-info-close"
-              aria-label="Close build info"
-              onClick={() => setIsBuildInfoOpen(false)}
-            >
-              ✕
-            </button>
-          </div>
-          <div className="build-info-body">
-            <div className="row">
-              <span className="label">Repo</span>
-              {repoHref ? (
-                <a href={repoHref} target="_blank" rel="noreferrer noopener">{repoHref}</a>
-              ) : (
-                <span className="value">N/A</span>
-              )}
-            </div>
-            <div className="row">
-              <span className="label">Commit</span>
-              {buildInfo?.commitHash ? (
-                <span className="value monospace" title={buildInfo.commitHash}>{buildInfo.commitHash}</span>
-              ) : (
-                <span className="value">N/A</span>
-              )}
-            </div>
-            <div className="row">
-              <span className="label">Time of build:</span>
-              <span className="value">{buildInfo?.builtAt ? formatTimePacific(buildInfo.builtAt) : 'N/A'}</span>
-            </div>
-          </div>
-        </div>
+        <BuildInfoPopover
+          style={buildStyle}
+          buildInfo={buildInfo}
+          onClose={() => setIsBuildInfoOpen(false)}
+        />
       )}
 
       {/* Share popover */}
       {isShareOpen && (
-        <div className="share-popover" role="dialog" aria-modal={false} style={shareStyle}>
-          <div className="share-header">
-            <span>Share</span>
-            <button
-              className="share-close"
-              aria-label="Close share"
-              onClick={() => setIsShareOpen(false)}
-            >
-              ✕
-            </button>
-          </div>
-          <div className="share-body">
-            <a
-              className="action-btn"
-              href={threadsShareUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-            >
-              Share on Threads
-            </a>
-          </div>
-        </div>
+        <SharePopover
+          style={shareStyle}
+          threadsShareUrl={threadsShareUrl}
+          onClose={() => setIsShareOpen(false)}
+        />
       )}
 
       <footer className="navbar" id="bottom-navbar">
@@ -767,5 +595,3 @@ export default function App() {
     </div>
   );
 }
-
-
