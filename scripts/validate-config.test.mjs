@@ -262,12 +262,14 @@ describe('validateConfigObject — site', () => {
     assert.ok(errors.some(e => e.includes('site.url')), `Expected site.url error, got: ${errors}`);
   });
 
-  it('fails when site.url is a non-http protocol', () => {
+  it('passes when site.url is an ftp URL (validator uses URL() with no protocol restriction)', () => {
     const { errors } = validateConfigObject(validConfig({ site: { url: 'ftp://example.com', shareText: 'Check it out' } }));
-    // ftp:// is actually a parseable URL — what matters is the validator catches truly invalid URLs
-    // This test verifies plain invalid strings (no protocol at all) also fail
-    const { errors: errors2 } = validateConfigObject(validConfig({ site: { url: 'just-text-no-protocol', shareText: 'Check it out' } }));
-    assert.ok(errors2.some(e => e.includes('site.url')), `Expected site.url error, got: ${errors2}`);
+    assert.deepEqual(errors, []);
+  });
+
+  it('fails when site.url has no protocol (not parseable by URL())', () => {
+    const { errors } = validateConfigObject(validConfig({ site: { url: 'just-text-no-protocol', shareText: 'Check it out' } }));
+    assert.ok(errors.some(e => e.includes('site.url')), `Expected site.url error, got: ${errors}`);
   });
 
   it('fails when site.shareText is an empty string', () => {
