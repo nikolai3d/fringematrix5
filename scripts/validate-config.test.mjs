@@ -244,6 +244,75 @@ describe('validateConfigObject — lightbox.sidebarAnimation', () => {
 });
 
 // ---------------------------------------------------------------------------
+// validateConfigObject — site section
+// ---------------------------------------------------------------------------
+describe('validateConfigObject — site', () => {
+  it('passes when site.url is a valid https URL', () => {
+    const { errors } = validateConfigObject(validConfig({ site: { url: 'https://example.com', shareText: 'Check it out' } }));
+    assert.deepEqual(errors, []);
+  });
+
+  it('passes when site.url is a valid http URL', () => {
+    const { errors } = validateConfigObject(validConfig({ site: { url: 'http://example.com', shareText: 'Check it out' } }));
+    assert.deepEqual(errors, []);
+  });
+
+  it('fails when site.url is not a valid URL', () => {
+    const { errors } = validateConfigObject(validConfig({ site: { url: 'not-a-url', shareText: 'Check it out' } }));
+    assert.ok(errors.some(e => e.includes('site.url')), `Expected site.url error, got: ${errors}`);
+  });
+
+  it('passes when site.url is an ftp URL (validator uses URL() with no protocol restriction)', () => {
+    const { errors } = validateConfigObject(validConfig({ site: { url: 'ftp://example.com', shareText: 'Check it out' } }));
+    assert.deepEqual(errors, []);
+  });
+
+  it('fails when site.url has no protocol (not parseable by URL())', () => {
+    const { errors } = validateConfigObject(validConfig({ site: { url: 'just-text-no-protocol', shareText: 'Check it out' } }));
+    assert.ok(errors.some(e => e.includes('site.url')), `Expected site.url error, got: ${errors}`);
+  });
+
+  it('fails when site.shareText is an empty string', () => {
+    const { errors } = validateConfigObject(validConfig({ site: { url: 'https://example.com', shareText: '' } }));
+    assert.ok(errors.some(e => e.includes('site.shareText')), `Expected site.shareText error, got: ${errors}`);
+  });
+
+  it('fails when site.shareText is a whitespace-only string', () => {
+    const { errors } = validateConfigObject(validConfig({ site: { url: 'https://example.com', shareText: '   ' } }));
+    assert.ok(errors.some(e => e.includes('site.shareText')), `Expected site.shareText error, got: ${errors}`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// validateConfigObject — non-object section types
+// ---------------------------------------------------------------------------
+describe('validateConfigObject — non-object section types', () => {
+  it('fails when theme section is a string (not an object)', () => {
+    const cfg = validConfig({ theme: 'not-an-object' });
+    const { errors } = validateConfigObject(cfg);
+    assert.ok(errors.some(e => e.includes('theme')), `Expected theme error, got: ${errors}`);
+  });
+
+  it('fails when theme section is a number (not an object)', () => {
+    const cfg = validConfig({ theme: 42 });
+    const { errors } = validateConfigObject(cfg);
+    assert.ok(errors.some(e => e.includes('theme')), `Expected theme error, got: ${errors}`);
+  });
+
+  it('fails when lightbox section is a string (not an object)', () => {
+    const cfg = validConfig({ lightbox: 'not-an-object' });
+    const { errors } = validateConfigObject(cfg);
+    assert.ok(errors.some(e => e.includes('lightbox')), `Expected lightbox error, got: ${errors}`);
+  });
+
+  it('fails when lightbox section is a number (not an object)', () => {
+    const cfg = validConfig({ lightbox: 123 });
+    const { errors } = validateConfigObject(cfg);
+    assert.ok(errors.some(e => e.includes('lightbox')), `Expected lightbox error, got: ${errors}`);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // validateConfigObject — loadingScreen validation
 // ---------------------------------------------------------------------------
 describe('validateConfigObject — loadingScreen', () => {
