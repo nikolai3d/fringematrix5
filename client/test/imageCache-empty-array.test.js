@@ -25,8 +25,8 @@ import path from 'path';
 // ---------------------------------------------------------------------------
 // Read the source once for all source-level assertions
 // ---------------------------------------------------------------------------
-const appSrc = fs.readFileSync(
-  path.resolve(__dirname, '../src/App.tsx'),
+const hookSrc = fs.readFileSync(
+  path.resolve(__dirname, '../src/hooks/useCampaignLoader.ts'),
   'utf-8',
 );
 
@@ -34,10 +34,11 @@ const appSrc = fs.readFileSync(
 // 1. Source-level guard
 // ---------------------------------------------------------------------------
 describe('imageCache empty-array — source guard', () => {
-  it('App.tsx uses `id in imageCache` (not a truthy check) for the cache guard', () => {
+  it('useCampaignLoader.ts uses `id in imageCache` (not a truthy check) for the cache guard', () => {
     // The correct form is `if (id in imageCache)`.  A truthy check such as
     // `if (imageCache[id])` would silently skip cached campaigns with [] images.
-    expect(appSrc).toMatch(/if\s*\(\s*id\s+in\s+imageCache\s*\)/);
+    // Note: the imageCache logic moved from App.tsx to useCampaignLoader.ts in PR #117.
+    expect(hookSrc).toMatch(/if\s*\(\s*id\s+in\s+imageCache\s*\)/);
   });
 });
 
