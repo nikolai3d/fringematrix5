@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useImperativeHandle, useRef } from 'react';
 import type { ImageData } from '../types/api';
+import ImageCard from './ImageCard';
 
 /** Public API exposed to callers via a ref (useImperativeHandle). */
 export interface GalleryGridHandle {
@@ -47,7 +48,15 @@ const GalleryGrid = React.memo(React.forwardRef<GalleryGridHandle, GalleryGridPr
      */
     const refCallbackCacheRef = useRef<Map<number, (el: HTMLImageElement | null) => void>>(new Map());
 
-    // Prune stale entries from both caches when images array shrinks (e.g. campaign switch).
+    /**
+     * Cache of per-index click handlers so that the same function reference is
+     * passed to each ImageCard across renders. This is what makes React.memo on
+     * ImageCard effective — without stable references the memo check would fail
+     * on every render.
+     */
+    const clickCallbackCacheRef = useRef<Map<number, (e: React.MouseEvent<HTMLImageElement>) => void>>(new Map());
+
+    // Prune stale entries from all caches when images array shrinks (e.g. campaign switch).
     useEffect(() => {
       for (const key of refCallbackCacheRef.current.keys()) {
         if (key >= images.length) {
@@ -57,6 +66,11 @@ const GalleryGrid = React.memo(React.forwardRef<GalleryGridHandle, GalleryGridPr
       for (const key of thumbMapRef.current.keys()) {
         if (key >= images.length) {
           thumbMapRef.current.delete(key);
+        }
+      }
+      for (const key of clickCallbackCacheRef.current.keys()) {
+        if (key >= images.length) {
+          clickCallbackCacheRef.current.delete(key);
         }
       }
     }, [images.length]);
@@ -76,6 +90,29 @@ const GalleryGrid = React.memo(React.forwardRef<GalleryGridHandle, GalleryGridPr
       return cb;
     }, []);
 
+    /**
+     * Returns a stable per-index click handler that forwards to the parent's
+     * onImageClick. Because onImageClick may change identity (e.g. on re-render),
+     * we capture it via a ref so the cached closure always calls the latest version
+     * without itself needing to change.
+     */
+    const onImageClickRef = useRef(onImageClick);
+    onImageClickRef.current = onImageClick;
+
+    const getClickCallback = useCallback(
+      (index: number): ((e: React.MouseEvent<HTMLImageElement>) => void) => {
+        let cb = clickCallbackCacheRef.current.get(index);
+        if (!cb) {
+          cb = (e: React.MouseEvent<HTMLImageElement>) => {
+            onImageClickRef.current(index, e.currentTarget);
+          };
+          clickCallbackCacheRef.current.set(index, cb);
+        }
+        return cb;
+      },
+      [],
+    );
+
     const isEmpty = hasCampaign && images.length === 0;
 
     return (
@@ -92,25 +129,12 @@ const GalleryGrid = React.memo(React.forwardRef<GalleryGridHandle, GalleryGridPr
           </div>
         ) : (
           images.map((img, i) => (
-            <div className="card" key={`${img.src}-${i}`}>
-              {img.isLoading ? (
-                <div className="image-placeholder">
-                  <div className="placeholder-content">
-                    <div className="placeholder-icon">📷</div>
-                    <div className="placeholder-text">Loading...</div>
-                  </div>
-                </div>
-              ) : (
-                <img
-                  ref={setThumbRef(i)}
-                  src={img.loadedSrc || img.src || ''}
-                  alt={img.fileName}
-                  loading="lazy"
-                  onClick={(e) => onImageClick(i, e.currentTarget)}
-                />
-              )}
-              <div className="filename">{img.fileName}</div>
-            </div>
+            <ImageCard
+              key={`${img.src}-${i}`}
+              image={img}
+              imgRef={setThumbRef(i)}
+              onClick={getClickCallback(i)}
+            />
           ))
         )}
       </section>
