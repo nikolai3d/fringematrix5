@@ -9,7 +9,9 @@
  *   3. Network error — fetch rejects → campaignLoadError = true.
  *   4. Abort mid-load — abort before fetch resolves → no error, no state update.
  *   5. Abort during preload — abort after fetch resolves → no error, loading stays.
- *   6. Per-image timeout — image timeout via fake timers → hasError flagged.
+ *   6. Per-image timeout — source-level guard verifying IMAGE_PRELOAD_TIMEOUT_MS
+ *      and settle(true) logic (fake timers interact poorly with act(); behavioral
+ *      coverage is deferred to a future integration test).
  *   7. Progress sequencing — campaignLoadProgress / campaignLoadTotal track correctly.
  *   8. onImageCountKnown callback — fires once with the correct count.
  *   9. selectCampaign cache-hit — no extra fetch on re-navigation.
@@ -19,7 +21,6 @@
  *   - Mock Image constructor to auto-fire onload/onerror in the next microtask
  *     when src is set — this mirrors real browser behavior and lets act(async)
  *     resolve without timing out.
- *   - Use vi.useFakeTimers() for the per-image timeout test only.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -243,6 +244,21 @@ describe('useCampaignLoader — empty image response', () => {
 
     expect(result.current.isCampaignLoading).toBe(false);
   });
+
+  it('does NOT cache the campaign when image list is empty (early return before setImageCache)', async () => {
+    // The hook returns early when campaignImages.length === 0, before calling
+    // setImageCache.  Empty campaigns must not pollute the cache with [].
+    fetchSpy.mockResolvedValueOnce(makeImagesResponse([]));
+
+    const { result } = renderHook(() => useCampaignLoader());
+    const controller = new AbortController();
+
+    await act(async () => {
+      await result.current.loadCampaignImages('ep-empty', controller.signal);
+    });
+
+    expect('ep-empty' in result.current.imageCache).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -367,9 +383,11 @@ describe('useCampaignLoader — abort during image preload', () => {
       await p;
     });
 
-    // Abort is not an error
+    // Abort is not an error — campaignLoadError must remain false.
     expect(result.current.campaignLoadError).toBe(false);
-    // The finally block skips setIsCampaignLoading(false) when signal is aborted
+    // The hook's finally block: `if (!signal.aborted) setIsCampaignLoading(false)`.
+    // Because the signal is aborted, isCampaignLoading stays true — the caller
+    // (selectCampaign) is responsible for resetting it when it starts a new load.
     expect(result.current.isCampaignLoading).toBe(true);
   });
 });
