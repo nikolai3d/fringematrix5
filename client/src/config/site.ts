@@ -11,8 +11,8 @@ import configYaml from '../../config.yaml';
 
 const config = configYaml as AppConfig;
 
-const DEFAULT_SITE_URL = 'https://fringematrix.art';
-const DEFAULT_SHARE_TEXT = 'Check out Fringe Matrix';
+export const SITE_URL_DEFAULT = 'https://fringematrix.art';
+export const SITE_SHARE_TEXT_DEFAULT = 'Check out Fringe Matrix';
 
 /**
  * The canonical site URL used for share links.
@@ -21,7 +21,7 @@ const DEFAULT_SHARE_TEXT = 'Check out Fringe Matrix';
 export const SITE_URL: string =
   typeof config.site?.url === 'string' && config.site.url.trim().length > 0
     ? config.site.url
-    : DEFAULT_SITE_URL;
+    : SITE_URL_DEFAULT;
 
 /**
  * Default share text prepended to Threads (and similar) share links.
@@ -30,4 +30,4 @@ export const SITE_URL: string =
 export const SITE_SHARE_TEXT: string =
   typeof config.site?.shareText === 'string' && config.site.shareText.trim().length > 0
     ? config.site.shareText
-    : DEFAULT_SHARE_TEXT;
+    : SITE_SHARE_TEXT_DEFAULT;
