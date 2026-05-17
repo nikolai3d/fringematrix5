@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, act } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import React, { createRef } from 'react';
 import GalleryGrid from '../src/components/GalleryGrid';
 import type { GalleryGridHandle } from '../src/components/GalleryGrid';
@@ -294,5 +294,137 @@ describe('GalleryGridHandle — setThumbRef callback caching', () => {
 
     expect(ref.current!.getThumbElement(0)).toBeInstanceOf(HTMLImageElement);
     expect(ref.current!.getThumbElement(1)).toBeInstanceOf(HTMLImageElement);
+  });
+});
+
+// =============================================================================
+// 5. Rendering behavior — image cards, filenames, src, alt text
+// =============================================================================
+
+describe('GalleryGrid — image card rendering', () => {
+  it('renders one card per image', () => {
+    const images = [makeImage('a.png'), makeImage('b.png'), makeImage('c.png')];
+    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={noop} />);
+    expect(screen.getAllByRole('img')).toHaveLength(3);
+  });
+
+  it('renders the filename for each image card', () => {
+    const images = [makeImage('fringe-avatar.png'), makeImage('walter-bishop.jpg')];
+    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={noop} />);
+    expect(screen.getByText('fringe-avatar.png')).toBeTruthy();
+    expect(screen.getByText('walter-bishop.jpg')).toBeTruthy();
+  });
+
+  it('renders the image src as the img element src', () => {
+    const images = [makeImage('specific.png', 'https://cdn.example.com/specific.png')];
+    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={noop} />);
+    const img = screen.getByRole('img');
+    expect(img.getAttribute('src')).toBe('https://cdn.example.com/specific.png');
+  });
+
+  it('uses the fileName as the img alt text', () => {
+    const images = [makeImage('my-avatar.png')];
+    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={noop} />);
+    expect(screen.getByAltText('my-avatar.png')).toBeTruthy();
+  });
+});
+
+// =============================================================================
+// 6. Click handler — correct index and element passed to onImageClick
+// =============================================================================
+
+describe('GalleryGrid — click handler', () => {
+  it('calls onImageClick with correct index when first image is clicked', () => {
+    const onImageClick = vi.fn();
+    const images = [makeImage('first.png'), makeImage('second.png')];
+    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={onImageClick} />);
+    const imgs = screen.getAllByRole('img');
+    fireEvent.click(imgs[0]);
+    expect(onImageClick).toHaveBeenCalledTimes(1);
+    expect(onImageClick.mock.calls[0][0]).toBe(0);
+  });
+
+  it('calls onImageClick with correct index when a middle image is clicked', () => {
+    const onImageClick = vi.fn();
+    const images = [makeImage('first.png'), makeImage('second.png'), makeImage('third.png')];
+    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={onImageClick} />);
+    const imgs = screen.getAllByRole('img');
+    fireEvent.click(imgs[1]);
+    expect(onImageClick).toHaveBeenCalledTimes(1);
+    expect(onImageClick.mock.calls[0][0]).toBe(1);
+  });
+
+  it('calls onImageClick with the img element as the second argument', () => {
+    const onImageClick = vi.fn();
+    const images = [makeImage('avatar.png')];
+    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={onImageClick} />);
+    const img = screen.getByRole('img');
+    fireEvent.click(img);
+    expect(onImageClick.mock.calls[0][1]).toBe(img);
+  });
+});
+
+// =============================================================================
+// 7. Empty state — hasCampaign=true + images=[] shows the empty-state UI
+// =============================================================================
+
+describe('GalleryGrid — empty state', () => {
+  it('renders the empty state when hasCampaign=true and images=[]', () => {
+    render(<GalleryGrid images={[]} hasCampaign={true} onImageClick={noop} />);
+    expect(screen.getByRole('status')).toBeTruthy();
+    expect(screen.getByText('No Images In Campaign')).toBeTruthy();
+    expect(screen.getByText('This campaign has no uploaded images yet.')).toBeTruthy();
+  });
+
+  it('adds the "empty" class to the gallery section when in empty state', () => {
+    const { container } = render(<GalleryGrid images={[]} hasCampaign={true} onImageClick={noop} />);
+    const section = container.querySelector('section#gallery');
+    expect(section?.classList.contains('empty')).toBe(true);
+  });
+
+  it('does NOT render empty state when hasCampaign=false and images=[]', () => {
+    render(<GalleryGrid images={[]} hasCampaign={false} onImageClick={noop} />);
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.queryByText('No Images In Campaign')).toBeNull();
+  });
+
+  it('does NOT render empty state when images are present', () => {
+    const images = [makeImage('avatar.png')];
+    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={noop} />);
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.queryByText('No Images In Campaign')).toBeNull();
+  });
+});
+
+// =============================================================================
+// 8. Loading placeholder — isLoading=true renders placeholder, not <img>
+// =============================================================================
+
+describe('GalleryGrid — loading placeholder', () => {
+  it('renders a loading placeholder (not an img) when isLoading=true', () => {
+    const images = [makeLoading('pending.png')];
+    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={noop} />);
+    expect(screen.queryByRole('img')).toBeNull();
+    expect(screen.getByText('Loading...')).toBeTruthy();
+  });
+
+  it('renders the filename alongside the loading placeholder', () => {
+    const images = [makeLoading('pending.png')];
+    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={noop} />);
+    expect(screen.getByText('pending.png')).toBeTruthy();
+  });
+
+  it('renders an img (not a placeholder) when isLoading=false', () => {
+    const images = [makeImage('loaded.png')];
+    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={noop} />);
+    expect(screen.getByRole('img')).toBeTruthy();
+    expect(screen.queryByText('Loading...')).toBeNull();
+  });
+
+  it('renders mixed loaded and loading cards correctly', () => {
+    const images = [makeImage('loaded.png'), makeLoading('loading.png')];
+    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={noop} />);
+    expect(screen.getAllByRole('img')).toHaveLength(1);
+    expect(screen.getByText('Loading...')).toBeTruthy();
   });
 });
