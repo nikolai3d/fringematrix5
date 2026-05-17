@@ -8,10 +8,8 @@
  * each test group a fresh module with its own config mock. This is the same
  * approach used in theme.test.js to avoid YAML import issues in the test env.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-
-const DEFAULT_SITE_URL = 'https://fringematrix.art';
-const DEFAULT_SHARE_TEXT = 'Check out Fringe Matrix';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { SITE_URL_DEFAULT, SITE_SHARE_TEXT_DEFAULT } from '../src/config/site.ts';
 
 /**
  * Helper: mocks config.yaml with the given config object, then
@@ -59,40 +57,40 @@ describe('site.ts — valid config values', () => {
 describe('site.ts — SITE_URL fallback', () => {
   it('falls back to default when config.site is undefined (site key missing)', async () => {
     const mod = await importSiteWithConfig({});
-    expect(mod.SITE_URL).toBe(DEFAULT_SITE_URL);
+    expect(mod.SITE_URL).toBe(SITE_URL_DEFAULT);
   });
 
   it('falls back to default when config.site.url is undefined', async () => {
     const mod = await importSiteWithConfig({ site: { shareText: 'Hello' } });
-    expect(mod.SITE_URL).toBe(DEFAULT_SITE_URL);
+    expect(mod.SITE_URL).toBe(SITE_URL_DEFAULT);
   });
 
   it('falls back to default when config.site.url is an empty string', async () => {
     const mod = await importSiteWithConfig({
       site: { url: '', shareText: 'Hello' },
     });
-    expect(mod.SITE_URL).toBe(DEFAULT_SITE_URL);
+    expect(mod.SITE_URL).toBe(SITE_URL_DEFAULT);
   });
 
   it('falls back to default when config.site.url is a whitespace-only string', async () => {
     const mod = await importSiteWithConfig({
       site: { url: '   ', shareText: 'Hello' },
     });
-    expect(mod.SITE_URL).toBe(DEFAULT_SITE_URL);
+    expect(mod.SITE_URL).toBe(SITE_URL_DEFAULT);
   });
 
   it('falls back to default when config.site.url is a number (not a string)', async () => {
     const mod = await importSiteWithConfig({
       site: { url: 42, shareText: 'Hello' },
     });
-    expect(mod.SITE_URL).toBe(DEFAULT_SITE_URL);
+    expect(mod.SITE_URL).toBe(SITE_URL_DEFAULT);
   });
 
   it('falls back to default when config.site.url is null', async () => {
     const mod = await importSiteWithConfig({
       site: { url: null, shareText: 'Hello' },
     });
-    expect(mod.SITE_URL).toBe(DEFAULT_SITE_URL);
+    expect(mod.SITE_URL).toBe(SITE_URL_DEFAULT);
   });
 });
 
@@ -102,39 +100,39 @@ describe('site.ts — SITE_URL fallback', () => {
 describe('site.ts — SITE_SHARE_TEXT fallback', () => {
   it('falls back to default when config.site is undefined (site key missing)', async () => {
     const mod = await importSiteWithConfig({});
-    expect(mod.SITE_SHARE_TEXT).toBe(DEFAULT_SHARE_TEXT);
+    expect(mod.SITE_SHARE_TEXT).toBe(SITE_SHARE_TEXT_DEFAULT);
   });
 
   it('falls back to default when config.site.shareText is undefined', async () => {
     const mod = await importSiteWithConfig({ site: { url: 'https://example.com' } });
-    expect(mod.SITE_SHARE_TEXT).toBe(DEFAULT_SHARE_TEXT);
+    expect(mod.SITE_SHARE_TEXT).toBe(SITE_SHARE_TEXT_DEFAULT);
   });
 
   it('falls back to default when config.site.shareText is an empty string', async () => {
     const mod = await importSiteWithConfig({
       site: { url: 'https://example.com', shareText: '' },
     });
-    expect(mod.SITE_SHARE_TEXT).toBe(DEFAULT_SHARE_TEXT);
+    expect(mod.SITE_SHARE_TEXT).toBe(SITE_SHARE_TEXT_DEFAULT);
   });
 
   it('falls back to default when config.site.shareText is a whitespace-only string', async () => {
     const mod = await importSiteWithConfig({
       site: { url: 'https://example.com', shareText: '   ' },
     });
-    expect(mod.SITE_SHARE_TEXT).toBe(DEFAULT_SHARE_TEXT);
+    expect(mod.SITE_SHARE_TEXT).toBe(SITE_SHARE_TEXT_DEFAULT);
   });
 
   it('falls back to default when config.site.shareText is a number (not a string)', async () => {
     const mod = await importSiteWithConfig({
       site: { url: 'https://example.com', shareText: 99 },
     });
-    expect(mod.SITE_SHARE_TEXT).toBe(DEFAULT_SHARE_TEXT);
+    expect(mod.SITE_SHARE_TEXT).toBe(SITE_SHARE_TEXT_DEFAULT);
   });
 
   it('falls back to default when config.site.shareText is null', async () => {
     const mod = await importSiteWithConfig({
       site: { url: 'https://example.com', shareText: null },
     });
-    expect(mod.SITE_SHARE_TEXT).toBe(DEFAULT_SHARE_TEXT);
+    expect(mod.SITE_SHARE_TEXT).toBe(SITE_SHARE_TEXT_DEFAULT);
   });
 });
