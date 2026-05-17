@@ -1,4 +1,4 @@
-import React, { useCallback, useImperativeHandle, useRef } from 'react';
+import React, { useCallback, useEffect, useImperativeHandle, useRef } from 'react';
 import type { ImageData } from '../types/api';
 
 /** Public API exposed to callers via a ref (useImperativeHandle). */
@@ -46,6 +46,20 @@ const GalleryGrid = React.memo(React.forwardRef<GalleryGridHandle, GalleryGridPr
      * unnecessary churn in `thumbMapRef`.
      */
     const refCallbackCacheRef = useRef<Map<number, (el: HTMLImageElement | null) => void>>(new Map());
+
+    // Prune stale entries from both caches when images array shrinks (e.g. campaign switch).
+    useEffect(() => {
+      for (const key of refCallbackCacheRef.current.keys()) {
+        if (key >= images.length) {
+          refCallbackCacheRef.current.delete(key);
+        }
+      }
+      for (const key of thumbMapRef.current.keys()) {
+        if (key >= images.length) {
+          thumbMapRef.current.delete(key);
+        }
+      }
+    }, [images.length]);
 
     const setThumbRef = useCallback((index: number): (el: HTMLImageElement | null) => void => {
       let cb = refCallbackCacheRef.current.get(index);
