@@ -24,6 +24,9 @@ describe('FOCUSABLE_SELECTOR', () => {
     const enabledSelect = document.createElement('select');
     enabledSelect.dataset.testid = 'enabled-select';
 
+    const enabledTextarea = document.createElement('textarea');
+    enabledTextarea.dataset.testid = 'enabled-textarea';
+
     // Disabled elements — should NOT be focusable
     const disabledButton = document.createElement('button');
     disabledButton.textContent = 'Disabled button';
@@ -39,6 +42,10 @@ describe('FOCUSABLE_SELECTOR', () => {
     disabledSelect.disabled = true;
     disabledSelect.dataset.testid = 'disabled-select';
 
+    const disabledTextarea = document.createElement('textarea');
+    disabledTextarea.disabled = true;
+    disabledTextarea.dataset.testid = 'disabled-textarea';
+
     container.append(
       enabledButton,
       disabledButton,
@@ -47,6 +54,8 @@ describe('FOCUSABLE_SELECTOR', () => {
       anchor,
       enabledSelect,
       disabledSelect,
+      enabledTextarea,
+      disabledTextarea,
     );
   });
 
@@ -58,6 +67,7 @@ describe('FOCUSABLE_SELECTOR', () => {
     expect(testIds).toContain('enabled-input');
     expect(testIds).toContain('anchor');
     expect(testIds).toContain('enabled-select');
+    expect(testIds).toContain('enabled-textarea');
   });
 
   it('excludes disabled buttons', () => {
@@ -81,16 +91,52 @@ describe('FOCUSABLE_SELECTOR', () => {
     expect(testIds).not.toContain('disabled-select');
   });
 
-  it('includes elements with a positive tabindex', () => {
+  it('excludes disabled textareas', () => {
+    const results = Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR));
+    const testIds = results.map((el) => (el as HTMLElement).dataset.testid);
+
+    expect(testIds).not.toContain('disabled-textarea');
+  });
+
+  it('includes elements with tabindex="0"', () => {
     const div = document.createElement('div');
     div.tabIndex = 0;
-    div.dataset.testid = 'tabindex-div';
+    div.dataset.testid = 'tabindex-zero-div';
     container.appendChild(div);
 
     const results = Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR));
     const testIds = results.map((el) => (el as HTMLElement).dataset.testid);
 
-    expect(testIds).toContain('tabindex-div');
+    expect(testIds).toContain('tabindex-zero-div');
+  });
+
+  it('includes elements with tabindex > 0', () => {
+    const div = document.createElement('div');
+    div.tabIndex = 1;
+    div.dataset.testid = 'tabindex-positive-div';
+    container.appendChild(div);
+
+    const results = Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR));
+    const testIds = results.map((el) => (el as HTMLElement).dataset.testid);
+
+    expect(testIds).toContain('tabindex-positive-div');
+  });
+
+  it('includes a disabled button that also has tabindex="0" (matched by [tabindex] branch)', () => {
+    // The [tabindex]:not([tabindex="-1"]) branch has no :not([disabled]) guard,
+    // so a disabled button with tabIndex=0 is still matched. This test documents
+    // that known behaviour; if the selector is ever tightened to also exclude
+    // disabled tabindex elements this test should be updated accordingly.
+    const disabledTabButton = document.createElement('button');
+    disabledTabButton.disabled = true;
+    disabledTabButton.tabIndex = 0;
+    disabledTabButton.dataset.testid = 'disabled-tabindex-button';
+    container.appendChild(disabledTabButton);
+
+    const results = Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR));
+    const testIds = results.map((el) => (el as HTMLElement).dataset.testid);
+
+    expect(testIds).toContain('disabled-tabindex-button');
   });
 
   it('excludes elements with tabindex="-1"', () => {
