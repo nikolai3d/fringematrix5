@@ -99,6 +99,7 @@ export function useCampaignLoader(): CampaignLoaderState {
         return;
       }
 
+      // loadedSrc stays null until preload completes; gallery renders loadedSrc||src so placeholders show nothing while the browser fetches each image.
       const placeholderImages = campaignImages.map((img: ApiImageData) => ({
         fileName: img.fileName,
         originalSrc: img.src,

@@ -225,7 +225,7 @@ export default function App() {
   const scheduledFrameRef = useRef<number | null>(null);
   const latestOpenStateRef = useRef({ isShareOpen: false, isBuildInfoOpen: false });
 
-  // Keep latest open-state in a ref so the handler can be stable
+  // Sync open state into ref so onScrollOrResize can read it without becoming a new function reference that re-triggers addEventListener.
   useEffect(() => {
     latestOpenStateRef.current.isShareOpen = isShareOpen;
   }, [isShareOpen]);
