@@ -508,6 +508,7 @@ export function useLightboxAnimations({
         return;
       }
       const startRect = lightboxImg.getBoundingClientRect();
+      // Fallback cascade: live DOM lookup via callback → activeGridThumbRef (last focused thumb) → lastOpenedThumbElRef (original open target).
       let thumbElement = getThumbElement(lightboxIndex) as HTMLElement | null;
       if (!thumbElement && activeGridThumbRef.current && document.body.contains(activeGridThumbRef.current)) {
         thumbElement = activeGridThumbRef.current;
@@ -567,7 +568,9 @@ export function useLightboxAnimations({
     }
   }, [reduceMotion, images, lightboxIndex, getThumbElement, animateLightboxBackdrop, runWireframeAnimation, animateLightboxSidebar, setHideLightboxImage, setIsLightboxOpen]);
 
-  // After mount of lightbox, animate wireframe and backdrop in
+  // After mount of lightbox, animate wireframe and backdrop in.
+  // Four paths: (1) reduceMotion — snap open instantly; (2) no startRect — sidebar+backdrop only (URL-hash open);
+  // (3) zero-dimension rect — thumbnail not measurable, degrade to backdrop+sidebar; (4) full wireframe+backdrop+sidebar.
   useEffect(() => {
     if (!isLightboxOpen) return;
     if (reduceMotion) {
