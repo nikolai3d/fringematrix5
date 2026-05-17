@@ -168,8 +168,15 @@ describe('useCampaignLoader — normal load', () => {
       await result.current.loadCampaignImages('ep1', controller.signal);
     });
 
-    expect('ep1' in result.current.imageCache).toBe(true);
-    expect(result.current.imageCache['ep1']).toHaveLength(1);
+    const fetchCallsAfterFirstLoad = fetchSpy.mock.calls.length;
+
+    // Second load of same campaign via selectCampaign — should hit cache, no new fetch
+    await act(async () => {
+      await result.current.selectCampaign('ep1', () => {});
+    });
+
+    expect(fetchSpy.mock.calls.length).toBe(fetchCallsAfterFirstLoad);
+    expect(result.current.currentImages).toHaveLength(1);
   });
 
   it('does not set campaignLoadError when all images load successfully', async () => {
@@ -257,7 +264,15 @@ describe('useCampaignLoader — empty image response', () => {
       await result.current.loadCampaignImages('ep-empty', controller.signal);
     });
 
-    expect('ep-empty' in result.current.imageCache).toBe(false);
+    const fetchCallsAfterFirstLoad = fetchSpy.mock.calls.length;
+
+    // Second visit — empty was not cached, so a new fetch MUST be triggered
+    fetchSpy.mockResolvedValueOnce(makeImagesResponse([]));
+    await act(async () => {
+      await result.current.selectCampaign('ep-empty', () => {});
+    });
+
+    expect(fetchSpy.mock.calls.length).toBeGreaterThan(fetchCallsAfterFirstLoad);
   });
 });
 
@@ -603,7 +618,6 @@ describe('useCampaignLoader — selectCampaign cache-hit (renderHook)', () => {
       await result.current.selectCampaign('ep1', () => {});
     });
 
-    expect('ep1' in result.current.imageCache).toBe(true);
     const fetchCallsAfterFirstLoad = fetchSpy.mock.calls.length;
 
     // Second visit — should hit cache, no fetch
