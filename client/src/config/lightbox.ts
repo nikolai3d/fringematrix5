@@ -6,12 +6,12 @@
  * so downstream code can rely on numeric values being in a sane range.
  */
 
-import type { AppConfig, LightboxSidebarAnimationConfig } from '../types/appConfig';
+import type { AppConfig, LightboxPanelAnimationConfig } from '../types/appConfig';
 import configYaml from '../../config.yaml';
 
 const config = configYaml as AppConfig;
 
-export interface ResolvedSidebarAnimation {
+export interface ResolvedPanelAnimation {
   enterDurationMs: number;
   exitDurationMs: number;
   lineHoldMs: number;
@@ -20,7 +20,7 @@ export interface ResolvedSidebarAnimation {
   contentFadeInDelayMs: number;
 }
 
-const DEFAULTS: ResolvedSidebarAnimation = {
+const DEFAULTS: ResolvedPanelAnimation = {
   enterDurationMs: 420,
   exitDurationMs: 320,
   lineHoldMs: 120,
@@ -43,13 +43,13 @@ const LIMITS = {
 
 function pickNumber(
   value: number | null | undefined,
-  field: keyof ResolvedSidebarAnimation,
+  field: keyof ResolvedPanelAnimation,
 ): number {
   const fallback = DEFAULTS[field];
   if (value === undefined || value === null) return fallback;
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     console.warn(
-      `Invalid lightbox.sidebarAnimation.${field}: "${value}" (not a finite number). ` +
+      `Invalid lightbox.panelAnimation.${field}: "${value}" (not a finite number). ` +
       `Using default ${fallback}.`,
     );
     return fallback;
@@ -57,7 +57,7 @@ function pickNumber(
   const { min, max } = LIMITS[field];
   if (value < min || value > max) {
     console.warn(
-      `Invalid lightbox.sidebarAnimation.${field}: ${value} (must be between ${min}-${max}). ` +
+      `Invalid lightbox.panelAnimation.${field}: ${value} (must be between ${min}-${max}). ` +
       `Using default ${fallback}.`,
     );
     return fallback;
@@ -65,9 +65,9 @@ function pickNumber(
   return value;
 }
 
-export function resolveSidebarAnimation(
-  raw: LightboxSidebarAnimationConfig | undefined,
-): ResolvedSidebarAnimation {
+export function resolvePanelAnimation(
+  raw: LightboxPanelAnimationConfig | undefined,
+): ResolvedPanelAnimation {
   return {
     enterDurationMs: pickNumber(raw?.enterDurationMs, 'enterDurationMs'),
     exitDurationMs: pickNumber(raw?.exitDurationMs, 'exitDurationMs'),
@@ -79,9 +79,9 @@ export function resolveSidebarAnimation(
 }
 
 /**
- * Resolved sidebar animation timings, ready for consumption by the
- * lightbox sidebar animation hook. Falls back to defaults if the
- * `lightbox.sidebarAnimation` block is missing from config.yaml.
+ * Resolved panel animation timings, ready for consumption by the
+ * lightbox animation hook. Falls back to defaults if the
+ * `lightbox.panelAnimation` block is missing from config.yaml.
  */
-export const LIGHTBOX_SIDEBAR_ANIMATION: ResolvedSidebarAnimation =
-  resolveSidebarAnimation(config.lightbox?.sidebarAnimation);
+export const LIGHTBOX_PANEL_ANIMATION: ResolvedPanelAnimation =
+  resolvePanelAnimation(config.lightbox?.panelAnimation);
