@@ -21,7 +21,10 @@ async function openLightbox(page: Page) {
   const firstCard = page.locator('.gallery-grid .card').first();
   const hasCard = await firstCard.isVisible().catch(() => false);
   if (!hasCard) {
+    // test.skip() throws internally to abort the test; the return guards
+    // against any future refactor that might not throw.
     test.skip(true, 'No images available — skipping lightbox panel animation test');
+    return;
   }
   await firstCard.click();
   await expect(page.locator('#lightbox')).toBeVisible();

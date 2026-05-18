@@ -12,7 +12,9 @@
  *  - COLLAPSED_CLIP inline style applied at phase 0 (direction='in')
  *  - element.animate is called when all guards are clear
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import fs from 'fs';
+import path from 'path';
 import { animateLightboxPanel } from '../src/hooks/useLightboxAnimations';
 import { LIGHTBOX_PANEL_ANIMATION } from '../src/config/lightbox';
 
@@ -72,7 +74,8 @@ describe('animateLightboxPanel — reduce-motion early returns', () => {
   });
 
   it('resolves immediately when prefers-reduced-motion media query matches', async () => {
-    // Override window.matchMedia to return matches:true for the relevant query
+    // Override window.matchMedia to return matches:true for the relevant query.
+    // Restore via afterEach so cleanup runs even if the test body throws.
     const originalMatchMedia = window.matchMedia;
     window.matchMedia = (query: string) => {
       if (query === '(prefers-reduced-motion: reduce)') {
@@ -80,10 +83,13 @@ describe('animateLightboxPanel — reduce-motion early returns', () => {
       }
       return originalMatchMedia(query);
     };
-    const el = makeEl();
-    await animateLightboxPanel(el, 'in', DUMMY_CFG);
-    expect((el.animate as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
-    window.matchMedia = originalMatchMedia;
+    try {
+      const el = makeEl();
+      await animateLightboxPanel(el, 'in', DUMMY_CFG);
+      expect((el.animate as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
   });
 
   it('resolves immediately with direction=out when options.reduceMotion is true', async () => {
@@ -210,9 +216,6 @@ describe('animateLightboxPanel — direction=out', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Source-level: three wrapper functions exist and call animateLightboxPanel
 // ─────────────────────────────────────────────────────────────────────────────
-
-import fs from 'fs';
-import path from 'path';
 
 const hookSrc = fs.readFileSync(
   path.resolve(__dirname, '../src/hooks/useLightboxAnimations.ts'),
