@@ -153,6 +153,71 @@ test.describe('Lightbox animation after tab visibility change', () => {
   });
 });
 
+test.describe('Image frame blink regression', () => {
+  test('image frame is collapsed before wireframe zoom completes (no pre-delay blink)', async ({ page }) => {
+    // Regression test for fringematrix5-f4p: the .lightbox-image-wrap frame
+    // was visible at full size for ~126 ms at the start of the zoom-in
+    // animation before animateLightboxPanel collapsed it — producing a blink.
+    // The fix applies COLLAPSED_CLIP immediately, before the delay fires.
+    const cards = page.locator('.gallery-grid .card img');
+    const count = await cards.count();
+    if (count === 0) test.skip(true, 'No images available to test lightbox');
+
+    // Install a MutationObserver that records the frame's clip-path the moment
+    // the wireframe becomes visible. Stored in window.__clipPathRecord so the
+    // Node.js side can read it atomically via page.evaluate — this avoids the
+    // IPC race in the exposeFunction pattern (the bridge is async and the value
+    // could still be null when the assertion runs).
+    await page.evaluate(() => {
+      (window as unknown as Record<string, string | null>)['__clipPathRecord'] = null;
+      const observer = new MutationObserver(() => {
+        const wf = document.querySelector('.wireframe-rect') as HTMLElement | null;
+        if (!wf) return;
+        if (getComputedStyle(wf).display !== 'none') {
+          const frame = document.querySelector('.lightbox-image-wrap') as HTMLElement | null;
+          if (frame) {
+            const clip = frame.style.clipPath || getComputedStyle(frame).clipPath;
+            (window as unknown as Record<string, string | null>)['__clipPathRecord'] = clip;
+          }
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+    });
+
+    await cards.nth(0).click();
+    await waitForWireframeVisible(page);
+    await waitForWireframeHidden(page);
+
+    // Read the recorded value atomically — page.evaluate is synchronous within
+    // the browser context, so there is no IPC race.
+    const clipPathAtWireframeVisible = await page.evaluate(
+      () => (window as unknown as Record<string, string | null>)['__clipPathRecord'],
+    );
+
+    // Assert the observer fired — if null, the measurement path is broken and
+    // the test would pass vacuously without actually checking the fix.
+    expect(clipPathAtWireframeVisible, 'MutationObserver did not record clip-path at wireframe-visible time').not.toBeNull();
+
+    // The frame must have COLLAPSED_CLIP applied when the wireframe first
+    // appeared (the pre-delay blink window). The inline clip-path is set
+    // synchronously before the delay, so the observer always sees it.
+    // 'none' or '' at this moment means the fix regressed.
+    const isCollapsed = (clipPathAtWireframeVisible as string).includes('calc(50%');
+    expect(
+      isCollapsed,
+      `Frame clip-path was "${clipPathAtWireframeVisible}" at wireframe-visible time — frame was at its natural state (blink regression)`,
+    ).toBe(true);
+
+    // After animation: lightbox is open and frame is fully expanded
+    await expect(page.locator('#lightbox')).toBeVisible();
+    await expect(page.locator('.lightbox-image-wrap')).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#lightbox')).toBeHidden();
+  });
+});
+
 test.describe('Lightbox animations', () => {
   test('zoom-in shows wireframe and dims backdrop; thumbnails fade and navigation updates fades', async ({ page, browserName }) => {
     const cards = page.locator('.gallery-grid .card img');

@@ -309,3 +309,76 @@ describe('CSS reduce-motion guards for all three panels', () => {
     expect(cssContent).toMatch(/html\.reduce-effects[\s\S]*?\.lightbox-image-wrap[\s\S]*?clip-path/);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// skipContentFade option
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Create an el with one child, both having animate stubs. */
+function makeElWithChild(): { el: HTMLElement; child: HTMLElement } {
+  const el = makeEl();
+  const child = document.createElement('span');
+  Object.defineProperty(child, 'animate', {
+    configurable: true,
+    writable: true,
+    value: vi.fn(() => ({ finished: Promise.resolve(), cancel: () => {}, currentTime: 0 })),
+  });
+  el.appendChild(child);
+  return { el, child };
+}
+
+describe('animateLightboxPanel — skipContentFade option', () => {
+  const FAST_CFG = { ...LIGHTBOX_PANEL_ANIMATION, enterDurationMs: 50, exitDurationMs: 50, lineHoldMs: 0, lineBlinkCount: 0 };
+
+  it('direction=in: child opacity is NOT set to "0" at phase 0 when skipContentFade is true', async () => {
+    const { el, child } = makeElWithChild();
+    await animateLightboxPanel(el, 'in', FAST_CFG, { reduceMotion: false, skipContentFade: true });
+    // Phase 0 must NOT have written opacity:'0' on the child
+    expect(child.style.opacity).not.toBe('0');
+  });
+
+  it('direction=in: child.animate is NOT called for content fade when skipContentFade is true', async () => {
+    const { el, child } = makeElWithChild();
+    await animateLightboxPanel(el, 'in', FAST_CFG, { reduceMotion: false, skipContentFade: true });
+    expect((child.animate as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+  });
+
+  it('direction=in: child inline opacity NOT cleared in settle when skipContentFade is true', async () => {
+    const { el, child } = makeElWithChild();
+    // Give child a pre-existing inline opacity to confirm settle leaves it alone
+    child.style.opacity = '0.5';
+    await animateLightboxPanel(el, 'in', FAST_CFG, { reduceMotion: false, skipContentFade: true });
+    // The settle block must not have set child.style.opacity = '' (which would erase '0.5')
+    expect(child.style.opacity).toBe('0.5');
+  });
+
+  it('direction=out: child.animate is NOT called for fade-out when skipContentFade is true', async () => {
+    const { el, child } = makeElWithChild();
+    await animateLightboxPanel(el, 'out', FAST_CFG, { reduceMotion: false, skipContentFade: true });
+    expect((child.animate as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+  });
+
+  it('direction=in: child opacity IS set to "0" at phase 0 when skipContentFade is false (default)', async () => {
+    const { el, child } = makeElWithChild();
+    let capturedChildOpacity: string | null = null;
+    const origAnimate = (el.animate as ReturnType<typeof vi.fn>);
+    (el as unknown as { animate: typeof el.animate }).animate = vi.fn(function (this: HTMLElement, ...args: Parameters<typeof el.animate>) {
+      if (capturedChildOpacity === null) capturedChildOpacity = child.style.opacity;
+      return origAnimate.call(this, ...args);
+    }) as unknown as typeof el.animate;
+    await animateLightboxPanel(el, 'in', FAST_CFG, { reduceMotion: false, skipContentFade: false });
+    expect(capturedChildOpacity).toBe('0');
+  });
+
+  it('direction=out: child.animate IS called for fade-out when skipContentFade is false (default)', async () => {
+    const { el, child } = makeElWithChild();
+    await animateLightboxPanel(el, 'out', FAST_CFG, { reduceMotion: false, skipContentFade: false });
+    expect((child.animate as ReturnType<typeof vi.fn>)).toHaveBeenCalled();
+  });
+
+  it('animateLightboxImageFrame passes skipContentFade:true to animateLightboxPanel (source-level)', () => {
+    const frameBlock = hookSrc.match(/const animateLightboxImageFrame[\s\S]*?}, \[reduceMotion\]\)/);
+    expect(frameBlock).not.toBeNull();
+    expect(frameBlock![0]).toMatch(/skipContentFade:\s*true/);
+  });
+});
