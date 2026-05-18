@@ -153,6 +153,68 @@ test.describe('Lightbox animation after tab visibility change', () => {
   });
 });
 
+test.describe('Image frame blink regression', () => {
+  test('image frame is collapsed before wireframe zoom completes (no pre-delay blink)', async ({ page }) => {
+    // Regression test for fringematrix5-f4p: the .lightbox-image-wrap frame
+    // was visible at full size for ~126 ms at the start of the zoom-in
+    // animation before animateLightboxPanel collapsed it — producing a blink.
+    // The fix applies COLLAPSED_CLIP immediately, before the delay fires.
+    const cards = page.locator('.gallery-grid .card img');
+    const count = await cards.count();
+    if (count === 0) test.skip(true, 'No images available to test lightbox');
+
+    // Intercept the frame's style right when the wireframe first appears,
+    // which is during the pre-delay window where the blink occurred.
+    let clipPathAtWireframeVisible: string | null = null;
+    page.exposeFunction('recordFrameClipPath', (clipPath: string) => {
+      clipPathAtWireframeVisible = clipPath;
+    });
+    await page.addInitScript(() => {
+      const orig = (window as unknown as Record<string, unknown>)['__wireframeObserverInstalled'];
+      if (orig) return;
+      (window as unknown as Record<string, unknown>)['__wireframeObserverInstalled'] = true;
+      const observer = new MutationObserver(() => {
+        const wf = document.querySelector('.wireframe-rect') as HTMLElement | null;
+        if (!wf) return;
+        const cs = getComputedStyle(wf);
+        if (cs.display !== 'none') {
+          const frame = document.querySelector('.lightbox-image-wrap') as HTMLElement | null;
+          if (frame) {
+            const clip = frame.style.clipPath || getComputedStyle(frame).clipPath;
+            (window as unknown as Record<string, Function>)['recordFrameClipPath'](clip);
+          }
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+    });
+
+    await cards.nth(0).click();
+    await waitForWireframeVisible(page);
+    await waitForWireframeHidden(page);
+
+    // The frame must NOT have been at its natural (uncollapsed) state when
+    // the wireframe first appeared. Either the inline clipPath was the
+    // COLLAPSED value, or — if the MutationObserver raced — it was already
+    // at the expanded state (animation completed). Either is fine; what's
+    // NOT acceptable is an empty clipPath / "none" at that moment.
+    if (clipPathAtWireframeVisible !== null) {
+      const isCollapsed = clipPathAtWireframeVisible.includes('calc(50%');
+      const isExpanded = clipPathAtWireframeVisible === 'inset(0 0 0 0)' || clipPathAtWireframeVisible === 'inset(0px 0px 0px 0px)';
+      const isNaturalState = clipPathAtWireframeVisible === 'none' || clipPathAtWireframeVisible === '';
+      expect(isNaturalState, `Frame clip-path was "${clipPathAtWireframeVisible}" at wireframe-visible time — frame was exposed before the panel animation collapsed it`).toBe(false);
+      expect(isCollapsed || isExpanded).toBe(true);
+    }
+
+    // After animation: lightbox is open and frame is fully expanded
+    await expect(page.locator('#lightbox')).toBeVisible();
+    await expect(page.locator('.lightbox-image-wrap')).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#lightbox')).toBeHidden();
+  });
+});
+
 test.describe('Lightbox animations', () => {
   test('zoom-in shows wireframe and dims backdrop; thumbnails fade and navigation updates fades', async ({ page, browserName }) => {
     const cards = page.locator('.gallery-grid .card img');
