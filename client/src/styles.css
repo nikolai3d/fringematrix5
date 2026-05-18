@@ -1797,6 +1797,14 @@ html.reduce-effects .lightbox-nav-toolbar > * {
   animation: none !important;
   transition: none !important;
 }
+/* Lightbox image frame: same instant-show guard as the sidebar above. */
+html.reduce-motion .lightbox-image-wrap,
+html.reduce-effects .lightbox-image-wrap {
+  clip-path: none !important;
+  opacity: 1 !important;
+  animation: none !important;
+  transition: none !important;
+}
 @media (prefers-reduced-motion: reduce) {
   .lightbox-details {
     clip-path: none !important;
@@ -1816,6 +1824,12 @@ html.reduce-effects .lightbox-nav-toolbar > * {
     transition: none !important;
   }
   .lightbox-nav-toolbar > * {
+    opacity: 1 !important;
+    animation: none !important;
+    transition: none !important;
+  }
+  .lightbox-image-wrap {
+    clip-path: none !important;
     opacity: 1 !important;
     animation: none !important;
     transition: none !important;

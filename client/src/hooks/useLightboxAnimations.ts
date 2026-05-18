@@ -440,6 +440,34 @@ export function useLightboxAnimations({
     return animateLightboxPanel(toolbar, direction, LIGHTBOX_PANEL_ANIMATION, { reduceMotion });
   }, [reduceMotion]);
 
+  /**
+   * Animate the image container frame (.lightbox-image-wrap) on lightbox
+   * open/close using the same line→expand / collapse choreography as the
+   * sidebar.
+   *
+   * On open, the frame animation starts after a brief delay so it plays
+   * during the tail of the wireframe zoom (past its 0.35 fit-switch point),
+   * keeping the two animations from visually competing at their starts.
+   * An optional AbortSignal lets the effect cleanup cancel the delay so
+   * the animation does not fire on a stale element after the lightbox closes.
+   *
+   * Returns a Promise that resolves when the animation completes (or
+   * immediately if the element is absent, WAAPI is unavailable, any
+   * reduce-motion/reduce-effects mode is active, or the signal is aborted).
+   */
+  const animateLightboxImageFrame = useCallback(async (direction: 'in' | 'out', signal?: AbortSignal): Promise<void> => {
+    const frameEl = document.querySelector('.lightbox-image-wrap') as HTMLElement | null;
+    if (direction === 'in') {
+      // Delay the frame reveal until the wireframe zoom is past its 0.35
+      // fit-switch point so the two animations do not visually compete.
+      const frameDelay = Math.round(LIGHTBOX_ANIM_MS * 0.35);
+      await new Promise<void>(resolve => setTimeout(resolve, frameDelay));
+      // Bail out if the effect was cleaned up while we were waiting.
+      if (signal?.aborted) return;
+    }
+    return animateLightboxPanel(frameEl, direction, LIGHTBOX_PANEL_ANIMATION, { reduceMotion });
+  }, [reduceMotion]);
+
   const animateLightboxBackdrop = useCallback((direction: 'in' | 'out') => {
     const el = document.getElementById('lightbox');
     if (!el) return { finished: Promise.resolve() };
@@ -557,6 +585,7 @@ export function useLightboxAnimations({
           (backdropAnim?.finished || Promise.resolve()).catch(() => {}),
           animateLightboxSidebar('out'),
           animateLightboxNavToolbar('out'),
+          animateLightboxImageFrame('out'),
         ]);
         backdropDimmedRef.current = false;
         setIsLightboxOpen(false);
@@ -571,6 +600,7 @@ export function useLightboxAnimations({
           (backdropAnim?.finished || Promise.resolve()).catch(() => {}),
           animateLightboxSidebar('out'),
           animateLightboxNavToolbar('out'),
+          animateLightboxImageFrame('out'),
         ]);
         backdropDimmedRef.current = false;
         return;
@@ -584,6 +614,7 @@ export function useLightboxAnimations({
         (backdropAnim?.finished || Promise.resolve()).catch(() => {}),
         animateLightboxSidebar('out'),
         animateLightboxNavToolbar('out'),
+        animateLightboxImageFrame('out'),
       ]);
       backdropDimmedRef.current = false;
     } finally {
@@ -604,7 +635,7 @@ export function useLightboxAnimations({
         lastOpenedThumbElRef.current = null;
       }
     }
-  }, [reduceMotion, images, lightboxIndex, getThumbElement, animateLightboxBackdrop, runWireframeAnimation, animateLightboxSidebar, animateLightboxNavToolbar, setHideLightboxImage, setIsLightboxOpen]);
+  }, [reduceMotion, images, lightboxIndex, getThumbElement, animateLightboxBackdrop, runWireframeAnimation, animateLightboxSidebar, animateLightboxNavToolbar, animateLightboxImageFrame, setHideLightboxImage, setIsLightboxOpen]);
 
   // After mount of lightbox, animate wireframe and backdrop in.
   // Four paths: (1) reduceMotion -- snap open instantly; (2) no startRect -- sidebar+backdrop only (URL-hash open);
@@ -631,6 +662,7 @@ export function useLightboxAnimations({
         sidebarEnteredRef.current = true;
         animateLightboxSidebar('in');
         animateLightboxNavToolbar('in');
+        animateLightboxImageFrame('in');
       }
       if (needBackdropIn) {
         const anim = animateLightboxBackdrop('in');
@@ -667,6 +699,7 @@ export function useLightboxAnimations({
           sidebarEnteredRef.current = true;
           animateLightboxSidebar('in');
           animateLightboxNavToolbar('in');
+          animateLightboxImageFrame('in');
         }
         lightboxImg.style.opacity = '';
         setHideLightboxImage(false);
@@ -684,13 +717,16 @@ export function useLightboxAnimations({
       }
       let sidebarPromise: Promise<unknown>;
       let toolbarPromise: Promise<unknown>;
+      let imageFramePromise: Promise<unknown>;
       if (!sidebarEnteredRef.current) {
         sidebarEnteredRef.current = true;
         sidebarPromise = animateLightboxSidebar('in');
         toolbarPromise = animateLightboxNavToolbar('in');
+        imageFramePromise = animateLightboxImageFrame('in', abortCtrl.signal);
       } else {
         sidebarPromise = Promise.resolve();
         toolbarPromise = Promise.resolve();
+        imageFramePromise = Promise.resolve();
       }
       // Reveal the real lightbox image at the moment the wireframe animation
       // finishes (and before the wireframe is hidden), not after Promise.all
@@ -706,6 +742,7 @@ export function useLightboxAnimations({
         (backdropAnim?.finished || Promise.resolve()).catch(() => {}),
         sidebarPromise,
         toolbarPromise,
+        imageFramePromise,
       ]);
       // Bail out if the effect was cleaned up during the animation.
       if (abortCtrl.signal.aborted) return;
@@ -718,7 +755,7 @@ export function useLightboxAnimations({
       isAnimatingRef.current = false;
     });
     return () => { cancelAnimationFrame(rAF); abortCtrl.abort(); };
-  }, [isLightboxOpen, lightboxIndex, reduceMotion, animateLightboxBackdrop, runWireframeAnimation, animateLightboxSidebar, animateLightboxNavToolbar, setHideLightboxImage]);
+  }, [isLightboxOpen, lightboxIndex, reduceMotion, animateLightboxBackdrop, runWireframeAnimation, animateLightboxSidebar, animateLightboxNavToolbar, animateLightboxImageFrame, setHideLightboxImage]);
 
   // Keep grid thumbs in sync during lightbox navigation
   useEffect(() => {
