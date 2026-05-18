@@ -163,25 +163,23 @@ test.describe('Image frame blink regression', () => {
     const count = await cards.count();
     if (count === 0) test.skip(true, 'No images available to test lightbox');
 
-    // Intercept the frame's style right when the wireframe first appears,
-    // which is during the pre-delay window where the blink occurred.
+    // Intercept the frame's clip-path right when the wireframe first appears
+    // (the pre-delay window where the blink occurred). Use page.evaluate to
+    // install the observer on the current document — addInitScript only runs
+    // on fresh navigations so it would miss the already-loaded page.
     let clipPathAtWireframeVisible: string | null = null;
-    page.exposeFunction('recordFrameClipPath', (clipPath: string) => {
+    await page.exposeFunction('recordFrameClipPath', (clipPath: string) => {
       clipPathAtWireframeVisible = clipPath;
     });
-    await page.addInitScript(() => {
-      const orig = (window as unknown as Record<string, unknown>)['__wireframeObserverInstalled'];
-      if (orig) return;
-      (window as unknown as Record<string, unknown>)['__wireframeObserverInstalled'] = true;
+    await page.evaluate(() => {
       const observer = new MutationObserver(() => {
         const wf = document.querySelector('.wireframe-rect') as HTMLElement | null;
         if (!wf) return;
-        const cs = getComputedStyle(wf);
-        if (cs.display !== 'none') {
+        if (getComputedStyle(wf).display !== 'none') {
           const frame = document.querySelector('.lightbox-image-wrap') as HTMLElement | null;
           if (frame) {
             const clip = frame.style.clipPath || getComputedStyle(frame).clipPath;
-            (window as unknown as Record<string, Function>)['recordFrameClipPath'](clip);
+            (window as unknown as Record<string, (c: string) => void>)['recordFrameClipPath'](clip);
           }
           observer.disconnect();
         }
@@ -193,18 +191,20 @@ test.describe('Image frame blink regression', () => {
     await waitForWireframeVisible(page);
     await waitForWireframeHidden(page);
 
+    // Assert the observer fired — if null, the measurement path is broken and
+    // the test would pass vacuously without actually checking the fix.
+    expect(clipPathAtWireframeVisible, 'MutationObserver did not record clip-path at wireframe-visible time').not.toBeNull();
+
     // The frame must NOT have been at its natural (uncollapsed) state when
     // the wireframe first appeared. Either the inline clipPath was the
-    // COLLAPSED value, or — if the MutationObserver raced — it was already
-    // at the expanded state (animation completed). Either is fine; what's
-    // NOT acceptable is an empty clipPath / "none" at that moment.
-    if (clipPathAtWireframeVisible !== null) {
-      const isCollapsed = clipPathAtWireframeVisible.includes('calc(50%');
-      const isExpanded = clipPathAtWireframeVisible === 'inset(0 0 0 0)' || clipPathAtWireframeVisible === 'inset(0px 0px 0px 0px)';
-      const isNaturalState = clipPathAtWireframeVisible === 'none' || clipPathAtWireframeVisible === '';
-      expect(isNaturalState, `Frame clip-path was "${clipPathAtWireframeVisible}" at wireframe-visible time — frame was exposed before the panel animation collapsed it`).toBe(false);
-      expect(isCollapsed || isExpanded).toBe(true);
-    }
+    // COLLAPSED value, or (if observer fired after expansion) the expanded
+    // value. What is NOT acceptable is no clip-path at that moment.
+    const isCollapsed = (clipPathAtWireframeVisible as string).includes('calc(50%');
+    const isExpanded = clipPathAtWireframeVisible === 'inset(0 0 0 0)' || clipPathAtWireframeVisible === 'inset(0px 0px 0px 0px)';
+    expect(
+      isCollapsed || isExpanded,
+      `Frame clip-path was "${clipPathAtWireframeVisible}" at wireframe-visible time — frame was at its natural state (blink regression)`,
+    ).toBe(true);
 
     // After animation: lightbox is open and frame is fully expanded
     await expect(page.locator('#lightbox')).toBeVisible();

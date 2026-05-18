@@ -1805,6 +1805,12 @@ html.reduce-effects .lightbox-image-wrap {
   animation: none !important;
   transition: none !important;
 }
+html.reduce-motion .lightbox-image-wrap > *,
+html.reduce-effects .lightbox-image-wrap > * {
+  opacity: 1 !important;
+  animation: none !important;
+  transition: none !important;
+}
 @media (prefers-reduced-motion: reduce) {
   .lightbox-details {
     clip-path: none !important;
@@ -1830,6 +1836,11 @@ html.reduce-effects .lightbox-image-wrap {
   }
   .lightbox-image-wrap {
     clip-path: none !important;
+    opacity: 1 !important;
+    animation: none !important;
+    transition: none !important;
+  }
+  .lightbox-image-wrap > * {
     opacity: 1 !important;
     animation: none !important;
     transition: none !important;
