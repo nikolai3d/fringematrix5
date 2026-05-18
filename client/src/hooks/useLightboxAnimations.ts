@@ -98,7 +98,7 @@ export async function animateLightboxPanel(
   el: HTMLElement | null,
   direction: 'in' | 'out',
   cfg: ResolvedPanelAnimation,
-  options?: { reduceMotion: boolean },
+  options?: { reduceMotion?: boolean; skipContentFade?: boolean },
 ): Promise<void> {
   // Reduce-motion / reduce-effects guard: bail out early so the caller
   // sees an instant transition. This mirrors the checks in the original
@@ -129,7 +129,7 @@ export async function animateLightboxPanel(
       // shown briefly at full size before the animation starts.
       el.style.clipPath = COLLAPSED_CLIP;
       el.style.opacity = '1';
-      content.forEach(child => { child.style.opacity = '0'; });
+      if (!options?.skipContentFade) content.forEach(child => { child.style.opacity = '0'; });
 
       // Phase 1: blink the line. Each blink is one full opacity cycle
       // (1 -> 0 -> 1) spread over 2 * blinkInterval. If lineBlinkCount is 0
@@ -158,28 +158,32 @@ export async function animateLightboxPanel(
       );
 
       // Phase 3: fade in content. Starts at contentFadeInDelayMs relative to
-      // the entire enter sequence (which started with phase 1).
-      const contentDelay = Math.max(0, cfg.contentFadeInDelayMs - cfg.lineHoldMs);
-      const contentDuration = Math.max(80, enterDuration - cfg.contentFadeInDelayMs);
-      content.forEach(child => {
-        child.animate(
-          [{ opacity: 0 }, { opacity: 1 }],
-          { duration: contentDuration, delay: contentDelay, easing: 'ease-out', fill: 'forwards' },
-        );
-      });
+      // the entire enter sequence (which started with phase 1). Skipped for
+      // panels (e.g. image frame) whose content has its own reveal mechanism.
+      if (!options?.skipContentFade) {
+        const contentDelay = Math.max(0, cfg.contentFadeInDelayMs - cfg.lineHoldMs);
+        const contentDuration = Math.max(80, enterDuration - cfg.contentFadeInDelayMs);
+        content.forEach(child => {
+          child.animate(
+            [{ opacity: 0 }, { opacity: 1 }],
+            { duration: contentDuration, delay: contentDelay, easing: 'ease-out', fill: 'forwards' },
+          );
+        });
+      }
 
       await expand.finished.catch(() => {});
       // Settle: clear inline overrides so reduce-effects toggles work later.
       el.style.clipPath = '';
       el.style.opacity = '';
-      content.forEach(child => { child.style.opacity = ''; });
+      if (!options?.skipContentFade) content.forEach(child => { child.style.opacity = ''; });
     } else {
       const exitDuration = cfg.exitDurationMs;
       const contentFade = Math.min(exitDuration * 0.45, 160);
       const collapseDelay = contentFade;
 
-      // Phase A: fade content out fast.
-      const fadeOuts = Array.from(content).map(child =>
+      // Phase A: fade content out fast. Skipped for panels whose content has
+      // its own hide mechanism (e.g. image frame — image hides with lightbox).
+      const fadeOuts = options?.skipContentFade ? [] : Array.from(content).map(child =>
         child.animate(
           [{ opacity: 1 }, { opacity: 0 }],
           { duration: contentFade, easing: 'ease-in', fill: 'forwards' },
@@ -474,7 +478,11 @@ export function useLightboxAnimations({
         return;
       }
     }
-    return animateLightboxPanel(frameEl, direction, LIGHTBOX_PANEL_ANIMATION, { reduceMotion });
+    // skipContentFade: the image's visibility is managed by the wireframe
+    // reveal mechanism (hideLightboxImage / revealLightboxImage). Letting
+    // animateLightboxPanel also fade the image produces a conflict where the
+    // image is mid-fade when the wireframe disappears, causing a blink.
+    return animateLightboxPanel(frameEl, direction, LIGHTBOX_PANEL_ANIMATION, { reduceMotion, skipContentFade: true });
   }, [reduceMotion]);
 
   const animateLightboxBackdrop = useCallback((direction: 'in' | 'out') => {
