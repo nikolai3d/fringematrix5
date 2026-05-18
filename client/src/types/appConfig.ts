@@ -10,7 +10,7 @@ export interface ThemeConfig {
   accentColor?: string;
 }
 
-export interface LightboxSidebarAnimationConfig {
+export interface LightboxPanelAnimationConfig {
   enterDurationMs?: number;
   exitDurationMs?: number;
   lineHoldMs?: number;
@@ -20,7 +20,7 @@ export interface LightboxSidebarAnimationConfig {
 }
 
 export interface LightboxConfig {
-  sidebarAnimation?: LightboxSidebarAnimationConfig;
+  panelAnimation?: LightboxPanelAnimationConfig;
 }
 
 export interface SiteConfig {

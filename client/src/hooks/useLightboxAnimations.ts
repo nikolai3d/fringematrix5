@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { LIGHTBOX_SIDEBAR_ANIMATION } from '../config/lightbox';
+import { LIGHTBOX_PANEL_ANIMATION } from '../config/lightbox';
 import type { ImageData } from '../types/api';
 
 interface UseLightboxAnimationsProps {
@@ -296,7 +296,7 @@ export function useLightboxAnimations({
     const sidebar = document.querySelector('.lightbox-details') as HTMLElement | null;
     if (!sidebar) return;
     const content = sidebar.querySelectorAll<HTMLElement>(':scope > *');
-    const cfg = LIGHTBOX_SIDEBAR_ANIMATION;
+    const cfg = LIGHTBOX_PANEL_ANIMATION;
 
     // Collapsed: only the vertical midline strip is visible. Expanded: the
     // whole panel is visible.

@@ -21,14 +21,14 @@ site:
   shareText: "Check out Fringe Matrix"
 
 lightbox:
-  # Sidebar enter/exit animation for the zoomed-in image view.
-  # On open the IMAGE DETAILS sidebar expands from a thin blinking horizontal
+  # Panel enter/exit animation for all lightbox panels (image frame, sidebar,
+  # nav toolbar). On open each panel expands from a thin blinking horizontal
   # line into the full panel; on close it collapses back to a line and fades
   # out. All timings are in milliseconds.
   #
   # When reduce-effects is active (in-app toggle or prefers-reduced-motion),
-  # these timings are ignored and the sidebar appears/disappears instantly.
-  sidebarAnimation:
+  # these timings are ignored and the panels appear/disappear instantly.
+  panelAnimation:
     enterDurationMs: 420       # total expand duration (line -> full panel)
     exitDurationMs: 320        # total collapse duration (panel -> line -> gone)
     lineHoldMs: 120            # how long the line is visible before expanding
