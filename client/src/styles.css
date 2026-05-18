@@ -678,8 +678,7 @@ footer.navbar {
   border-radius: 10px;
   cursor: pointer;
   font-family: Orbitron, Inter, sans-serif;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  letter-spacing: 0.12em;
 }
 .sidebar-item:hover { border-color: var(--accent); box-shadow: 0 6px 16px rgba(var(--theme-accent-rgb), 0.2); }
 .sidebar-item.active { background: linear-gradient(135deg, rgba(var(--theme-accent-rgb), 0.25), rgba(124,77,255,0.25)); border-color: var(--accent); }
