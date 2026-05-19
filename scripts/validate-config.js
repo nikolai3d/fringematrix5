@@ -153,6 +153,60 @@ export function validateConfigObject(config) {
     }
   }
 
+  // ── gallery ──────────────────────────────────────────────────────────────
+  if (config.gallery !== undefined) {
+    const { gallery } = config;
+    if (typeof gallery !== 'object' || gallery === null) {
+      errors.push('gallery must be a mapping');
+    } else {
+      let sizesLength = null;
+      if (gallery.thumbnailSizes !== undefined && gallery.thumbnailSizes !== null) {
+        if (!Array.isArray(gallery.thumbnailSizes)) {
+          errors.push(
+            `gallery.thumbnailSizes must be an array of positive finite numbers. ` +
+            `Got: ${typeof gallery.thumbnailSizes}`
+          );
+        } else if (gallery.thumbnailSizes.length === 0) {
+          errors.push('gallery.thumbnailSizes must be a non-empty array');
+        } else {
+          let allValid = true;
+          for (const v of gallery.thumbnailSizes) {
+            if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) {
+              errors.push(
+                `gallery.thumbnailSizes entries must be positive finite numbers. ` +
+                `Got: "${v}"`
+              );
+              allValid = false;
+              break;
+            }
+          }
+          if (allValid) sizesLength = gallery.thumbnailSizes.length;
+        }
+      }
+      if (
+        gallery.defaultThumbnailSizeIndex !== undefined &&
+        gallery.defaultThumbnailSizeIndex !== null
+      ) {
+        const idx = gallery.defaultThumbnailSizeIndex;
+        if (typeof idx !== 'number' || !Number.isFinite(idx) || !Number.isInteger(idx)) {
+          errors.push(
+            `gallery.defaultThumbnailSizeIndex must be an integer. Got: "${idx}"`
+          );
+        } else if (sizesLength !== null && (idx < 0 || idx > sizesLength - 1)) {
+          errors.push(
+            `gallery.defaultThumbnailSizeIndex must be between 0 and ${sizesLength - 1}. ` +
+            `Got: ${idx}`
+          );
+        } else if (sizesLength === null && idx < 0) {
+          // thumbnailSizes not provided here — still reject negative indexes
+          errors.push(
+            `gallery.defaultThumbnailSizeIndex must be >= 0. Got: ${idx}`
+          );
+        }
+      }
+    }
+  }
+
   // ── lightbox.sidebarAnimation ────────────────────────────────────────────
   if (config.lightbox !== undefined) {
     const { lightbox } = config;

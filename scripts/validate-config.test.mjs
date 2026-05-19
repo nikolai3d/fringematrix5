@@ -313,6 +313,129 @@ describe('validateConfigObject — non-object section types', () => {
 });
 
 // ---------------------------------------------------------------------------
+// validateConfigObject — gallery section
+// ---------------------------------------------------------------------------
+describe('validateConfigObject — gallery', () => {
+  it('passes when gallery section is absent', () => {
+    const cfg = validConfig();
+    delete cfg.gallery;
+    const { errors } = validateConfigObject(cfg);
+    assert.deepEqual(errors, []);
+  });
+
+  it('passes for a fully valid gallery section', () => {
+    const { errors } = validateConfigObject(validConfig({
+      gallery: { thumbnailSizes: [120, 220, 340, 480], defaultThumbnailSizeIndex: 1 },
+    }));
+    assert.deepEqual(errors, []);
+  });
+
+  it('passes when only thumbnailSizes is provided', () => {
+    const { errors } = validateConfigObject(validConfig({
+      gallery: { thumbnailSizes: [120, 220, 340, 480] },
+    }));
+    assert.deepEqual(errors, []);
+  });
+
+  it('passes when only defaultThumbnailSizeIndex is provided (sizes optional)', () => {
+    const { errors } = validateConfigObject(validConfig({
+      gallery: { defaultThumbnailSizeIndex: 0 },
+    }));
+    assert.deepEqual(errors, []);
+  });
+
+  it('fails when gallery section is a string (not an object)', () => {
+    const { errors } = validateConfigObject(validConfig({ gallery: 'nope' }));
+    assert.ok(errors.some(e => e.includes('gallery')));
+  });
+
+  it('fails when thumbnailSizes is not an array', () => {
+    const { errors } = validateConfigObject(validConfig({
+      gallery: { thumbnailSizes: 'big' },
+    }));
+    assert.ok(errors.some(e => e.includes('thumbnailSizes')));
+  });
+
+  it('fails when thumbnailSizes is an empty array', () => {
+    const { errors } = validateConfigObject(validConfig({
+      gallery: { thumbnailSizes: [] },
+    }));
+    assert.ok(errors.some(e => e.includes('thumbnailSizes')));
+  });
+
+  it('fails when a thumbnailSizes entry is non-numeric', () => {
+    const { errors } = validateConfigObject(validConfig({
+      gallery: { thumbnailSizes: [120, 'big', 340] },
+    }));
+    assert.ok(errors.some(e => e.includes('thumbnailSizes')));
+  });
+
+  it('fails when a thumbnailSizes entry is zero or negative', () => {
+    const { errors: e1 } = validateConfigObject(validConfig({
+      gallery: { thumbnailSizes: [120, 0, 340] },
+    }));
+    assert.ok(e1.some(e => e.includes('thumbnailSizes')));
+
+    const { errors: e2 } = validateConfigObject(validConfig({
+      gallery: { thumbnailSizes: [120, -1, 340] },
+    }));
+    assert.ok(e2.some(e => e.includes('thumbnailSizes')));
+  });
+
+  it('fails when a thumbnailSizes entry is NaN or Infinity', () => {
+    const { errors: e1 } = validateConfigObject(validConfig({
+      gallery: { thumbnailSizes: [120, NaN] },
+    }));
+    assert.ok(e1.some(e => e.includes('thumbnailSizes')));
+
+    const { errors: e2 } = validateConfigObject(validConfig({
+      gallery: { thumbnailSizes: [120, Infinity] },
+    }));
+    assert.ok(e2.some(e => e.includes('thumbnailSizes')));
+  });
+
+  it('fails when defaultThumbnailSizeIndex is a non-integer', () => {
+    const { errors } = validateConfigObject(validConfig({
+      gallery: { thumbnailSizes: [120, 220, 340], defaultThumbnailSizeIndex: 1.5 },
+    }));
+    assert.ok(errors.some(e => e.includes('defaultThumbnailSizeIndex')));
+  });
+
+  it('fails when defaultThumbnailSizeIndex is non-numeric', () => {
+    const { errors } = validateConfigObject(validConfig({
+      gallery: { thumbnailSizes: [120, 220, 340], defaultThumbnailSizeIndex: 'first' },
+    }));
+    assert.ok(errors.some(e => e.includes('defaultThumbnailSizeIndex')));
+  });
+
+  it('fails when defaultThumbnailSizeIndex is out of range (too high)', () => {
+    const { errors } = validateConfigObject(validConfig({
+      gallery: { thumbnailSizes: [120, 220, 340], defaultThumbnailSizeIndex: 5 },
+    }));
+    assert.ok(errors.some(e => e.includes('defaultThumbnailSizeIndex')));
+  });
+
+  it('fails when defaultThumbnailSizeIndex is negative', () => {
+    const { errors } = validateConfigObject(validConfig({
+      gallery: { thumbnailSizes: [120, 220, 340], defaultThumbnailSizeIndex: -1 },
+    }));
+    assert.ok(errors.some(e => e.includes('defaultThumbnailSizeIndex')));
+  });
+
+  it('accepts boundary index values (0 and length-1)', () => {
+    const { errors: e0 } = validateConfigObject(validConfig({
+      gallery: { thumbnailSizes: [120, 220, 340, 480], defaultThumbnailSizeIndex: 0 },
+    }));
+    assert.deepEqual(e0, []);
+
+    const { errors: e3 } = validateConfigObject(validConfig({
+      gallery: { thumbnailSizes: [120, 220, 340, 480], defaultThumbnailSizeIndex: 3 },
+    }));
+    assert.deepEqual(e3, []);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // validateConfigObject — loadingScreen validation
 // ---------------------------------------------------------------------------
 describe('validateConfigObject — loadingScreen', () => {
