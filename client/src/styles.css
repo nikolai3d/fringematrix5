@@ -352,7 +352,7 @@ footer.navbar {
 
 .gallery-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(var(--thumbnail-min-size, 160px), 1fr));
   gap: var(--grid-gap);
   margin: 18px 0 80px;
 }
@@ -689,11 +689,6 @@ footer.navbar {
   background: rgba(0,0,0,0.4);
   z-index: 23;
 }
-
-@media (min-width: 900px) {
-  .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
-}
-
 
 /* Top toolbar row */
 .toolbar {
@@ -1696,11 +1691,6 @@ body::before {
 @media (min-width: 768px) and (max-width: 1023px) {
   body::before { opacity: 0.3; }
   .lightbox img { animation: none; }
-}
-
-/* Large desktop: enhanced grid */
-@media (min-width: 1440px) {
-  .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 }
 
 /* =============================================================================
