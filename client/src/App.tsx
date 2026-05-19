@@ -7,6 +7,7 @@ import { closeSubwindowsState } from './utils/closeSubwindowsState';
 import { isSafeUrl } from './utils/isSafeUrl';
 import { applyTheme } from './config/theme';
 import { SITE_URL, SITE_SHARE_TEXT } from './config/site';
+import { GALLERY_DEFAULT_SIZE_INDEX, GALLERY_THUMBNAIL_SIZES } from './config/gallery';
 import LoadingManager from './components/LoadingManager';
 import CampaignNavigation from './components/CampaignNavigation';
 import BuildInfoPopover from './components/BuildInfoPopover';
@@ -66,6 +67,7 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [reduceMotion, setReduceMotion] = useState<boolean>(false);
   const [reduceEffects, setReduceEffects] = useState<boolean>(false);
+  const [thumbnailSizeIndex, setThumbnailSizeIndex] = useState<number>(GALLERY_DEFAULT_SIZE_INDEX);
   // Settings modal: trigger ref for focus restoration on close
   const settingsTriggerRef = useRef<HTMLElement | null>(null);
   const modalLoadAbortRef = useRef<AbortController | null>(null);
@@ -85,6 +87,17 @@ export default function App() {
         const parsed = JSON.parse(saved);
         if (typeof parsed.reduceMotion === 'boolean') setReduceMotion(parsed.reduceMotion);
         if (typeof parsed.reduceEffects === 'boolean') setReduceEffects(parsed.reduceEffects);
+        // Clamp the saved index to the current sizes array in case the
+        // config changed between sessions (e.g. sizes array shrank).
+        if (
+          typeof parsed.thumbnailSizeIndex === 'number'
+          && Number.isFinite(parsed.thumbnailSizeIndex)
+          && Number.isInteger(parsed.thumbnailSizeIndex)
+        ) {
+          const maxIndex = GALLERY_THUMBNAIL_SIZES.length - 1;
+          const clamped = Math.max(0, Math.min(maxIndex, parsed.thumbnailSizeIndex));
+          setThumbnailSizeIndex(clamped);
+        }
       }
     } catch { /* ignore corrupt localStorage */ }
   }, []);
@@ -96,9 +109,12 @@ export default function App() {
     root.classList.toggle('reduce-effects', reduceEffects);
     if (typeof window === 'undefined') return;
     try {
-      localStorage.setItem('fringematrix-a11y', JSON.stringify({ reduceMotion, reduceEffects }));
+      localStorage.setItem(
+        'fringematrix-a11y',
+        JSON.stringify({ reduceMotion, reduceEffects, thumbnailSizeIndex }),
+      );
     } catch { /* ignore storage errors */ }
-  }, [reduceMotion, reduceEffects]);
+  }, [reduceMotion, reduceEffects, thumbnailSizeIndex]);
 
   const activeCampaign = useMemo(
     () => campaigns.find((c) => c.id === activeCampaignId) || null,
@@ -584,6 +600,8 @@ export default function App() {
         isReduceEffects={reduceEffects}
         onToggleReduceMotion={() => setReduceMotion(v => !v)}
         onToggleReduceEffects={() => setReduceEffects(v => !v)}
+        thumbnailSizeIndex={thumbnailSizeIndex}
+        onChangeThumbnailSizeIndex={setThumbnailSizeIndex}
       />
 
       <ContentModal

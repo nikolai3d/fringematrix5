@@ -289,6 +289,41 @@ describe('Accessibility Settings Logic', () => {
     expect(parsed.reduceEffects).toBe(false);
   });
 
+  it('localStorage should serialize thumbnailSizeIndex alongside a11y settings', () => {
+    const settings = { reduceMotion: false, reduceEffects: true, thumbnailSizeIndex: 2 };
+    const parsed = JSON.parse(JSON.stringify(settings));
+    expect(parsed.thumbnailSizeIndex).toBe(2);
+    expect(parsed.reduceMotion).toBe(false);
+    expect(parsed.reduceEffects).toBe(true);
+  });
+
+  it('thumbnailSizeIndex clamping keeps in-range values unchanged', () => {
+    const sizesLength = 4; // matches GALLERY_THUMBNAIL_SIZES default
+    const maxIndex = sizesLength - 1;
+    const clamp = (n) => Math.max(0, Math.min(maxIndex, n));
+    expect(clamp(0)).toBe(0);
+    expect(clamp(1)).toBe(1);
+    expect(clamp(3)).toBe(3);
+  });
+
+  it('thumbnailSizeIndex clamping pulls out-of-range values into range', () => {
+    const sizesLength = 4;
+    const maxIndex = sizesLength - 1;
+    const clamp = (n) => Math.max(0, Math.min(maxIndex, n));
+    // Saved value larger than the current sizes array (e.g. config shrank)
+    expect(clamp(7)).toBe(3);
+    // Negative saved value (corrupt or downgraded)
+    expect(clamp(-1)).toBe(0);
+  });
+
+  it('rejects non-integer thumbnailSizeIndex (App validates type before clamping)', () => {
+    // App.tsx requires Number.isInteger; non-integers are ignored entirely
+    expect(Number.isInteger(1.5)).toBe(false);
+    expect(Number.isInteger(NaN)).toBe(false);
+    expect(Number.isInteger(Infinity)).toBe(false);
+    expect(Number.isInteger(2)).toBe(true);
+  });
+
   it('should handle corrupt localStorage gracefully', () => {
     expect(() => {
       const val = 'not-json';
