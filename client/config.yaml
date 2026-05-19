@@ -35,3 +35,12 @@ lightbox:
     lineBlinkCount: 2          # times the line blinks before expanding
     lineBlinkIntervalMs: 90    # blink interval (ms per opacity toggle)
     contentFadeInDelayMs: 180  # when sidebar content fades in (rel. to enter)
+
+gallery:
+  # Thumbnail sizes in DEVICE pixels (physical screen pixels). Retina-aware
+  # conversion (CSS px = device px / DPR) happens at runtime. Sizes should be
+  # ordered smallest to largest.
+  thumbnailSizes: [120, 220, 340, 480]
+
+  # 0-based index into thumbnailSizes selecting the default size on first load.
+  defaultThumbnailSizeIndex: 1

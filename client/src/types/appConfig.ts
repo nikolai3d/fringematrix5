@@ -28,6 +28,11 @@ export interface SiteConfig {
   shareText?: string;
 }
 
+export interface GalleryConfig {
+  thumbnailSizes?: number[];
+  defaultThumbnailSizeIndex?: number;
+}
+
 export interface AppConfig {
   loadingScreen?: {
     type?: LoadingScreenType;
@@ -36,4 +41,5 @@ export interface AppConfig {
   theme?: ThemeConfig;
   lightbox?: LightboxConfig;
   site?: SiteConfig;
+  gallery?: GalleryConfig;
 }
