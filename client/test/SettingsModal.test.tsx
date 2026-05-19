@@ -11,6 +11,8 @@ function renderModal(overrides: Partial<React.ComponentProps<typeof SettingsModa
     isReduceEffects: false,
     onToggleReduceMotion: vi.fn(),
     onToggleReduceEffects: vi.fn(),
+    thumbnailSizeIndex: 1,
+    onChangeThumbnailSizeIndex: vi.fn(),
     ...overrides,
   };
   return { ...render(<SettingsModal {...props} />), props };
