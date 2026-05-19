@@ -349,6 +349,20 @@ describe('validateConfigObject — gallery', () => {
     assert.ok(errors.some(e => e.includes('gallery')));
   });
 
+  it('fails when gallery section is an array (YAML sequence, not a mapping)', () => {
+    const { errors } = validateConfigObject(validConfig({ gallery: [] }));
+    assert.ok(errors.some(e => e.includes('gallery')));
+  });
+
+  it('fails when defaultThumbnailSizeIndex is out of range against default sizes (thumbnailSizes omitted)', () => {
+    // Without thumbnailSizes, validator checks against the default sizes
+    // length (4, matching runtime fallback) — index 99 must fail here.
+    const { errors } = validateConfigObject(validConfig({
+      gallery: { defaultThumbnailSizeIndex: 99 },
+    }));
+    assert.ok(errors.some(e => e.includes('defaultThumbnailSizeIndex')));
+  });
+
   it('fails when thumbnailSizes is not an array', () => {
     const { errors } = validateConfigObject(validConfig({
       gallery: { thumbnailSizes: 'big' },

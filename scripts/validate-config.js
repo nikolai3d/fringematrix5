@@ -154,12 +154,15 @@ export function validateConfigObject(config) {
   }
 
   // ── gallery ──────────────────────────────────────────────────────────────
+  // Default sizes length used when gallery.thumbnailSizes is omitted —
+  // matches the runtime fallback in client/src/config/gallery.ts.
+  const GALLERY_DEFAULT_SIZES_LENGTH = 4;
   if (config.gallery !== undefined) {
     const { gallery } = config;
-    if (typeof gallery !== 'object' || gallery === null) {
+    if (typeof gallery !== 'object' || gallery === null || Array.isArray(gallery)) {
       errors.push('gallery must be a mapping');
     } else {
-      let sizesLength = null;
+      let sizesLength = GALLERY_DEFAULT_SIZES_LENGTH;
       if (gallery.thumbnailSizes !== undefined && gallery.thumbnailSizes !== null) {
         if (!Array.isArray(gallery.thumbnailSizes)) {
           errors.push(
@@ -192,15 +195,10 @@ export function validateConfigObject(config) {
           errors.push(
             `gallery.defaultThumbnailSizeIndex must be an integer. Got: "${idx}"`
           );
-        } else if (sizesLength !== null && (idx < 0 || idx > sizesLength - 1)) {
+        } else if (idx < 0 || idx > sizesLength - 1) {
           errors.push(
             `gallery.defaultThumbnailSizeIndex must be between 0 and ${sizesLength - 1}. ` +
             `Got: ${idx}`
-          );
-        } else if (sizesLength === null && idx < 0) {
-          // thumbnailSizes not provided here — still reject negative indexes
-          errors.push(
-            `gallery.defaultThumbnailSizeIndex must be >= 0. Got: ${idx}`
           );
         }
       }
