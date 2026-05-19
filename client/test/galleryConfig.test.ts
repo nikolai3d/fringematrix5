@@ -26,6 +26,12 @@ describe('GALLERY_THUMBNAIL_SIZES (resolved from config.yaml)', () => {
     expect(GALLERY_DEFAULT_SIZE_INDEX).toBeGreaterThanOrEqual(0);
     expect(GALLERY_DEFAULT_SIZE_INDEX).toBeLessThan(GALLERY_THUMBNAIL_SIZES.length);
   });
+
+  it('is ordered smallest to largest (matches config.yaml contract)', () => {
+    for (let i = 1; i < GALLERY_THUMBNAIL_SIZES.length; i++) {
+      expect(GALLERY_THUMBNAIL_SIZES[i]).toBeGreaterThan(GALLERY_THUMBNAIL_SIZES[i - 1]);
+    }
+  });
 });
 
 describe('resolveGallery — valid inputs', () => {
@@ -62,6 +68,15 @@ describe('resolveGallery — fallback to defaults', () => {
 
   it('returns defaults when called with an empty object', () => {
     const result = resolveGallery({});
+    expect(result.thumbnailSizes).toEqual([120, 220, 340, 480]);
+    expect(result.defaultThumbnailSizeIndex).toBe(1);
+  });
+
+  it('treats null fields the same as undefined (YAML may emit null for blank keys)', () => {
+    const result = resolveGallery({
+      thumbnailSizes: null as unknown as number[],
+      defaultThumbnailSizeIndex: null as unknown as number,
+    });
     expect(result.thumbnailSizes).toEqual([120, 220, 340, 480]);
     expect(result.defaultThumbnailSizeIndex).toBe(1);
   });
