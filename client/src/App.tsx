@@ -7,7 +7,11 @@ import { closeSubwindowsState } from './utils/closeSubwindowsState';
 import { isSafeUrl } from './utils/isSafeUrl';
 import { applyTheme } from './config/theme';
 import { SITE_URL, SITE_SHARE_TEXT } from './config/site';
-import { GALLERY_DEFAULT_SIZE_INDEX, GALLERY_THUMBNAIL_SIZES } from './config/gallery';
+import {
+  clampThumbnailSizeIndex,
+  GALLERY_DEFAULT_SIZE_INDEX,
+  GALLERY_THUMBNAIL_SIZES,
+} from './config/gallery';
 import LoadingManager from './components/LoadingManager';
 import CampaignNavigation from './components/CampaignNavigation';
 import BuildInfoPopover from './components/BuildInfoPopover';
@@ -94,9 +98,7 @@ export default function App() {
           && Number.isFinite(parsed.thumbnailSizeIndex)
           && Number.isInteger(parsed.thumbnailSizeIndex)
         ) {
-          const maxIndex = GALLERY_THUMBNAIL_SIZES.length - 1;
-          const clamped = Math.max(0, Math.min(maxIndex, parsed.thumbnailSizeIndex));
-          setThumbnailSizeIndex(clamped);
+          setThumbnailSizeIndex(clampThumbnailSizeIndex(parsed.thumbnailSizeIndex));
         }
       }
     } catch { /* ignore corrupt localStorage */ }

@@ -7,6 +7,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   GALLERY_THUMBNAIL_SIZES,
   GALLERY_DEFAULT_SIZE_INDEX,
+  clampThumbnailSizeIndex,
   resolveGallery,
 } from '../src/config/gallery';
 
@@ -204,5 +205,26 @@ describe('resolveGallery — invalid defaultThumbnailSizeIndex', () => {
     });
     expect(result.thumbnailSizes).toEqual([200]);
     expect(result.defaultThumbnailSizeIndex).toBe(0);
+  });
+});
+
+describe('clampThumbnailSizeIndex', () => {
+  // Only the non-empty invariant is guaranteed by resolveThumbnailSizes, so
+  // boundary indices 0 and maxIndex are the only universally in-range values.
+  const maxIndex = GALLERY_THUMBNAIL_SIZES.length - 1;
+
+  it('returns boundary values 0 and maxIndex unchanged', () => {
+    expect(clampThumbnailSizeIndex(0)).toBe(0);
+    expect(clampThumbnailSizeIndex(maxIndex)).toBe(maxIndex);
+  });
+
+  it('clamps values above the upper bound to maxIndex', () => {
+    expect(clampThumbnailSizeIndex(maxIndex + 1)).toBe(maxIndex);
+    expect(clampThumbnailSizeIndex(999)).toBe(maxIndex);
+  });
+
+  it('clamps negative values to 0', () => {
+    expect(clampThumbnailSizeIndex(-1)).toBe(0);
+    expect(clampThumbnailSizeIndex(-100)).toBe(0);
   });
 });

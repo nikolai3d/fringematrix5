@@ -98,3 +98,13 @@ export const GALLERY_THUMBNAIL_SIZES: readonly number[] = resolved.thumbnailSize
  * in range [0, GALLERY_THUMBNAIL_SIZES.length - 1].
  */
 export const GALLERY_DEFAULT_SIZE_INDEX: number = resolved.defaultThumbnailSizeIndex;
+
+/**
+ * Clamps a thumbnail-size index into the valid range
+ * `[0, GALLERY_THUMBNAIL_SIZES.length - 1]`. Pure; non-finite or non-integer
+ * inputs are not validated here — callers should pre-validate the type if
+ * needed.
+ */
+export function clampThumbnailSizeIndex(n: number): number {
+  return Math.max(0, Math.min(GALLERY_THUMBNAIL_SIZES.length - 1, n));
+}

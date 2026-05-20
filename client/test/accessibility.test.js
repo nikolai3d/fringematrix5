@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
+import {
+  clampThumbnailSizeIndex,
+  GALLERY_THUMBNAIL_SIZES,
+} from '../src/config/gallery';
 
 /**
  * Accessibility tests for the cyberpunk redesign.
@@ -315,23 +319,20 @@ describe('Accessibility Settings Logic', () => {
     expect(parsed.reduceEffects).toBe(true);
   });
 
-  it('thumbnailSizeIndex clamping keeps in-range values unchanged', () => {
-    const sizesLength = 4; // matches GALLERY_THUMBNAIL_SIZES default
-    const maxIndex = sizesLength - 1;
-    const clamp = (n) => Math.max(0, Math.min(maxIndex, n));
-    expect(clamp(0)).toBe(0);
-    expect(clamp(1)).toBe(1);
-    expect(clamp(3)).toBe(3);
+  it('thumbnailSizeIndex clamping keeps in-range boundary values unchanged', () => {
+    // Only boundary indices 0 and maxIndex are guaranteed in-range regardless
+    // of the resolved sizes-array length.
+    const maxIndex = GALLERY_THUMBNAIL_SIZES.length - 1;
+    expect(clampThumbnailSizeIndex(0)).toBe(0);
+    expect(clampThumbnailSizeIndex(maxIndex)).toBe(maxIndex);
   });
 
   it('thumbnailSizeIndex clamping pulls out-of-range values into range', () => {
-    const sizesLength = 4;
-    const maxIndex = sizesLength - 1;
-    const clamp = (n) => Math.max(0, Math.min(maxIndex, n));
+    const maxIndex = GALLERY_THUMBNAIL_SIZES.length - 1;
     // Saved value larger than the current sizes array (e.g. config shrank)
-    expect(clamp(7)).toBe(3);
+    expect(clampThumbnailSizeIndex(maxIndex + 4)).toBe(maxIndex);
     // Negative saved value (corrupt or downgraded)
-    expect(clamp(-1)).toBe(0);
+    expect(clampThumbnailSizeIndex(-1)).toBe(0);
   });
 
   it('rejects non-integer thumbnailSizeIndex (App validates type before clamping)', () => {
