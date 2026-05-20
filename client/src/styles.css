@@ -1837,3 +1837,30 @@ html.reduce-effects .lightbox-image-wrap > * {
   }
 }
 
+/* =============================================================================
+   ThumbnailSizeSlider (structural-only; aesthetic styling lives in bead 2dn)
+   ============================================================================= */
+.thumbnail-size-slider {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+.thumbnail-size-slider-label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+.thumbnail-size-slider input[type='range'] {
+  width: 100%;
+}
+
+/* Reduce Motion: suppress thumb transitions per bead 6yt spec. */
+html.reduce-motion .thumbnail-size-slider input[type='range']::-webkit-slider-thumb {
+  transition: none !important;
+}
+html.reduce-motion .thumbnail-size-slider input[type='range']::-moz-range-thumb {
+  transition: none !important;
+}
+
