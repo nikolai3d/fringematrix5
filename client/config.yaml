@@ -44,3 +44,8 @@ gallery:
 
   # 0-based index into thumbnailSizes selecting the default size on first load.
   defaultThumbnailSizeIndex: 1
+
+  # Gap (in CSS px) between thumbnail cards at each scale step. Must have the
+  # same length as thumbnailSizes, ordered to match (smallest gap for the
+  # smallest size). Values must be non-negative finite numbers.
+  thumbnailGaps: [4, 8, 12, 14]

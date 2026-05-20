@@ -7,6 +7,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   GALLERY_THUMBNAIL_SIZES,
   GALLERY_DEFAULT_SIZE_INDEX,
+  GALLERY_THUMBNAIL_GAPS,
   clampThumbnailSizeIndex,
   resolveGallery,
 } from '../src/config/gallery';
@@ -226,5 +227,149 @@ describe('clampThumbnailSizeIndex', () => {
   it('clamps negative values to 0', () => {
     expect(clampThumbnailSizeIndex(-1)).toBe(0);
     expect(clampThumbnailSizeIndex(-100)).toBe(0);
+  });
+});
+
+// =============================================================================
+// GALLERY_THUMBNAIL_GAPS — bundled constant
+// =============================================================================
+
+describe('GALLERY_THUMBNAIL_GAPS (resolved from config.yaml)', () => {
+  it('is a non-empty array of non-negative finite numbers', () => {
+    expect(Array.isArray(GALLERY_THUMBNAIL_GAPS)).toBe(true);
+    expect(GALLERY_THUMBNAIL_GAPS.length).toBeGreaterThan(0);
+    for (const gap of GALLERY_THUMBNAIL_GAPS) {
+      expect(typeof gap).toBe('number');
+      expect(Number.isFinite(gap)).toBe(true);
+      expect(gap).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('has the same length as GALLERY_THUMBNAIL_SIZES', () => {
+    expect(GALLERY_THUMBNAIL_GAPS.length).toBe(GALLERY_THUMBNAIL_SIZES.length);
+  });
+
+  it('is ordered from smallest to largest (gap decreases as scale decreases)', () => {
+    for (let i = 1; i < GALLERY_THUMBNAIL_GAPS.length; i++) {
+      expect(GALLERY_THUMBNAIL_GAPS[i]).toBeGreaterThanOrEqual(GALLERY_THUMBNAIL_GAPS[i - 1]);
+    }
+  });
+
+  it('gap at smallest scale is strictly less than gap at largest scale', () => {
+    const first = GALLERY_THUMBNAIL_GAPS[0];
+    const last = GALLERY_THUMBNAIL_GAPS[GALLERY_THUMBNAIL_GAPS.length - 1];
+    expect(last).toBeGreaterThan(first);
+  });
+});
+
+// =============================================================================
+// resolveGallery — thumbnailGaps
+// =============================================================================
+
+describe('resolveGallery — thumbnailGaps valid inputs', () => {
+  it('passes a matching gap array through unchanged', () => {
+    const result = resolveGallery({
+      thumbnailSizes: [120, 220, 340, 480],
+      thumbnailGaps: [4, 8, 12, 14],
+    });
+    expect(result.thumbnailGaps).toEqual([4, 8, 12, 14]);
+  });
+
+  it('accepts zero as a valid gap value', () => {
+    const result = resolveGallery({
+      thumbnailSizes: [120, 220, 340, 480],
+      thumbnailGaps: [0, 4, 8, 12],
+    });
+    expect(result.thumbnailGaps).toEqual([0, 4, 8, 12]);
+  });
+
+  it('gap array length matches thumbnailSizes length when both are custom', () => {
+    const result = resolveGallery({
+      thumbnailSizes: [100, 200, 300],
+      thumbnailGaps: [2, 6, 10],
+    });
+    expect(result.thumbnailGaps.length).toBe(result.thumbnailSizes.length);
+  });
+});
+
+describe('resolveGallery — thumbnailGaps fallback behaviour', () => {
+  it('returns default gaps when thumbnailGaps is omitted', () => {
+    const result = resolveGallery({
+      thumbnailSizes: [120, 220, 340, 480],
+    });
+    expect(result.thumbnailGaps.length).toBe(4);
+    for (const gap of result.thumbnailGaps) {
+      expect(gap).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('falls back and warns when gap array length mismatches thumbnailSizes', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = resolveGallery({
+      thumbnailSizes: [120, 220, 340, 480],
+      thumbnailGaps: [4, 8],   // wrong length
+    });
+    expect(result.thumbnailGaps.length).toBe(4);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('thumbnailGaps'));
+    warnSpy.mockRestore();
+  });
+
+  it('falls back and warns when a gap entry is negative', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = resolveGallery({
+      thumbnailSizes: [120, 220, 340, 480],
+      thumbnailGaps: [4, -2, 12, 14],
+    });
+    expect(result.thumbnailGaps.length).toBe(4);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('thumbnailGaps'));
+    warnSpy.mockRestore();
+  });
+
+  it('falls back and warns when a gap entry is non-numeric', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = resolveGallery({
+      thumbnailSizes: [120, 220, 340, 480],
+      thumbnailGaps: [4, 'wide' as unknown as number, 12, 14],
+    });
+    expect(result.thumbnailGaps.length).toBe(4);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('thumbnailGaps'));
+    warnSpy.mockRestore();
+  });
+
+  it('falls back and warns when thumbnailGaps is not an array', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = resolveGallery({
+      thumbnailSizes: [120, 220, 340, 480],
+      thumbnailGaps: 'big' as unknown as number[],
+    });
+    expect(result.thumbnailGaps.length).toBe(4);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('thumbnailGaps'));
+    warnSpy.mockRestore();
+  });
+});
+
+// =============================================================================
+// Gap shrinks as scale decreases — core acceptance criterion
+// =============================================================================
+
+describe('resolveGallery — gap decreases as scale index decreases', () => {
+  it('each successive gap is >= the previous (monotone non-decreasing)', () => {
+    const result = resolveGallery({
+      thumbnailSizes: [120, 220, 340, 480],
+      thumbnailGaps: [4, 8, 12, 14],
+    });
+    for (let i = 1; i < result.thumbnailGaps.length; i++) {
+      expect(result.thumbnailGaps[i]).toBeGreaterThanOrEqual(result.thumbnailGaps[i - 1]);
+    }
+  });
+
+  it('gap at smallest scale is strictly less than gap at largest scale', () => {
+    const result = resolveGallery({
+      thumbnailSizes: [120, 220, 340, 480],
+      thumbnailGaps: [4, 8, 12, 14],
+    });
+    expect(result.thumbnailGaps[0]).toBeLessThan(
+      result.thumbnailGaps[result.thumbnailGaps.length - 1],
+    );
   });
 });

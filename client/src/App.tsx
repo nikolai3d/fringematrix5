@@ -11,6 +11,7 @@ import {
   clampThumbnailSizeIndex,
   GALLERY_DEFAULT_SIZE_INDEX,
   GALLERY_THUMBNAIL_SIZES,
+  GALLERY_THUMBNAIL_GAPS,
 } from './config/gallery';
 import LoadingManager from './components/LoadingManager';
 import CampaignNavigation from './components/CampaignNavigation';
@@ -119,10 +120,11 @@ export default function App() {
     } catch { /* ignore storage errors */ }
   }, [reduceMotion, reduceEffects, thumbnailSizeIndex]);
 
-  // Apply the resolved thumbnail size to the --thumbnail-min-size CSS variable
-  // so styles.css `.gallery-grid` minmax() picks up the user's selected size.
+  // Apply the resolved thumbnail size and gap to CSS variables so
+  // styles.css `.gallery-grid` picks up both values at the current scale step.
   // GALLERY_THUMBNAIL_SIZES are in device pixels; divide by devicePixelRatio
   // to get CSS pixels for the grid track minimum.
+  // GALLERY_THUMBNAIL_GAPS are already in CSS px and applied directly.
   useEffect(() => {
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
     const devicePx = GALLERY_THUMBNAIL_SIZES[thumbnailSizeIndex];
@@ -130,6 +132,10 @@ export default function App() {
     const dpr = window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
     const cssSize = devicePx / dpr;
     document.documentElement.style.setProperty('--thumbnail-min-size', `${cssSize}px`);
+    const gapPx = GALLERY_THUMBNAIL_GAPS[thumbnailSizeIndex];
+    if (typeof gapPx === 'number' && Number.isFinite(gapPx)) {
+      document.documentElement.style.setProperty('--grid-gap', `${gapPx}px`);
+    }
   }, [thumbnailSizeIndex]);
 
   const activeCampaign = useMemo(
