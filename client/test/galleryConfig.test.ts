@@ -209,11 +209,12 @@ describe('resolveGallery — invalid defaultThumbnailSizeIndex', () => {
 });
 
 describe('clampThumbnailSizeIndex', () => {
+  // Only the non-empty invariant is guaranteed by resolveThumbnailSizes, so
+  // boundary indices 0 and maxIndex are the only universally in-range values.
   const maxIndex = GALLERY_THUMBNAIL_SIZES.length - 1;
 
-  it('returns in-range values unchanged', () => {
+  it('returns boundary values 0 and maxIndex unchanged', () => {
     expect(clampThumbnailSizeIndex(0)).toBe(0);
-    expect(clampThumbnailSizeIndex(1)).toBe(1);
     expect(clampThumbnailSizeIndex(maxIndex)).toBe(maxIndex);
   });
 
@@ -225,10 +226,5 @@ describe('clampThumbnailSizeIndex', () => {
   it('clamps negative values to 0', () => {
     expect(clampThumbnailSizeIndex(-1)).toBe(0);
     expect(clampThumbnailSizeIndex(-100)).toBe(0);
-  });
-
-  it('treats the boundary values 0 and maxIndex as fixed points', () => {
-    expect(clampThumbnailSizeIndex(0)).toBe(0);
-    expect(clampThumbnailSizeIndex(maxIndex)).toBe(maxIndex);
   });
 });

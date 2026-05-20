@@ -319,10 +319,11 @@ describe('Accessibility Settings Logic', () => {
     expect(parsed.reduceEffects).toBe(true);
   });
 
-  it('thumbnailSizeIndex clamping keeps in-range values unchanged', () => {
+  it('thumbnailSizeIndex clamping keeps in-range boundary values unchanged', () => {
+    // Only boundary indices 0 and maxIndex are guaranteed in-range regardless
+    // of the resolved sizes-array length.
     const maxIndex = GALLERY_THUMBNAIL_SIZES.length - 1;
     expect(clampThumbnailSizeIndex(0)).toBe(0);
-    expect(clampThumbnailSizeIndex(1)).toBe(1);
     expect(clampThumbnailSizeIndex(maxIndex)).toBe(maxIndex);
   });
 
