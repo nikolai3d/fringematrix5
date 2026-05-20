@@ -16,10 +16,13 @@ const config = configYaml as AppConfig;
 
 const DEFAULT_THUMBNAIL_SIZES: readonly number[] = [120, 220, 340, 480];
 const DEFAULT_SIZE_INDEX = 1;
+/** Gap values in CSS px (not device px) that pair 1-to-1 with the default thumbnail sizes, smallest to largest. */
+const DEFAULT_THUMBNAIL_GAPS: readonly number[] = [4, 8, 12, 14];
 
 export interface ResolvedGallery {
   thumbnailSizes: readonly number[];
   defaultThumbnailSizeIndex: number;
+  thumbnailGaps: readonly number[];
 }
 
 function resolveThumbnailSizes(raw: GalleryConfig['thumbnailSizes']): readonly number[] {
@@ -75,13 +78,70 @@ function resolveDefaultIndex(
   return raw;
 }
 
+/**
+ * Returns the best-effort default gap array for `sizesLength` size steps.
+ * If DEFAULT_THUMBNAIL_GAPS already covers that many steps (i.e. length ≥
+ * sizesLength) we slice it; otherwise we linearly interpolate between the
+ * smallest and largest default gap values.
+ */
+function buildFallbackGaps(sizesLength: number): readonly number[] {
+  if (sizesLength === 0) return [];
+  if (sizesLength <= DEFAULT_THUMBNAIL_GAPS.length) {
+    return DEFAULT_THUMBNAIL_GAPS.slice(0, sizesLength);
+  }
+  const min = DEFAULT_THUMBNAIL_GAPS[0];
+  const max = DEFAULT_THUMBNAIL_GAPS[DEFAULT_THUMBNAIL_GAPS.length - 1];
+  return Array.from({ length: sizesLength }, (_, i) =>
+    Math.round(min + ((max - min) * i) / (sizesLength - 1)),
+  );
+}
+
+/**
+ * Resolves per-scale gap values.  The array must have the same length as
+ * `thumbnailSizes` and every entry must be a non-negative finite number.
+ * Any invalid input falls back to the defaults and emits a console.warn.
+ */
+function resolveGaps(
+  raw: GalleryConfig['thumbnailGaps'],
+  sizesLength: number,
+): readonly number[] {
+  const fallback = buildFallbackGaps(sizesLength);
+  if (raw === undefined || raw === null) return fallback;
+  if (!Array.isArray(raw)) {
+    console.warn(
+      `Invalid gallery.thumbnailGaps: "${raw}" (must be an array). ` +
+      `Using defaults [${fallback.join(', ')}].`,
+    );
+    return fallback;
+  }
+  if (raw.length !== sizesLength) {
+    console.warn(
+      `Invalid gallery.thumbnailGaps: length ${raw.length} does not match ` +
+      `thumbnailSizes length ${sizesLength}. ` +
+      `Using defaults [${fallback.join(', ')}].`,
+    );
+    return fallback;
+  }
+  for (const value of raw) {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+      console.warn(
+        `Invalid gallery.thumbnailGaps entry: "${value}" (must be a non-negative finite number). ` +
+        `Using defaults [${fallback.join(', ')}].`,
+      );
+      return fallback;
+    }
+  }
+  return raw;
+}
+
 export function resolveGallery(raw: GalleryConfig | undefined): ResolvedGallery {
   const thumbnailSizes = resolveThumbnailSizes(raw?.thumbnailSizes);
   const defaultThumbnailSizeIndex = resolveDefaultIndex(
     raw?.defaultThumbnailSizeIndex,
     thumbnailSizes.length,
   );
-  return { thumbnailSizes, defaultThumbnailSizeIndex };
+  const thumbnailGaps = resolveGaps(raw?.thumbnailGaps, thumbnailSizes.length);
+  return { thumbnailSizes, defaultThumbnailSizeIndex, thumbnailGaps };
 }
 
 const resolved = resolveGallery(config.gallery);
@@ -98,6 +158,13 @@ export const GALLERY_THUMBNAIL_SIZES: readonly number[] = resolved.thumbnailSize
  * in range [0, GALLERY_THUMBNAIL_SIZES.length - 1].
  */
 export const GALLERY_DEFAULT_SIZE_INDEX: number = resolved.defaultThumbnailSizeIndex;
+
+/**
+ * Resolved gap values in CSS px, one per thumbnail size step (smallest to
+ * largest). Falls back to defaults if the `gallery.thumbnailGaps` block is
+ * missing or invalid.
+ */
+export const GALLERY_THUMBNAIL_GAPS: readonly number[] = resolved.thumbnailGaps;
 
 /**
  * Clamps a thumbnail-size index into the valid range

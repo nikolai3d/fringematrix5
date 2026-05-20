@@ -31,6 +31,7 @@ export interface SiteConfig {
 export interface GalleryConfig {
   thumbnailSizes?: number[];
   defaultThumbnailSizeIndex?: number;
+  thumbnailGaps?: number[];
 }
 
 export interface AppConfig {
