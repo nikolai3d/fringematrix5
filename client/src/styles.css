@@ -1840,9 +1840,9 @@ html.reduce-effects .lightbox-image-wrap > * {
 /* =============================================================================
    ThumbnailSizeSlider — glassmorphic wrapper modeled on .lightbox-nav-toolbar,
    accent-fill track from left to thumb driven by --thumbnail-slider-fill,
-   small circular thumb with .settings-toggle-style glow, and 4 (one per step)
-   tick marks under the track. The `reduce-effects` mode drops the glow and
-   backdrop-filter for users who opt out of heavy effects.
+   small circular thumb with .settings-toggle-style glow, and tick marks
+   (one per `steps` prop value) under the track. The `reduce-effects` mode
+   drops the glow and backdrop-filter for users who opt out of heavy effects.
    ============================================================================= */
 .thumbnail-size-slider {
   display: inline-flex;
@@ -1894,7 +1894,12 @@ html.reduce-effects .lightbox-image-wrap > * {
   cursor: not-allowed;
   opacity: 0.5;
 }
-.thumbnail-size-slider input[type='range']:focus { outline: none; }
+/* Suppress the default :focus ring only in browsers that actually support
+   :focus-visible — otherwise non-supporting browsers would strip the only
+   visible focus indicator from keyboard users. */
+@supports selector(:focus-visible) {
+  .thumbnail-size-slider input[type='range']:focus { outline: none; }
+}
 .thumbnail-size-slider input[type='range']:focus-visible {
   outline: 2px solid var(--theme-accent);
   outline-offset: 4px;
@@ -1968,9 +1973,9 @@ html.reduce-effects .lightbox-image-wrap > * {
   align-items: center;
   width: 100%;
   height: 6px;
-  /* Match the track's horizontal inset (the thumb is 14px wide, so its center
-     sits ~7px from each end at the extremes). */
-  padding: 0 6px;
+  /* Match the track's horizontal inset — the thumb is 14px wide, so its
+     center sits 7px from each end at the extremes. */
+  padding: 0 7px;
   box-sizing: border-box;
   pointer-events: none;
 }
