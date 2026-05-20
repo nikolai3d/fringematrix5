@@ -372,4 +372,21 @@ describe('resolveGallery — gap decreases as scale index decreases', () => {
       result.thumbnailGaps[result.thumbnailGaps.length - 1],
     );
   });
+
+  // Ordering is NOT enforced by the resolver — a reversed array passes
+  // validation because every entry is a non-negative finite number. The
+  // YAML doc says "should be ordered" (advisory, not mandatory). This test
+  // documents that behavior explicitly so any future decision to enforce
+  // ordering would require updating it.
+  it('does NOT reject or warn for a reversed (non-monotone) gap array — ordering is advisory', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = resolveGallery({
+      thumbnailSizes: [120, 220, 340, 480],
+      thumbnailGaps: [14, 12, 8, 4],   // intentionally reversed
+    });
+    // The resolver accepts the reversed array as-is (no warn, returned unchanged)
+    expect(result.thumbnailGaps).toEqual([14, 12, 8, 4]);
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
 });

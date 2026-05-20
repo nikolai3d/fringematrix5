@@ -16,7 +16,7 @@ const config = configYaml as AppConfig;
 
 const DEFAULT_THUMBNAIL_SIZES: readonly number[] = [120, 220, 340, 480];
 const DEFAULT_SIZE_INDEX = 1;
-/** Gap values (px) that pair 1-to-1 with the default thumbnail sizes, smallest to largest. */
+/** Gap values in CSS px (not device px) that pair 1-to-1 with the default thumbnail sizes, smallest to largest. */
 const DEFAULT_THUMBNAIL_GAPS: readonly number[] = [4, 8, 12, 14];
 
 export interface ResolvedGallery {
