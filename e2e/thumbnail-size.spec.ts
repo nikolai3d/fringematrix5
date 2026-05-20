@@ -192,4 +192,89 @@ test.describe('Thumbnail size slider (toolbar)', () => {
     expect(tickCount).toBeGreaterThan(1);
     expect(max + 1).toBe(tickCount);
   });
+
+  test('zoom-in button is visible and clicking it increases slider value', async ({ page }) => {
+    const toolbar = page.getByRole('toolbar', { name: 'Primary actions' });
+    await expect(toolbar).toBeVisible();
+
+    const slider = toolbar.getByLabel('THUMBNAIL SIZE');
+    await expect(slider).toBeVisible();
+
+    // Move to the minimum step so there is room to zoom in.
+    await setSliderValue(slider, '0');
+    await expect(slider).toHaveValue('0');
+
+    const zoomIn = toolbar.getByRole('button', { name: 'Zoom in' });
+    await expect(zoomIn).toBeVisible();
+    await expect(zoomIn).toBeEnabled();
+
+    await zoomIn.click();
+
+    // After one click the slider value should have advanced by 1.
+    await expect(slider).toHaveValue('1');
+  });
+
+  test('zoom-out button is visible and clicking it decreases slider value', async ({ page }) => {
+    const toolbar = page.getByRole('toolbar', { name: 'Primary actions' });
+    const slider = toolbar.getByLabel('THUMBNAIL SIZE');
+
+    // Move to a non-zero step so there is room to zoom out.
+    const max = await slider.evaluate((el) => (el as HTMLInputElement).max);
+    await setSliderValue(slider, max);
+    await expect(slider).toHaveValue(max);
+
+    const zoomOut = toolbar.getByRole('button', { name: 'Zoom out' });
+    await expect(zoomOut).toBeVisible();
+    await expect(zoomOut).toBeEnabled();
+
+    await zoomOut.click();
+
+    await expect(slider).toHaveValue(String(Number(max) - 1));
+  });
+
+  test('zoom-in button is disabled at max and zoom-out is disabled at min', async ({ page }) => {
+    const toolbar = page.getByRole('toolbar', { name: 'Primary actions' });
+    const slider = toolbar.getByLabel('THUMBNAIL SIZE');
+
+    // At minimum: zoom-out should be disabled.
+    await setSliderValue(slider, '0');
+    await expect(slider).toHaveValue('0');
+    await expect(toolbar.getByRole('button', { name: 'Zoom out' })).toBeDisabled();
+    await expect(toolbar.getByRole('button', { name: 'Zoom in' })).toBeEnabled();
+
+    // At maximum: zoom-in should be disabled.
+    const max = await slider.evaluate((el) => (el as HTMLInputElement).max);
+    await setSliderValue(slider, max);
+    await expect(slider).toHaveValue(max);
+    await expect(toolbar.getByRole('button', { name: 'Zoom in' })).toBeDisabled();
+    await expect(toolbar.getByRole('button', { name: 'Zoom out' })).toBeEnabled();
+  });
+
+  test('clicking zoom-in button measurably increases card width', async ({ page }) => {
+    const hasCards = await findCampaignWithCards(page);
+    if (!hasCards) {
+      test.skip(true, 'No gallery cards available to measure');
+    }
+
+    const toolbar = page.getByRole('toolbar', { name: 'Primary actions' });
+    const slider = toolbar.getByLabel('THUMBNAIL SIZE');
+
+    // Start at minimum step for a clear baseline.
+    await setSliderValue(slider, '0');
+    await expect(slider).toHaveValue('0');
+
+    const firstCard = page.locator('.gallery-grid .card').first();
+    const baseBox = await firstCard.boundingBox();
+    expect(baseBox).not.toBeNull();
+    const baseW = baseBox!.width;
+
+    const zoomIn = toolbar.getByRole('button', { name: 'Zoom in' });
+    await zoomIn.click();
+
+    // Card width should increase after zooming in.
+    await expect.poll(async () => {
+      const b = await firstCard.boundingBox();
+      return b ? b.width : 0;
+    }, { timeout: 5000 }).toBeGreaterThan(baseW);
+  });
 });
