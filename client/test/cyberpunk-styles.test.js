@@ -84,9 +84,10 @@ describe('Card Cyberpunk Effects', () => {
     expect(cssContent).toMatch(/\.card:hover\s*\{[^}]*border-color:\s*var\(--theme-accent\)/s);
   });
 
-  it('card filename should have z-index above pseudo-elements', () => {
-    // Filename should be above scanlines (z:1) and scan beam (z:2)
-    expect(cssContent).toMatch(/\.card\s+\.filename\s*\{[^}]*z-index:\s*3/s);
+  it('card should not have a filename overlay rule (filename labels removed)', () => {
+    // Filename text overlays have been removed from thumbnails; no CSS rule
+    // should style a .card .filename element.
+    expect(cssContent).not.toMatch(/\.card\s+\.filename\s*\{/);
   });
 
   it('should have card entrance animation', () => {

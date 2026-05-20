@@ -35,7 +35,6 @@ const ImageCard = React.memo(function ImageCard({ image, onClick, imgRef }: Imag
           onClick={onClick}
         />
       )}
-      <div className="filename">{image.fileName}</div>
     </div>
   );
 });

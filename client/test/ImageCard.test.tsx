@@ -38,10 +38,11 @@ describe('ImageCard — rendering', () => {
     expect(screen.getByAltText('my-avatar.png')).toBeTruthy();
   });
 
-  it('renders the filename label below the image', () => {
+  it('does not render a visible filename label', () => {
     const image = makeImage('fringe-banner.jpg');
     render(<ImageCard image={image} onClick={vi.fn()} />);
-    expect(screen.getByText('fringe-banner.jpg')).toBeTruthy();
+    // The filename must NOT appear as visible text; it is only used for alt.
+    expect(screen.queryByText('fringe-banner.jpg')).toBeNull();
   });
 
   it('falls back to src when loadedSrc is not set', () => {
@@ -95,10 +96,11 @@ describe('ImageCard — loading placeholder', () => {
     expect(screen.getByText('Loading...')).toBeTruthy();
   });
 
-  it('still renders the filename when isLoading is true', () => {
+  it('does not render a visible filename when isLoading is true', () => {
     const image = makeLoading('pending.png');
     render(<ImageCard image={image} onClick={vi.fn()} />);
-    expect(screen.getByText('pending.png')).toBeTruthy();
+    // Filename must not appear as visible text in loading state either.
+    expect(screen.queryByText('pending.png')).toBeNull();
   });
 
   it('renders an img (not a placeholder) when isLoading is false', () => {
