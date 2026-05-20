@@ -1,4 +1,4 @@
-import { useId, type ChangeEvent } from 'react';
+import { useId, type ChangeEvent, type CSSProperties } from 'react';
 
 interface ThumbnailSizeSliderProps {
   /** Current step index (0-based, controlled). */
@@ -48,21 +48,41 @@ export default function ThumbnailSizeSlider({
     onChange(parseInt(e.target.value, 10));
   };
 
+  // Percentage of the track that the accent fill covers (0..100). When
+  // `max === 0` the slider is disabled, so the fill is meaningless — we
+  // still emit 0 so the CSS variable is always defined.
+  const fillPct = max > 0 ? (value / max) * 100 : 0;
+  const trackStyle = {
+    '--thumbnail-slider-fill': `${fillPct}%`,
+  } as CSSProperties;
+
+  // Render one tick mark per step. The track and ticks share the same
+  // horizontal padding so ticks align under the thumb at each step.
+  const tickCount = Math.max(steps, 0);
+
   return (
     <div className="thumbnail-size-slider">
       <label htmlFor={inputId} className="thumbnail-size-slider-label">
         THUMBNAIL SIZE
       </label>
-      <input
-        id={inputId}
-        type="range"
-        min={0}
-        max={max}
-        step={1}
-        value={value}
-        onChange={handleChange}
-        disabled={disabled}
-      />
+      <div className="thumbnail-size-slider-track-wrap">
+        <input
+          id={inputId}
+          type="range"
+          min={0}
+          max={max}
+          step={1}
+          value={value}
+          onChange={handleChange}
+          disabled={disabled}
+          style={trackStyle}
+        />
+        <div className="thumbnail-size-slider-ticks" aria-hidden="true">
+          {Array.from({ length: tickCount }, (_, i) => (
+            <span className="thumbnail-size-slider-tick" key={i} />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

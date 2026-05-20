@@ -1838,22 +1838,153 @@ html.reduce-effects .lightbox-image-wrap > * {
 }
 
 /* =============================================================================
-   ThumbnailSizeSlider (structural-only; aesthetic styling lives in bead 2dn)
+   ThumbnailSizeSlider — glassmorphic wrapper modeled on .lightbox-nav-toolbar,
+   accent-fill track from left to thumb driven by --thumbnail-slider-fill,
+   small circular thumb with .settings-toggle-style glow, and tick marks
+   (one per `steps` prop value) under the track. The `reduce-effects` mode
+   drops the glow and backdrop-filter for users who opt out of heavy effects.
    ============================================================================= */
 .thumbnail-size-slider {
   display: inline-flex;
   flex-direction: column;
   align-items: stretch;
+  gap: 6px;
+  padding: 8px 14px 10px;
+  border-radius: 12px;
+  background: rgba(11, 17, 26, 0.55);
+  border: 1px solid rgba(var(--theme-accent-rgb), 0.28);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 0 16px rgba(var(--theme-accent-rgb), 0.08), 0 6px 20px rgba(0, 0, 0, 0.4);
+  min-width: 160px;
+}
+
+.thumbnail-size-slider-label {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--theme-accent);
+  opacity: 0.85;
+  text-align: center;
+}
+
+.thumbnail-size-slider-track-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
   gap: 4px;
 }
-.thumbnail-size-slider-label {
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  opacity: 0.8;
-}
+
+/* Range input — reset native chrome so we can paint a custom track with the
+   accent gradient. The percentage `--thumbnail-slider-fill` is set inline by
+   the component based on `value / (steps - 1)`. */
 .thumbnail-size-slider input[type='range'] {
+  --thumbnail-slider-fill: 0%;
+  -webkit-appearance: none;
+  appearance: none;
   width: 100%;
+  height: 18px;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+}
+.thumbnail-size-slider input[type='range']:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+/* Suppress the default :focus ring only in browsers that actually support
+   :focus-visible — otherwise non-supporting browsers would strip the only
+   visible focus indicator from keyboard users. */
+@supports selector(:focus-visible) {
+  .thumbnail-size-slider input[type='range']:focus { outline: none; }
+}
+.thumbnail-size-slider input[type='range']:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
+/* WebKit (Chrome/Safari/Edge) track + thumb */
+.thumbnail-size-slider input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--theme-accent) 0%,
+    var(--theme-accent) var(--thumbnail-slider-fill),
+    rgba(var(--theme-accent-rgb), 0.18) var(--thumbnail-slider-fill),
+    rgba(var(--theme-accent-rgb), 0.18) 100%
+  );
+  border: 1px solid rgba(var(--theme-accent-rgb), 0.3);
+}
+.thumbnail-size-slider input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--theme-accent);
+  border: 1px solid rgba(var(--theme-accent-rgb), 0.9);
+  box-shadow: 0 0 10px rgba(var(--theme-accent-rgb), 0.55),
+              0 0 18px rgba(var(--theme-accent-rgb), 0.3);
+  /* Center the 14px thumb on the 4px track + 1px border = ~6px line. */
+  margin-top: -6px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.thumbnail-size-slider input[type='range']:hover:not(:disabled)::-webkit-slider-thumb {
+  box-shadow: 0 0 14px rgba(var(--theme-accent-rgb), 0.7),
+              0 0 24px rgba(var(--theme-accent-rgb), 0.4);
+}
+
+/* Firefox track + thumb (gecko uses a different pseudo, paint similarly) */
+.thumbnail-size-slider input[type='range']::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(var(--theme-accent-rgb), 0.18);
+  border: 1px solid rgba(var(--theme-accent-rgb), 0.3);
+}
+.thumbnail-size-slider input[type='range']::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--theme-accent);
+}
+.thumbnail-size-slider input[type='range']::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--theme-accent);
+  border: 1px solid rgba(var(--theme-accent-rgb), 0.9);
+  box-shadow: 0 0 10px rgba(var(--theme-accent-rgb), 0.55),
+              0 0 18px rgba(var(--theme-accent-rgb), 0.3);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.thumbnail-size-slider input[type='range']:hover:not(:disabled)::-moz-range-thumb {
+  box-shadow: 0 0 14px rgba(var(--theme-accent-rgb), 0.7),
+              0 0 24px rgba(var(--theme-accent-rgb), 0.4);
+}
+
+/* Tick marks under the track — one per step. Distributed with
+   `justify-content: space-between` so first/last sit under the track ends. */
+.thumbnail-size-slider-ticks {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  height: 6px;
+  /* Match the track's horizontal inset — the thumb is 14px wide, so its
+     center sits 7px from each end at the extremes. */
+  padding: 0 7px;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.thumbnail-size-slider-tick {
+  display: block;
+  width: 2px;
+  height: 6px;
+  background: rgba(var(--theme-accent-rgb), 0.45);
+  border-radius: 1px;
 }
 
 /* Reduce Motion: suppress thumb transitions per bead 6yt spec. */
@@ -1862,5 +1993,24 @@ html.reduce-motion .thumbnail-size-slider input[type='range']::-webkit-slider-th
 }
 html.reduce-motion .thumbnail-size-slider input[type='range']::-moz-range-thumb {
   transition: none !important;
+}
+
+/* Reduce Effects: drop the wrapper backdrop blur and remove thumb glow so
+   the component stays cheap to render. The accent fill itself stays — it's
+   purely a flat gradient and conveys state. */
+html.reduce-effects .thumbnail-size-slider {
+  backdrop-filter: none;
+  background: rgba(11, 17, 26, 0.92);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+html.reduce-effects .thumbnail-size-slider input[type='range']::-webkit-slider-thumb {
+  box-shadow: none;
+}
+html.reduce-effects .thumbnail-size-slider input[type='range']::-moz-range-thumb {
+  box-shadow: none;
+}
+html.reduce-effects .thumbnail-size-slider input[type='range']:hover:not(:disabled)::-webkit-slider-thumb,
+html.reduce-effects .thumbnail-size-slider input[type='range']:hover:not(:disabled)::-moz-range-thumb {
+  box-shadow: none;
 }
 
