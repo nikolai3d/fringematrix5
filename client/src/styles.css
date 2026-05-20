@@ -2014,3 +2014,16 @@ html.reduce-effects .thumbnail-size-slider input[type='range']:hover:not(:disabl
   box-shadow: none;
 }
 
+/* Toolbar-context overrides: keep the slider compact (~160px wide) and
+   prevent it from shrinking inside the horizontally-scrolling toolbar.
+   Reduces vertical padding so the slider fits within the 52px toolbar
+   height without clipping the label or track. */
+.toolbar .thumbnail-size-slider {
+  flex-shrink: 0;
+  width: 160px;
+  min-width: 160px;
+  max-width: 160px;
+  padding: 4px 10px 6px;
+  gap: 2px;
+}
+
