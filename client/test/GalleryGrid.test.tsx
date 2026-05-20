@@ -308,11 +308,12 @@ describe('GalleryGrid — image card rendering', () => {
     expect(screen.getAllByRole('img')).toHaveLength(3);
   });
 
-  it('renders the filename for each image card', () => {
+  it('does not render a visible filename label for each image card', () => {
     const images = [makeImage('fringe-avatar.png'), makeImage('walter-bishop.jpg')];
     render(<GalleryGrid images={images} hasCampaign={true} onImageClick={noop} />);
-    expect(screen.getByText('fringe-avatar.png')).toBeTruthy();
-    expect(screen.getByText('walter-bishop.jpg')).toBeTruthy();
+    // Filename text must not appear as visible text — only used for img alt.
+    expect(screen.queryByText('fringe-avatar.png')).toBeNull();
+    expect(screen.queryByText('walter-bishop.jpg')).toBeNull();
   });
 
   it('renders the image src as the img element src', () => {
@@ -408,10 +409,11 @@ describe('GalleryGrid — loading placeholder', () => {
     expect(screen.getByText('Loading...')).toBeTruthy();
   });
 
-  it('renders the filename alongside the loading placeholder', () => {
+  it('does not render a visible filename alongside the loading placeholder', () => {
     const images = [makeLoading('pending.png')];
     render(<GalleryGrid images={images} hasCampaign={true} onImageClick={noop} />);
-    expect(screen.getByText('pending.png')).toBeTruthy();
+    // Filename text must not appear as visible text in loading state either.
+    expect(screen.queryByText('pending.png')).toBeNull();
   });
 
   it('renders an img (not a placeholder) when isLoading=false', () => {
