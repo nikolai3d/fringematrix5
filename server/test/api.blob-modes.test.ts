@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { jest, describe, it, expect, beforeAll } from '@jest/globals';
+import { jest, describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 
 // ---------------------------------------------------------------------------
 // Blob empty-mode tests: BLOB_READ_WRITE_TOKEN absent.
@@ -19,16 +19,29 @@ jest.unstable_mockModule('@vercel/blob', () => ({
 }));
 
 let app: any;
+const savedToken = process.env['BLOB_READ_WRITE_TOKEN'];
 
 beforeAll(async () => {
-  // Ensure token is absent so HAS_BLOB_TOKEN resolves to false at module-load time.
-  delete process.env['BLOB_READ_WRITE_TOKEN'];
+  // Set to empty string rather than deleting: dotenv's `override: false` would
+  // repopulate BLOB_READ_WRITE_TOKEN from .env.local if the key is absent, but
+  // it respects an existing empty-string value, keeping HAS_BLOB_TOKEN false.
+  process.env['BLOB_READ_WRITE_TOKEN'] = '';
   listMock.mockReset();
 
   const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
   const serverModule = await import('../server.ts');
   app = serverModule.default;
   consoleSpy.mockRestore();
+});
+
+afterAll(() => {
+  // Restore the token to whatever it was before this suite so other test files
+  // in the same Jest worker are not affected by the env mutation.
+  if (savedToken !== undefined) {
+    process.env['BLOB_READ_WRITE_TOKEN'] = savedToken;
+  } else {
+    delete process.env['BLOB_READ_WRITE_TOKEN'];
+  }
 });
 
 describe('GET /api/campaigns/:id/images — empty mode (no token)', () => {

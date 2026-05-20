@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { jest, describe, it, expect, beforeAll, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 
 // ---------------------------------------------------------------------------
 // Blob full-mode tests: BLOB_READ_WRITE_TOKEN present, list() mocked.
@@ -22,6 +22,7 @@ jest.unstable_mockModule('@vercel/blob', () => ({
 let app: any;
 let blobCache: Map<string, unknown>;
 let firstCampaignId: string;
+const savedToken = process.env['BLOB_READ_WRITE_TOKEN'];
 
 // Fixture blobs: two valid images + one non-image to exercise the filter.
 const FIXTURE_BLOBS = [
@@ -55,6 +56,17 @@ beforeAll(async () => {
   // Resolve the first campaign id from the real campaigns.yaml.
   const campaignsRes = await request(app).get('/api/campaigns');
   firstCampaignId = campaignsRes.body.campaigns[0].id;
+});
+
+afterAll(() => {
+  // Restore the token to whatever it was before this suite so other test files
+  // in the same Jest worker are not affected by the env mutation.
+  if (savedToken !== undefined) {
+    process.env['BLOB_READ_WRITE_TOKEN'] = savedToken;
+  } else {
+    delete process.env['BLOB_READ_WRITE_TOKEN'];
+  }
+  listMock.mockReset();
 });
 
 beforeEach(() => {
