@@ -162,4 +162,74 @@ describe('ThumbnailSizeSlider', () => {
       ).toBe(0);
     });
   });
+
+  describe('zoom buttons', () => {
+    it('renders a "Zoom in" button and a "Zoom out" button', () => {
+      renderSlider({ value: 2, steps: 5 });
+      expect(screen.getByRole('button', { name: 'Zoom out' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Zoom in' })).toBeInTheDocument();
+    });
+
+    it('clicking "Zoom in" calls onChange with value + 1', () => {
+      const onChange = vi.fn();
+      renderSlider({ value: 2, steps: 5, onChange });
+      fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(onChange).toHaveBeenCalledWith(3);
+    });
+
+    it('clicking "Zoom out" calls onChange with value - 1', () => {
+      const onChange = vi.fn();
+      renderSlider({ value: 2, steps: 5, onChange });
+      fireEvent.click(screen.getByRole('button', { name: 'Zoom out' }));
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(onChange).toHaveBeenCalledWith(1);
+    });
+
+    it('"Zoom out" is disabled at the minimum (value === 0)', () => {
+      renderSlider({ value: 0, steps: 5 });
+      const zoomOut = screen.getByRole('button', { name: 'Zoom out' }) as HTMLButtonElement;
+      expect(zoomOut.disabled).toBe(true);
+    });
+
+    it('"Zoom in" is disabled at the maximum (value === steps - 1)', () => {
+      renderSlider({ value: 4, steps: 5 });
+      const zoomIn = screen.getByRole('button', { name: 'Zoom in' }) as HTMLButtonElement;
+      expect(zoomIn.disabled).toBe(true);
+    });
+
+    it('"Zoom out" is enabled when value > 0', () => {
+      renderSlider({ value: 1, steps: 5 });
+      const zoomOut = screen.getByRole('button', { name: 'Zoom out' }) as HTMLButtonElement;
+      expect(zoomOut.disabled).toBe(false);
+    });
+
+    it('"Zoom in" is enabled when value < max', () => {
+      renderSlider({ value: 3, steps: 5 });
+      const zoomIn = screen.getByRole('button', { name: 'Zoom in' }) as HTMLButtonElement;
+      expect(zoomIn.disabled).toBe(false);
+    });
+
+    it('clicking "Zoom in" does not call onChange when already at max', () => {
+      const onChange = vi.fn();
+      renderSlider({ value: 4, steps: 5, onChange });
+      fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('clicking "Zoom out" does not call onChange when already at min', () => {
+      const onChange = vi.fn();
+      renderSlider({ value: 0, steps: 5, onChange });
+      fireEvent.click(screen.getByRole('button', { name: 'Zoom out' }));
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('both buttons are disabled when steps <= 1', () => {
+      renderSlider({ value: 0, steps: 1 });
+      const zoomOut = screen.getByRole('button', { name: 'Zoom out' }) as HTMLButtonElement;
+      const zoomIn = screen.getByRole('button', { name: 'Zoom in' }) as HTMLButtonElement;
+      expect(zoomOut.disabled).toBe(true);
+      expect(zoomIn.disabled).toBe(true);
+    });
+  });
 });
