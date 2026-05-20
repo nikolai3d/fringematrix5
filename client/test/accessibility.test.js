@@ -188,8 +188,26 @@ describe('Responsive Breakpoints', () => {
     expect(cssContent).toMatch(/@media\s*\(min-width:\s*768px\)\s*and\s*\(max-width:\s*1023px\)/);
   });
 
-  it('should have large desktop breakpoint (1440px)', () => {
-    expect(cssContent).toMatch(/@media\s*\(min-width:\s*1440px\)/);
+  it('gallery grid should use the --thumbnail-min-size CSS variable for column sizing', () => {
+    // The gallery grid sizes are now driven by a CSS variable (set from
+    // the user's thumbnail-size selection) instead of hardcoded breakpoint
+    // overrides at 900px / 1440px. Verify the variable is wired into the
+    // grid-template-columns rule with a sensible fallback.
+    expect(cssContent).toMatch(
+      /\.gallery-grid\s*\{[^}]*grid-template-columns:\s*repeat\(\s*auto-fill\s*,\s*minmax\(\s*var\(--thumbnail-min-size,\s*160px\)\s*,\s*1fr\s*\)\s*\)/s,
+    );
+  });
+
+  it('gallery grid should not have per-breakpoint column-width overrides', () => {
+    // After moving to a CSS variable, the 900px and 1440px @media overrides
+    // for .gallery-grid grid-template-columns must be gone so the variable
+    // controls sizing uniformly across viewport widths.
+    expect(cssContent).not.toMatch(
+      /@media\s*\(min-width:\s*900px\)\s*\{[^}]*\.gallery-grid\s*\{[^}]*grid-template-columns/s,
+    );
+    expect(cssContent).not.toMatch(
+      /@media\s*\(min-width:\s*1440px\)\s*\{[^}]*\.gallery-grid\s*\{[^}]*grid-template-columns/s,
+    );
   });
 });
 

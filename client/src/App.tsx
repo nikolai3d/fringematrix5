@@ -116,6 +116,19 @@ export default function App() {
     } catch { /* ignore storage errors */ }
   }, [reduceMotion, reduceEffects, thumbnailSizeIndex]);
 
+  // Apply the resolved thumbnail size to the --thumbnail-min-size CSS variable
+  // so styles.css `.gallery-grid` minmax() picks up the user's selected size.
+  // GALLERY_THUMBNAIL_SIZES are in device pixels; divide by devicePixelRatio
+  // to get CSS pixels for the grid track minimum.
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    const devicePx = GALLERY_THUMBNAIL_SIZES[thumbnailSizeIndex];
+    if (typeof devicePx !== 'number' || !Number.isFinite(devicePx)) return;
+    const dpr = window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
+    const cssSize = devicePx / dpr;
+    document.documentElement.style.setProperty('--thumbnail-min-size', `${cssSize}px`);
+  }, [thumbnailSizeIndex]);
+
   const activeCampaign = useMemo(
     () => campaigns.find((c) => c.id === activeCampaignId) || null,
     [campaigns, activeCampaignId]
