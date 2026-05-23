@@ -75,7 +75,7 @@ describe('AuthorDetail', () => {
     expect(grid.querySelectorAll('img').length).toBe(2);
   });
 
-  it('opens the lightbox for the clicked image (blobPath + campaignId)', async () => {
+  it('opens the lightbox in author-browse mode with the full image list + clicked index', async () => {
     globalThis.fetch = mockFetch(SAMPLE_DETAIL) as unknown as typeof fetch;
     const onOpenImage = vi.fn();
 
@@ -91,19 +91,39 @@ describe('AuthorDetail', () => {
     const buttons = grid.querySelectorAll('button');
     fireEvent.click(buttons[0]!);
 
-    expect(onOpenImage).toHaveBeenCalledWith({
+    // First arg: full image list mapped to ImageData with synthesized author
+    // and per-image campaignId; second arg: clicked index; third arg: handle.
+    expect(onOpenImage).toHaveBeenCalledTimes(1);
+    const [images0, index0, handle0] = onOpenImage.mock.calls[0]!;
+    expect(handle0).toBe('@Zort70');
+    expect(index0).toBe(0);
+    expect(images0).toHaveLength(2);
+    expect(images0[0]).toMatchObject({
+      fileName: 'abc.jpg',
+      src: '/avatars/Season4/CrossTheLine/abc.jpg',
       blobPath: 'avatars/Season4/CrossTheLine/abc.jpg',
       campaignId: 'crosstheline',
+      author: {
+        handle: '@Zort70',
+        displayName: 'Sarah Proost',
+        twitterUrl: 'https://twitter.com/Zort70',
+        confidence: 'high',
+        candidates: [],
+      },
     });
-
-    // Clicking a different thumbnail dispatches the matching blobPath, not the
-    // first image's. Guards against a regression where the click handler
-    // captures the wrong row from the map.
-    fireEvent.click(buttons[1]!);
-    expect(onOpenImage).toHaveBeenLastCalledWith({
+    expect(images0[1]).toMatchObject({
+      fileName: 'def.jpg',
       blobPath: 'avatars/Season4/CrossTheLine/def.jpg',
       campaignId: 'crosstheline',
     });
+
+    // Clicking a different thumbnail dispatches the matching index. Guards
+    // against a regression where the click handler captures the wrong row
+    // from the map.
+    fireEvent.click(buttons[1]!);
+    const [, index1, handle1] = onOpenImage.mock.calls[1]!;
+    expect(index1).toBe(1);
+    expect(handle1).toBe('@Zort70');
   });
 
   it('clears stale data and error when the handle prop changes', async () => {
