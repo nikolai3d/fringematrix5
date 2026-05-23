@@ -15,3 +15,33 @@
 // validation list are always in sync (exhaustiveness guaranteed by derivation).
 export const VALID_CONTENT_PAGES = ['history', 'credits', 'legal'] as const;
 export type ContentPage = (typeof VALID_CONTENT_PAGES)[number];
+
+// Image attribution / authorship types.
+// On-disk data lives in data/attribution.json (per-blob-path) and
+// data/authors.yaml (one entry per known handle). The wire shapes below are
+// what the API serves; the server is responsible for joining the two sources.
+
+export type AttributionConfidence = 'high' | 'medium' | 'unresolved';
+
+// Wire-format shape attached to each image returned by
+// GET /api/campaigns/:id/images once the enrichment lands.
+export interface ImageAuthor {
+  handle: string | null;       // resolved handle, e.g. "@Zort70", or null when unresolved
+  displayName: string | null;  // resolved display name, or null when unresolved
+  twitterUrl: string | null;
+  confidence: AttributionConfidence;
+  candidates: string[];        // populated when confidence !== 'high'; list of "@handle" strings
+}
+
+// Author entry surfaced by /api/authors and /api/authors/:handle.
+export interface Author {
+  handle: string;
+  name: string;
+  twitterUrl: string | null;
+  alternateHandles: string[];
+  roles: string[];
+}
+
+export interface AuthorWithCount extends Author {
+  imageCount: number;
+}
