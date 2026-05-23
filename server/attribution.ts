@@ -72,14 +72,16 @@ function loadAuthors(): { authors: AuthorRecord[]; index: Map<string, AuthorReco
 
   // Build a lowercase-keyed index covering both the primary handle and every
   // alternate_handles entry, so getAuthorByHandle() is O(1) per lookup.
+  // Whitespace-only strings are skipped so accidental empty/whitespace YAML
+  // entries cannot pollute the index with a bare '@' key.
   const index = new Map<string, AuthorRecord>();
   for (const author of authors) {
-    if (typeof author.handle === 'string' && author.handle.length > 0) {
+    if (typeof author.handle === 'string' && author.handle.trim().length > 0) {
       index.set(normalizeHandle(author.handle), author);
     }
     const alts = Array.isArray(author.alternate_handles) ? author.alternate_handles : [];
     for (const alt of alts) {
-      if (typeof alt === 'string' && alt.length > 0) {
+      if (typeof alt === 'string' && alt.trim().length > 0) {
         index.set(normalizeHandle(alt), author);
       }
     }
@@ -144,7 +146,7 @@ export function getAuthorByHandle(handle: string): AuthorRecord | null {
  * callers must pass the full blob key, not just a filename.
  */
 export function getAttributionForPath(blobPath: string): AttributionRecord | null {
-  if (typeof blobPath !== 'string' || blobPath.length === 0) {
+  if (typeof blobPath !== 'string' || blobPath.trim().length === 0) {
     return null;
   }
   const table = ensureAttributionLoaded();

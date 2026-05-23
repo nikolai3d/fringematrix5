@@ -18,13 +18,15 @@ import {
 // ---------------------------------------------------------------------------
 
 beforeEach(() => {
-  jest.spyOn(console, 'error').mockImplementation(() => {});
-  jest.spyOn(console, 'log').mockImplementation(() => {});
   // Reset the module-level caches so each test starts from a clean slate.
+  // (No console spies here — attribution.ts does not log, so suppressing
+  // console output would only hide unexpected logs from other code.)
   resetAttributionCache();
 });
 
 afterEach(() => {
+  // Restore any fs.readFileSync / other spies installed inside individual
+  // tests, preventing a mid-test failure from leaking state into the next.
   jest.restoreAllMocks();
 });
 
@@ -115,7 +117,7 @@ describe('getAuthorByHandle()', () => {
     expect(getAuthorByHandle('@definitely-not-a-real-handle-zzz')).toBeNull();
   });
 
-  it('returns null for empty or non-string inputs', () => {
+  it('returns null for empty or whitespace-only inputs', () => {
     expect(getAuthorByHandle('')).toBeNull();
     expect(getAuthorByHandle('   ')).toBeNull();
   });
@@ -156,8 +158,9 @@ describe('getAttributionForPath()', () => {
     ).toBeNull();
   });
 
-  it('returns null for empty or non-string inputs', () => {
+  it('returns null for empty or whitespace-only inputs', () => {
     expect(getAttributionForPath('')).toBeNull();
+    expect(getAttributionForPath('   ')).toBeNull();
   });
 
   it('does NOT match by filename alone — full blob path is required', () => {
