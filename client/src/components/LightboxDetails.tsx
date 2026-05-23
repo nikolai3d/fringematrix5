@@ -200,9 +200,14 @@ function LightboxDetails({ campaign, author, onOpenAuthorGallery, onOpenCampaign
       <div className="lightbox-details-heading">IMAGE DETAILS</div>
       <Row label="EPISODE NAME">
         {handleOpenCampaign ? (
+          // Intentionally NOT given the `lightbox-details-link` class — that
+          // class is shared with external <a> anchors (e.g. IMDB) and an
+          // e2e test (lightbox-redesign.spec.ts) relies on it identifying
+          // the external link via `.first()`. We use a dedicated class
+          // here and inline the link-like styling in styles.css.
           <button
             type="button"
-            className="lightbox-details-link lightbox-details-campaign-link"
+            className="lightbox-details-campaign-link"
             onClick={handleOpenCampaign}
             aria-label={`View campaign gallery for ${campaign.episode}`}
           >

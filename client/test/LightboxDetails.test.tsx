@@ -121,7 +121,14 @@ describe('LightboxDetails', () => {
       expect(onOpen).toHaveBeenCalledWith('crosstheline');
     });
 
-    it('is keyboard-activatable (Enter triggers click)', () => {
+    it('is focusable and uses a native <button> so the browser handles Enter/Space activation', () => {
+      // We intentionally do NOT dispatch a synthetic keydown here: jsdom
+      // does not translate Enter on a <button> into a click event, so a
+      // fake keypress would only test our scaffolding rather than the
+      // contract. The acceptance criterion ("Enter activates") is met by
+      // being a real <button> with type="button" and an onClick handler —
+      // real browsers perform the Enter/Space → click translation natively.
+      // (Copilot reviewer flagged the previous test's misleading name.)
       const onOpen = vi.fn();
       render(
         <LightboxDetails campaign={SAMPLE_CAMPAIGN} onOpenCampaignGallery={onOpen} />
@@ -129,14 +136,13 @@ describe('LightboxDetails', () => {
       const btn = screen.getByRole('button', {
         name: /view campaign gallery/i,
       }) as HTMLButtonElement;
+      // Focusable via .focus().
       btn.focus();
       expect(document.activeElement).toBe(btn);
-      // <button> elements natively activate onClick when Enter is pressed
-      // and the click is dispatched by the browser. In jsdom we simulate
-      // that by firing a click event directly — the production behaviour
-      // is covered by browser semantics for <button type="button">.
-      fireEvent.click(btn);
-      expect(onOpen).toHaveBeenCalledWith('crosstheline');
+      // Native <button>, not a div+role.
+      expect(btn.tagName).toBe('BUTTON');
+      // Not disabled.
+      expect(btn.hasAttribute('disabled')).toBe(false);
     });
 
     it('keeps the IMDB row as a real external anchor (not affected by the new affordance)', () => {
