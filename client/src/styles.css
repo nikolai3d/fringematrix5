@@ -480,6 +480,31 @@ footer.navbar {
 }
 .lightbox-details-link:hover { text-decoration: underline; }
 .lightbox-details-external { font-size: 0.85em; }
+/* EPISODE NAME affordance — fringematrix5-c320. Resets default <button>
+   chrome so the inline campaign-gallery link is visually consistent with
+   the IMDB anchor while remaining keyboard- and screen-reader-friendly.
+   Note: deliberately does NOT reuse the .lightbox-details-link class
+   because an e2e selector relies on that class identifying external <a>
+   anchors only. The visual rules are duplicated here on purpose. */
+.lightbox-details-campaign-link {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  color: var(--theme-accent);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.lightbox-details-campaign-link:hover { text-decoration: underline; }
+.lightbox-details-campaign-link:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 2px;
+}
 .lightbox-details-empty {
   color: rgba(255, 255, 255, 0.55);
   font-style: italic;

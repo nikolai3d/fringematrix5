@@ -29,6 +29,12 @@ interface Props {
    * LightboxDetails. See fringematrix5-4a6o.
    */
   onOpenAuthorGallery?: (handle: string) => void;
+  /**
+   * Forwarded to `LightboxDetails` so the EPISODE NAME affordance can close
+   * the lightbox and select the source campaign. See LightboxDetails for the
+   * full contract.
+   */
+  onOpenCampaignGallery?: (campaignId: string) => void;
 }
 
 export default function LightboxContainer({
@@ -41,6 +47,7 @@ export default function LightboxContainer({
   closeLightbox,
   isAnimatingRef,
   onOpenAuthorGallery,
+  onOpenCampaignGallery,
 }: Props) {
   const swipeRef = useRef<{ startX: number; startY: number; startTime: number } | null>(null);
   const infoBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -265,6 +272,7 @@ export default function LightboxContainer({
               campaign={activeCampaign}
               author={images[lightboxIndex]?.author ?? null}
               onOpenAuthorGallery={onOpenAuthorGallery}
+              onOpenCampaignGallery={onOpenCampaignGallery}
             />
           </aside>
         </div>
@@ -345,6 +353,7 @@ export default function LightboxContainer({
             campaign={activeCampaign}
             author={images[lightboxIndex]?.author ?? null}
             onOpenAuthorGallery={onOpenAuthorGallery}
+            onOpenCampaignGallery={onOpenCampaignGallery}
           />
         </div>
       )}

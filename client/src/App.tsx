@@ -578,6 +578,22 @@ export default function App() {
     openLightboxForCampaign,
   ]);
 
+  // Stable handler for the EPISODE NAME affordance in `LightboxDetails`.
+  // Hoisted into useCallback so `LightboxDetails` — which is React.memo'd —
+  // doesn't re-render on every App render just because a fresh inline arrow
+  // would change prop identity. (Spotted in Copilot review of fringematrix5-c320.)
+  const handleOpenCampaignGallery = useCallback((campaignId: string) => {
+    // Always close the lightbox; if the gallery is already showing this
+    // campaign the selectCampaign call is a no-op and we just return to
+    // the existing view. When author-browse mode (fringematrix5-ik5)
+    // lands and the lightbox can show images from a non-active
+    // campaign, this same branch will perform a real switch.
+    closeLightbox();
+    if (campaignId !== activeCampaignId) {
+      selectCampaign(campaignId);
+    }
+  }, [closeLightbox, activeCampaignId, selectCampaign]);
+
   // Centralized function to close all subwindows - add new subwindows here
   const closeAllSubwindows = useCallback(() => {
     if (isLightboxOpen) closeLightbox();
@@ -836,6 +852,7 @@ export default function App() {
         closeLightbox={closeLightbox}
         isAnimatingRef={isAnimatingRef}
         onOpenAuthorGallery={handleOpenAuthorGalleryFromLightbox}
+        onOpenCampaignGallery={handleOpenCampaignGallery}
       />
 
       {/* Settings Modal */}
