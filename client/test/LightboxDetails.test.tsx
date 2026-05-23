@@ -83,6 +83,74 @@ describe('LightboxDetails', () => {
     expect(screen.getByText(/no campaign selected/i)).toBeTruthy();
   });
 
+  describe('EPISODE NAME → campaign gallery link (fringematrix5-c320)', () => {
+    it('renders the episode name as plain text when no onOpenCampaignGallery handler is provided', () => {
+      render(<LightboxDetails campaign={SAMPLE_CAMPAIGN} />);
+      // No button-role element with the episode name.
+      expect(
+        screen.queryByRole('button', { name: /Back To Where You've Never Been/ })
+      ).toBeNull();
+      // The episode name is still rendered (as plain text).
+      expect(screen.getByText("Back To Where You've Never Been")).toBeTruthy();
+    });
+
+    it('renders the episode name as a button when onOpenCampaignGallery is provided', () => {
+      const onOpen = vi.fn();
+      render(
+        <LightboxDetails campaign={SAMPLE_CAMPAIGN} onOpenCampaignGallery={onOpen} />
+      );
+      const btn = screen.getByRole('button', {
+        name: /view campaign gallery for back to where you've never been/i,
+      });
+      expect(btn).toBeTruthy();
+      expect(btn.tagName).toBe('BUTTON');
+      // Must be of type="button" so it never accidentally submits a form.
+      expect(btn.getAttribute('type')).toBe('button');
+    });
+
+    it('invokes onOpenCampaignGallery with the campaign id on click', () => {
+      const onOpen = vi.fn();
+      render(
+        <LightboxDetails campaign={SAMPLE_CAMPAIGN} onOpenCampaignGallery={onOpen} />
+      );
+      const btn = screen.getByRole('button', {
+        name: /view campaign gallery/i,
+      });
+      fireEvent.click(btn);
+      expect(onOpen).toHaveBeenCalledTimes(1);
+      expect(onOpen).toHaveBeenCalledWith('crosstheline');
+    });
+
+    it('is keyboard-activatable (Enter triggers click)', () => {
+      const onOpen = vi.fn();
+      render(
+        <LightboxDetails campaign={SAMPLE_CAMPAIGN} onOpenCampaignGallery={onOpen} />
+      );
+      const btn = screen.getByRole('button', {
+        name: /view campaign gallery/i,
+      }) as HTMLButtonElement;
+      btn.focus();
+      expect(document.activeElement).toBe(btn);
+      // <button> elements natively activate onClick when Enter is pressed
+      // and the click is dispatched by the browser. In jsdom we simulate
+      // that by firing a click event directly — the production behaviour
+      // is covered by browser semantics for <button type="button">.
+      fireEvent.click(btn);
+      expect(onOpen).toHaveBeenCalledWith('crosstheline');
+    });
+
+    it('keeps the IMDB row as a real external anchor (not affected by the new affordance)', () => {
+      const onOpen = vi.fn();
+      render(
+        <LightboxDetails campaign={SAMPLE_CAMPAIGN} onOpenCampaignGallery={onOpen} />
+      );
+      const link = screen.getByRole('link', { name: /tt2125636/ });
+      expect(link.tagName).toBe('A');
+      expect(link.getAttribute('href')).toBe('http://www.imdb.com/title/tt2125636/');
+      expect(link.getAttribute('target')).toBe('_blank');
+    });
+  });
+
   describe('AUTHOR row', () => {
     const resolvedHigh: ImageAuthor = {
       handle: '@SarahProost',

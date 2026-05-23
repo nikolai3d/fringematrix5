@@ -836,6 +836,17 @@ export default function App() {
         closeLightbox={closeLightbox}
         isAnimatingRef={isAnimatingRef}
         onOpenAuthorGallery={handleOpenAuthorGalleryFromLightbox}
+        onOpenCampaignGallery={(campaignId) => {
+          // Always close the lightbox; if the gallery is already showing this
+          // campaign the selectCampaign call is a no-op and we just return to
+          // the existing view. When author-browse mode (fringematrix5-ik5)
+          // lands and the lightbox can show images from a non-active
+          // campaign, this same branch will perform a real switch.
+          closeLightbox();
+          if (campaignId !== activeCampaignId) {
+            selectCampaign(campaignId);
+          }
+        }}
       />
 
       {/* Settings Modal */}
