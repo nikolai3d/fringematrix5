@@ -658,8 +658,11 @@ app.get('/api/glyphs', async (_req: Request, res: Response): Promise<void> => {
   }
 });
 
-// Cache-Control header value shared by /api/campaigns, /api/build-info,
-// and the /api/authors endpoints below.
+// Cache-Control header value used by the /api/authors endpoints below.
+// This is the same string the /api/campaigns and /api/build-info handlers
+// hard-code inline; hoisting a single shared constant across all three
+// endpoints is a tidy follow-up but is left out of this PR to keep it
+// strictly scoped to the new attribution routes.
 const AUTHORS_CACHE_CONTROL = 'public, max-age=3600, stale-while-revalidate=86400';
 
 /**
@@ -770,8 +773,10 @@ app.get('/api/authors/:handle', (req: Request, res: Response): void => {
       if (!campaignId) continue;
 
       const fileName = blobPath.split('/').pop() || '';
-      // Strip the leading "avatars/" so the public path matches the
-      // /avatars/* redirect route which already handles CDN resolution.
+      // blobPath already starts with "avatars/" (it's the on-disk key), so
+      // prefixing a leading "/" yields "/avatars/<rest>", which the existing
+      // /avatars/* redirect route resolves to the Vercel Blob CDN URL on
+      // request. No need to hit the blob API from this handler.
       const src = `/${blobPath}`;
       images.push({
         src,
