@@ -660,3 +660,48 @@ describe('useCampaignLoader — selectCampaign cache-hit (renderHook)', () => {
     expect(result.current.isCampaignLoading).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// 10. campaignId stamping (fringematrix5-uyp)
+// ---------------------------------------------------------------------------
+
+describe('useCampaignLoader — campaignId stamping', () => {
+  it('stamps the loading campaign id onto every fully-loaded ImageData', async () => {
+    fetchSpy.mockResolvedValueOnce(makeImagesResponse([
+      { fileName: 'a.jpg', src: 'https://cdn.example.com/a.jpg' },
+      { fileName: 'b.jpg', src: 'https://cdn.example.com/b.jpg' },
+    ]));
+
+    const { result } = renderHook(() => useCampaignLoader());
+    const controller = new AbortController();
+
+    await act(async () => {
+      await result.current.loadCampaignImages('S04E11', controller.signal);
+    });
+
+    expect(result.current.currentImages).toHaveLength(2);
+    expect(result.current.currentImages[0].campaignId).toBe('S04E11');
+    expect(result.current.currentImages[1].campaignId).toBe('S04E11');
+  });
+
+  it('stamps the campaign id even when an image errors during preload', async () => {
+    // Source mapping must be independent of preload outcomes — the fully-
+    // loaded mapping runs even when hasError=true.
+    imageFireMap.set('https://cdn.example.com/bad.jpg', 'error');
+
+    fetchSpy.mockResolvedValueOnce(makeImagesResponse([
+      { fileName: 'bad.jpg', src: 'https://cdn.example.com/bad.jpg' },
+    ]));
+
+    const { result } = renderHook(() => useCampaignLoader());
+    const controller = new AbortController();
+
+    await act(async () => {
+      await result.current.loadCampaignImages('S05E01', controller.signal);
+    });
+
+    expect(result.current.campaignLoadError).toBe(true);
+    expect(result.current.currentImages).toHaveLength(1);
+    expect(result.current.currentImages[0].campaignId).toBe('S05E01');
+  });
+});
