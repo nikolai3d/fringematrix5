@@ -46,6 +46,12 @@ interface Props {
    * LightboxDetails. See fringematrix5-4a6o.
    */
   onOpenAuthorGallery?: (handle: string) => void;
+  /**
+   * Forwarded to `LightboxDetails` so the EPISODE NAME affordance can close
+   * the lightbox and select the source campaign. See LightboxDetails for the
+   * full contract.
+   */
+  onOpenCampaignGallery?: (campaignId: string) => void;
 }
 
 export default function LightboxContainer({
@@ -59,6 +65,7 @@ export default function LightboxContainer({
   closeLightbox,
   isAnimatingRef,
   onOpenAuthorGallery,
+  onOpenCampaignGallery,
 }: Props) {
   // Index campaigns by id once per render of `campaigns` so the per-image
   // lookup below is O(1). Memoizing also stabilizes the map reference so
@@ -303,6 +310,7 @@ export default function LightboxContainer({
               campaign={currentCampaign}
               author={currentImage?.author ?? null}
               onOpenAuthorGallery={onOpenAuthorGallery}
+              onOpenCampaignGallery={onOpenCampaignGallery}
             />
           </aside>
         </div>
@@ -383,6 +391,7 @@ export default function LightboxContainer({
             campaign={currentCampaign}
             author={currentImage?.author ?? null}
             onOpenAuthorGallery={onOpenAuthorGallery}
+            onOpenCampaignGallery={onOpenCampaignGallery}
           />
         </div>
       )}

@@ -83,6 +83,80 @@ describe('LightboxDetails', () => {
     expect(screen.getByText(/no campaign selected/i)).toBeTruthy();
   });
 
+  describe('EPISODE NAME → campaign gallery link (fringematrix5-c320)', () => {
+    it('renders the episode name as plain text when no onOpenCampaignGallery handler is provided', () => {
+      render(<LightboxDetails campaign={SAMPLE_CAMPAIGN} />);
+      // No button-role element with the episode name.
+      expect(
+        screen.queryByRole('button', { name: /Back To Where You've Never Been/ })
+      ).toBeNull();
+      // The episode name is still rendered (as plain text).
+      expect(screen.getByText("Back To Where You've Never Been")).toBeTruthy();
+    });
+
+    it('renders the episode name as a button when onOpenCampaignGallery is provided', () => {
+      const onOpen = vi.fn();
+      render(
+        <LightboxDetails campaign={SAMPLE_CAMPAIGN} onOpenCampaignGallery={onOpen} />
+      );
+      const btn = screen.getByRole('button', {
+        name: /view campaign gallery for back to where you've never been/i,
+      });
+      expect(btn).toBeTruthy();
+      expect(btn.tagName).toBe('BUTTON');
+      // Must be of type="button" so it never accidentally submits a form.
+      expect(btn.getAttribute('type')).toBe('button');
+    });
+
+    it('invokes onOpenCampaignGallery with the campaign id on click', () => {
+      const onOpen = vi.fn();
+      render(
+        <LightboxDetails campaign={SAMPLE_CAMPAIGN} onOpenCampaignGallery={onOpen} />
+      );
+      const btn = screen.getByRole('button', {
+        name: /view campaign gallery/i,
+      });
+      fireEvent.click(btn);
+      expect(onOpen).toHaveBeenCalledTimes(1);
+      expect(onOpen).toHaveBeenCalledWith('crosstheline');
+    });
+
+    it('is focusable and uses a native <button> so the browser handles Enter/Space activation', () => {
+      // We intentionally do NOT dispatch a synthetic keydown here: jsdom
+      // does not translate Enter on a <button> into a click event, so a
+      // fake keypress would only test our scaffolding rather than the
+      // contract. The acceptance criterion ("Enter activates") is met by
+      // being a real <button> with type="button" and an onClick handler —
+      // real browsers perform the Enter/Space → click translation natively.
+      // (Copilot reviewer flagged the previous test's misleading name.)
+      const onOpen = vi.fn();
+      render(
+        <LightboxDetails campaign={SAMPLE_CAMPAIGN} onOpenCampaignGallery={onOpen} />
+      );
+      const btn = screen.getByRole('button', {
+        name: /view campaign gallery/i,
+      }) as HTMLButtonElement;
+      // Focusable via .focus().
+      btn.focus();
+      expect(document.activeElement).toBe(btn);
+      // Native <button>, not a div+role.
+      expect(btn.tagName).toBe('BUTTON');
+      // Not disabled.
+      expect(btn.hasAttribute('disabled')).toBe(false);
+    });
+
+    it('keeps the IMDB row as a real external anchor (not affected by the new affordance)', () => {
+      const onOpen = vi.fn();
+      render(
+        <LightboxDetails campaign={SAMPLE_CAMPAIGN} onOpenCampaignGallery={onOpen} />
+      );
+      const link = screen.getByRole('link', { name: /tt2125636/ });
+      expect(link.tagName).toBe('A');
+      expect(link.getAttribute('href')).toBe('http://www.imdb.com/title/tt2125636/');
+      expect(link.getAttribute('target')).toBe('_blank');
+    });
+  });
+
   describe('AUTHOR row', () => {
     const resolvedHigh: ImageAuthor = {
       handle: '@SarahProost',

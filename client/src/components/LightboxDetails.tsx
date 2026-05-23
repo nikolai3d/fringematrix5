@@ -17,6 +17,18 @@ interface Props {
    * tests and any context where in-app author navigation isn't applicable.
    */
   onOpenAuthorGallery?: (handle: string) => void;
+  /**
+   * Called when the user activates the EPISODE NAME affordance. Receives the
+   * id of the image's source campaign. The handler is expected to close the
+   * lightbox and, if the gallery isn't already showing that campaign, switch
+   * to it. When omitted, the EPISODE NAME value renders as plain text.
+   *
+   * The callback signature takes a campaignId (rather than capturing the
+   * current `campaign.id` internally) so it stays correct once the lightbox
+   * begins displaying images from different campaigns — i.e. author-browse
+   * mode in fringematrix5-ik5.
+   */
+  onOpenCampaignGallery?: (campaignId: string) => void;
 }
 
 interface RowProps {
@@ -163,7 +175,7 @@ function AuthorRow({
  * author props haven't changed — e.g. during prev/next image navigation
  * within the same campaign.
  */
-function LightboxDetails({ campaign, author, onOpenAuthorGallery }: Props) {
+function LightboxDetails({ campaign, author, onOpenAuthorGallery, onOpenCampaignGallery }: Props) {
   if (!campaign) {
     return (
       <>
@@ -178,10 +190,33 @@ function LightboxDetails({ campaign, author, onOpenAuthorGallery }: Props) {
   const imdbId = extractImdbId(campaign.imdb_link);
   const imdbLinkText = imdbId ?? campaign.imdb_link ?? null;
 
+  const campaignId = campaign.id;
+  const handleOpenCampaign = onOpenCampaignGallery
+    ? () => onOpenCampaignGallery(campaignId)
+    : null;
+
   return (
     <>
       <div className="lightbox-details-heading">IMAGE DETAILS</div>
-      <Row label="EPISODE NAME">{campaign.episode}</Row>
+      <Row label="EPISODE NAME">
+        {handleOpenCampaign ? (
+          // Intentionally NOT given the `lightbox-details-link` class — that
+          // class is shared with external <a> anchors (e.g. IMDB) and an
+          // e2e test (lightbox-redesign.spec.ts) relies on it identifying
+          // the external link via `.first()`. We use a dedicated class
+          // here and inline the link-like styling in styles.css.
+          <button
+            type="button"
+            className="lightbox-details-campaign-link"
+            onClick={handleOpenCampaign}
+            aria-label={`View campaign gallery for ${campaign.episode}`}
+          >
+            {campaign.episode}
+          </button>
+        ) : (
+          campaign.episode
+        )}
+      </Row>
       <Row label="SEASON / NUMBER">{seasonNumberLabel}</Row>
       <Row label="AIR DATE">{campaign.date}</Row>
       <Row label="HASHTAG">{`#${campaign.hashtag}`}</Row>
