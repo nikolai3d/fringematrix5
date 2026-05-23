@@ -49,6 +49,14 @@ export default function App() {
   } = useCampaignLoader();
   const [lightboxIndex, setLightboxIndex] = useState<number>(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState<boolean>(false);
+  // When the user clicks a thumbnail on the author-detail page we navigate to
+  // the containing campaign and remember which image to open in the lightbox.
+  // An effect below watches `currentImages` and opens the lightbox once the
+  // campaign has finished loading and the matching image is present. Stored
+  // as state (not a ref) so React re-renders trigger the effect.
+  const [pendingLightboxImage, setPendingLightboxImage] = useState<
+    { blobPath: string; campaignId: string } | null
+  >(null);
   const [hideLightboxImage, setHideLightboxImage] = useState<boolean>(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isBuildInfoOpen, setIsBuildInfoOpen] = useState<boolean>(false);
@@ -117,11 +125,23 @@ export default function App() {
   const navigateToAuthorDetail = useCallback((handle: string) => {
     window.location.hash = `authors/${encodeURIComponent(handle)}`;
   }, []);
-  const navigateToCampaign = useCallback((campaignId: string) => {
-    // Setting the hash triggers hashchange → setRoute({ type: 'gallery', ... }),
-    // and the gallery view's effect (further below) syncs activeCampaignId.
-    window.location.hash = campaignId;
-  }, []);
+  // Click handler for author-detail thumbnails. Navigates to the source
+  // campaign and stashes the target image so the effect below can open the
+  // lightbox once `currentImages` arrives.
+  //
+  // Defensive: if matching ever fails (e.g. blobPath mismatch from an older
+  // server build), the effect simply clears `pendingLightboxImage` and the
+  // user lands on the campaign gallery rather than getting stuck.
+  const openImageFromAuthorPage = useCallback(
+    ({ blobPath, campaignId }: { blobPath: string; campaignId: string }) => {
+      setPendingLightboxImage({ blobPath, campaignId });
+      // Setting the hash drives the same route-sync effect that
+      // navigateToCampaign uses; the campaign loader will fire and
+      // `currentImages` updates downstream.
+      window.location.hash = campaignId;
+    },
+    [],
+  );
   const navigateToGalleryHome = useCallback(() => {
     // Drop the hash entirely so the gallery view falls back to its default
     // campaign on next mount; for the current session we just clear route.
@@ -467,6 +487,40 @@ export default function App() {
     getThumbElement,
   });
 
+  // Open the lightbox at the image flagged by `pendingLightboxImage` once the
+  // matching campaign has finished loading. We wait for `isCampaignLoading`
+  // to flip false so the lightbox renders against the fully-loaded image
+  // array (placeholder rows have `src: null` and would briefly flash blank).
+  //
+  // Defensive: if `currentImages` contains no entry whose blobPath matches we
+  // still clear `pendingLightboxImage` so a transient mismatch does not trap
+  // the user in a half-open state — they land on the campaign gallery and
+  // can find the image manually.
+  //
+  // The `activeCampaignId === pendingLightboxImage.campaignId` guard prevents
+  // us from opening the lightbox on the wrong campaign mid-switch (e.g. if
+  // the user clicks one author thumbnail and then another while the first
+  // campaign is still loading).
+  useEffect(() => {
+    if (!pendingLightboxImage) return;
+    if (activeCampaignId !== pendingLightboxImage.campaignId) return;
+    if (isCampaignLoading) return;
+    if (currentImages.length === 0) return;
+    const idx = currentImages.findIndex(
+      (img) => img.blobPath === pendingLightboxImage.blobPath,
+    );
+    if (idx >= 0) {
+      openLightbox(idx);
+    }
+    setPendingLightboxImage(null);
+  }, [
+    pendingLightboxImage,
+    currentImages,
+    activeCampaignId,
+    isCampaignLoading,
+    openLightbox,
+  ]);
+
   // Centralized function to close all subwindows - add new subwindows here
   const closeAllSubwindows = useCallback(() => {
     if (isLightboxOpen) closeLightbox();
@@ -648,7 +702,7 @@ export default function App() {
         <AuthorDetail
           handle={route.handle}
           onBack={navigateToAuthorsIndex}
-          onSelectCampaign={navigateToCampaign}
+          onOpenImage={openImageFromAuthorPage}
         />
       )}
 

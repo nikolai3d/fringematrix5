@@ -53,7 +53,7 @@ describe('AuthorDetail', () => {
       <AuthorDetail
         handle="@Zort70"
         onBack={() => {}}
-        onSelectCampaign={() => {}}
+        onOpenImage={() => {}}
       />,
     );
 
@@ -75,23 +75,35 @@ describe('AuthorDetail', () => {
     expect(grid.querySelectorAll('img').length).toBe(2);
   });
 
-  it('navigates to the campaign when a thumbnail is clicked', async () => {
+  it('opens the lightbox for the clicked image (blobPath + campaignId)', async () => {
     globalThis.fetch = mockFetch(SAMPLE_DETAIL) as unknown as typeof fetch;
-    const onSelectCampaign = vi.fn();
+    const onOpenImage = vi.fn();
 
     render(
       <AuthorDetail
         handle="@Zort70"
         onBack={() => {}}
-        onSelectCampaign={onSelectCampaign}
+        onOpenImage={onOpenImage}
       />,
     );
 
     const grid = await screen.findByTestId('author-images-grid');
-    const firstButton = grid.querySelector('button')!;
-    fireEvent.click(firstButton);
+    const buttons = grid.querySelectorAll('button');
+    fireEvent.click(buttons[0]!);
 
-    expect(onSelectCampaign).toHaveBeenCalledWith('crosstheline');
+    expect(onOpenImage).toHaveBeenCalledWith({
+      blobPath: 'avatars/Season4/CrossTheLine/abc.jpg',
+      campaignId: 'crosstheline',
+    });
+
+    // Clicking a different thumbnail dispatches the matching blobPath, not the
+    // first image's. Guards against a regression where the click handler
+    // captures the wrong row from the map.
+    fireEvent.click(buttons[1]!);
+    expect(onOpenImage).toHaveBeenLastCalledWith({
+      blobPath: 'avatars/Season4/CrossTheLine/def.jpg',
+      campaignId: 'crosstheline',
+    });
   });
 
   it('clears stale data and error when the handle prop changes', async () => {
@@ -115,14 +127,14 @@ describe('AuthorDetail', () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const { rerender } = render(
-      <AuthorDetail handle="@first" onBack={() => {}} onSelectCampaign={() => {}} />,
+      <AuthorDetail handle="@first" onBack={() => {}} onOpenImage={() => {}} />,
     );
     await screen.findByText('First Person');
 
     // Re-render with a different handle — the previous "First Person" header
     // and image grid should disappear immediately while the new fetch runs.
     rerender(
-      <AuthorDetail handle="@second" onBack={() => {}} onSelectCampaign={() => {}} />,
+      <AuthorDetail handle="@second" onBack={() => {}} onOpenImage={() => {}} />,
     );
     expect(screen.queryByText('First Person')).toBeNull();
     expect(screen.queryByTestId('author-images-grid')).toBeNull();
@@ -142,7 +154,7 @@ describe('AuthorDetail', () => {
       <AuthorDetail
         handle="@nope"
         onBack={() => {}}
-        onSelectCampaign={() => {}}
+        onOpenImage={() => {}}
       />,
     );
 
