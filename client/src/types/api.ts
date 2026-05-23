@@ -23,6 +23,12 @@ export interface ApiImageData {
   // Populated by the server's attribution enrichment. Optional + nullable so
   // the client stays defensive against older responses or unresolved authors.
   author?: ImageAuthor | null;
+  // Source campaign id for the image. Author-detail responses populate this
+  // server-side so the lightbox can resolve the source campaign per-image when
+  // browsing across campaigns. Campaign-image responses do NOT populate this
+  // field; the client populates it from the active campaign id when mapping
+  // ApiImageData -> ImageData.
+  campaignId?: string;
 }
 
 // Our internal state can have loading states with null src
@@ -39,6 +45,11 @@ export interface ImageData {
   // Carried through from the server's attribution enrichment so the lightbox
   // AUTHOR row can render without an extra lookup.
   author?: ImageAuthor | null;
+  // Source campaign id for the image. Populated for both campaign-mode
+  // (from the active campaign id) and author-mode (from the author detail
+  // response). Optional + defensive: lightbox consumers that need it must
+  // tolerate older responses where it is missing.
+  campaignId?: string;
 }
 
 export interface BuildInfo {
@@ -91,3 +102,17 @@ export interface AuthorDetailResponse {
     confidence: AttributionConfidence;
   }>;
 }
+
+// Discriminated union describing the image list currently being browsed in
+// the lightbox. The lightbox itself only cares about the `images` array for
+// prev/next/swipe/arrow/counter behavior — the `kind` + extra fields let
+// downstream consumers (e.g. LightboxDetails) resolve view-specific context
+// such as the source campaign or the originating author handle.
+//
+// Today the App opens the lightbox in `campaign` mode from the gallery grid.
+// `author` mode is reserved for the upcoming author-browse flow (filed under
+// fringematrix5-ik5) where the user pages through one author's images across
+// multiple campaigns.
+export type LightboxImageSource =
+  | { kind: 'campaign'; images: ImageData[]; campaignId: string }
+  | { kind: 'author'; images: ImageData[]; handle: string };

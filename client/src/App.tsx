@@ -31,7 +31,8 @@ import type {
   CampaignsResponse,
   BuildInfoResponse,
   ContentPage,
-  ContentResponse
+  ContentResponse,
+  LightboxImageSource,
 } from './types/api';
 
 export default function App() {
@@ -49,6 +50,16 @@ export default function App() {
   } = useCampaignLoader();
   const [lightboxIndex, setLightboxIndex] = useState<number>(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState<boolean>(false);
+  // The image list currently being browsed in the lightbox. Set by whichever
+  // view opens the lightbox (campaign gallery vs. author detail) so the
+  // lightbox can navigate across an arbitrary list — not just the active
+  // campaign's images. Null when the lightbox has never been opened or has
+  // been closed; we fall back to `currentImages` in that case so render code
+  // does not have to handle a null source separately.
+  //
+  // Author-mode source-setters live in fringematrix5-ik5; today only the
+  // campaign-mode setter (openLightboxForCampaign below) is wired up.
+  const [lightboxImageSource, setLightboxImageSource] = useState<LightboxImageSource | null>(null);
   // When the user clicks a thumbnail on the author-detail page we navigate to
   // the containing campaign and remember which image to open in the lightbox.
   // An effect below watches `currentImages` and opens the lightbox once the
@@ -475,9 +486,15 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Images the lightbox is currently navigating. When a source is set we use
+  // it; otherwise we fall back to the active campaign's images so existing
+  // callers (gallery thumbnail clicks) keep working without explicitly
+  // setting a source first.
+  const lightboxImages = lightboxImageSource?.images ?? currentImages;
+
   // Lightbox animations are provided by the useLightboxAnimations hook
   const { openLightbox, closeLightbox, isAnimatingRef } = useLightboxAnimations({
-    images: currentImages,
+    images: lightboxImages,
     isLightboxOpen,
     lightboxIndex,
     reduceMotion,
@@ -486,6 +503,29 @@ export default function App() {
     setHideLightboxImage,
     getThumbElement,
   });
+
+  // Opens the lightbox against the currently active campaign's images. This
+  // is the gallery-grid path; author-detail uses its own opener (added in
+  // fringematrix5-ik5). Sets the campaign-mode source before delegating to
+  // the animation hook's openLightbox so the lightbox renders against the
+  // same array we just stamped into state.
+  const openLightboxForCampaign = useCallback((index: number, thumbEl?: HTMLElement) => {
+    if (activeCampaignId) {
+      setLightboxImageSource({ kind: 'campaign', images: currentImages, campaignId: activeCampaignId });
+    }
+    openLightbox(index, thumbEl);
+  }, [activeCampaignId, currentImages, openLightbox]);
+
+  // Clear the lightbox source once the lightbox has fully closed so we never
+  // hand stale (e.g. a previous campaign's) images to the next open. Safe to
+  // run here: closeLightbox only flips `isLightboxOpen` to false from its
+  // finally block, after all close animations have settled, so nothing is
+  // still reading `lightboxImages` when this fires.
+  useEffect(() => {
+    if (!isLightboxOpen && lightboxImageSource) {
+      setLightboxImageSource(null);
+    }
+  }, [isLightboxOpen, lightboxImageSource]);
 
   // Open the lightbox at the image flagged by `pendingLightboxImage` once the
   // matching campaign has finished loading. We wait for `isCampaignLoading`
@@ -517,7 +557,7 @@ export default function App() {
       (img) => img.blobPath === pendingLightboxImage.blobPath,
     );
     if (idx >= 0) {
-      openLightbox(idx);
+      openLightboxForCampaign(idx);
     }
     setPendingLightboxImage(null);
   }, [
@@ -526,7 +566,7 @@ export default function App() {
     activeCampaignId,
     isCampaignLoading,
     route,
-    openLightbox,
+    openLightboxForCampaign,
   ]);
 
   // Centralized function to close all subwindows - add new subwindows here
@@ -744,7 +784,7 @@ export default function App() {
             ref={galleryGridRef}
             images={currentImages}
             hasCampaign={!!activeCampaign}
-            onImageClick={openLightbox}
+            onImageClick={openLightboxForCampaign}
           />
         </main>
       )}
@@ -778,7 +818,7 @@ export default function App() {
       </footer>
 
       <LightboxContainer
-        images={currentImages}
+        images={lightboxImages}
         lightboxIndex={lightboxIndex}
         isLightboxOpen={isLightboxOpen}
         hideLightboxImage={hideLightboxImage}

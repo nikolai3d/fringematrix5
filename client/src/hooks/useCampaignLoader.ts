@@ -105,6 +105,10 @@ export function useCampaignLoader(): CampaignLoaderState {
       // authors page) can match while images are still preloading and avoid a
       // race where it sees the placeholder array first and clears the pending
       // request prematurely.
+      // campaignId is populated here from the active load's `id` so the
+      // lightbox can resolve the source campaign per-image without an extra
+      // lookup. The API does not echo the campaign id in CampaignImagesResponse
+      // (it's already in the request path), so we stamp it on the client.
       const placeholderImages = campaignImages.map((img: ApiImageData) => ({
         fileName: img.fileName,
         originalSrc: img.src,
@@ -112,6 +116,7 @@ export function useCampaignLoader(): CampaignLoaderState {
         isLoading: true,
         loadedSrc: null,
         blobPath: img.blobPath,
+        campaignId: id,
       }));
       setCurrentImages(placeholderImages);
 
@@ -123,7 +128,8 @@ export function useCampaignLoader(): CampaignLoaderState {
       const fullyLoadedImages = campaignImages.map((img: ApiImageData) => ({
         ...img,
         isLoading: false,
-        loadedSrc: img.src
+        loadedSrc: img.src,
+        campaignId: id,
       }));
 
       setCurrentImages(fullyLoadedImages);
