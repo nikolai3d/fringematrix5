@@ -16,6 +16,10 @@ export interface Campaign {
 export interface ApiImageData {
   fileName: string;
   src: string;
+  // Stable on-disk identifier (e.g. "avatars/Season4/CrossTheLine/abc.jpg").
+  // Optional for defensive compatibility with older responses; the campaign
+  // images endpoint always populates it.
+  blobPath?: string;
   // Populated by the server's attribution enrichment. Optional + nullable so
   // the client stays defensive against older responses or unresolved authors.
   author?: ImageAuthor | null;
@@ -28,6 +32,10 @@ export interface ImageData {
   originalSrc?: string;
   isLoading?: boolean;
   loadedSrc?: string | null;
+  // Stable on-disk identifier carried from the server response so we can match
+  // a specific image across views (e.g. opening the lightbox at the right
+  // image after navigating from the authors page).
+  blobPath?: string;
   // Carried through from the server's attribution enrichment so the lightbox
   // AUTHOR row can render without an extra lookup.
   author?: ImageAuthor | null;

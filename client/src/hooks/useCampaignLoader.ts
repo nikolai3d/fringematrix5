@@ -100,12 +100,18 @@ export function useCampaignLoader(): CampaignLoaderState {
       }
 
       // loadedSrc stays null until preload completes; gallery renders loadedSrc||src so placeholders show nothing while the browser fetches each image.
+      // blobPath is carried even on placeholders so the App-level effect that
+      // opens the lightbox at a specific image (after navigating from the
+      // authors page) can match while images are still preloading and avoid a
+      // race where it sees the placeholder array first and clears the pending
+      // request prematurely.
       const placeholderImages = campaignImages.map((img: ApiImageData) => ({
         fileName: img.fileName,
         originalSrc: img.src,
         src: null,
         isLoading: true,
-        loadedSrc: null
+        loadedSrc: null,
+        blobPath: img.blobPath,
       }));
       setCurrentImages(placeholderImages);
 

@@ -10,24 +10,23 @@ interface Props {
   /** Navigate back to the authors index page. */
   onBack: () => void;
   /**
-   * Navigate to a specific campaign in the main gallery. Used by image
-   * thumbnails on the detail page to jump back to the campaign view.
-   *
-   * Lightbox integration with the source-of-truth state is intentionally
-   * out of scope here — tracked as a follow-up bead.
+   * Open the lightbox at a specific image. The App-level handler selects the
+   * containing campaign and, once its images finish preloading, opens the
+   * lightbox at the matching index. If the lookup fails for any reason the
+   * handler still navigates to the campaign view so the user is not stranded.
    */
-  onSelectCampaign: (campaignId: string) => void;
+  onOpenImage: (params: { blobPath: string; campaignId: string }) => void;
 }
 
 /**
  * Author detail page. Shows the author's avatar, name, handle, image count,
- * and a mini grid of all their attributed images. Clicking a thumbnail
- * navigates to that image's campaign view (no lightbox integration yet).
+ * and a mini grid of all their attributed images. Clicking a thumbnail opens
+ * the lightbox at that image (in its source campaign).
  *
  * Errors render an inline message rather than crashing the app — 404s from a
  * missing handle surface as "Failed to load author".
  */
-export default function AuthorDetail({ handle, onBack, onSelectCampaign }: Props) {
+export default function AuthorDetail({ handle, onBack, onOpenImage }: Props) {
   const [data, setData] = useState<AuthorDetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -131,8 +130,8 @@ export default function AuthorDetail({ handle, onBack, onSelectCampaign }: Props
                   <button
                     type="button"
                     className="author-image-button"
-                    onClick={() => onSelectCampaign(image.campaignId)}
-                    aria-label={`Open campaign ${image.campaignId}`}
+                    onClick={() => onOpenImage({ blobPath: image.blobPath, campaignId: image.campaignId })}
+                    aria-label={`Open image ${image.fileName}`}
                   >
                     <img
                       src={image.src}
