@@ -17,14 +17,18 @@ export const VALID_CONTENT_PAGES = ['history', 'credits', 'legal'] as const;
 export type ContentPage = (typeof VALID_CONTENT_PAGES)[number];
 
 // Image attribution / authorship types.
-// On-disk data lives in data/attribution.json (per-blob-path) and
-// data/authors.yaml (one entry per known handle). The wire shapes below are
-// what the API serves; the server is responsible for joining the two sources.
+// On-disk data (produced by bead fringematrix5-kj7, not yet in-repo) will live
+// in data/attribution.json (per-blob-path entries with raw evidence) and
+// data/authors.yaml (one entry per known handle). The wire shapes below are a
+// deliberately trimmed view of that data — the server joins the two sources
+// and exposes only the fields the client needs.
 
 export type AttributionConfidence = 'high' | 'medium' | 'unresolved';
 
 // Wire-format shape attached to each image returned by
-// GET /api/campaigns/:id/images once the enrichment lands.
+// GET /api/campaigns/:id/images once the enrichment (bead fringematrix5-hzm)
+// lands. Intentionally narrower than the on-disk attribution record: raw
+// fields like `method` and `evidence` stay server-side.
 export interface ImageAuthor {
   handle: string | null;       // resolved handle, e.g. "@Zort70", or null when unresolved
   displayName: string | null;  // resolved display name, or null when unresolved
