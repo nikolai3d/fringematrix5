@@ -516,6 +516,17 @@ export default function App() {
     openLightbox(index, thumbEl);
   }, [activeCampaignId, currentImages, openLightbox]);
 
+  // Clear the lightbox source once the lightbox has fully closed so we never
+  // hand stale (e.g. a previous campaign's) images to the next open. Safe to
+  // run here: closeLightbox only flips `isLightboxOpen` to false from its
+  // finally block, after all close animations have settled, so nothing is
+  // still reading `lightboxImages` when this fires.
+  useEffect(() => {
+    if (!isLightboxOpen && lightboxImageSource) {
+      setLightboxImageSource(null);
+    }
+  }, [isLightboxOpen, lightboxImageSource]);
+
   // Open the lightbox at the image flagged by `pendingLightboxImage` once the
   // matching campaign has finished loading. We wait for `isCampaignLoading`
   // to flip false so the lightbox renders against the fully-loaded image
