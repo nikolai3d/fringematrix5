@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchJSON } from '../utils/fetchJSON';
-import { getInitials } from '../utils/author';
+import { getInitialsFromName } from '../utils/author';
 import { isSafeUrl } from '../utils/isSafeUrl';
 import type { AuthorDetailResponse } from '../types/api';
 
@@ -94,7 +94,7 @@ export default function AuthorDetail({ handle, onBack, onSelectCampaign }: Props
         <>
           <header className="author-detail-header">
             <div className="author-avatar author-avatar-large" aria-hidden={true}>
-              {getInitials(data.author.name) || getInitials(data.author.handle) || '?'}
+              {getInitialsFromName(data.author.name) || '?'}
             </div>
             <div className="author-detail-info">
               <h1>{data.author.name}</h1>

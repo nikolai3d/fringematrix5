@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchJSON } from '../utils/fetchJSON';
-import { getInitials } from '../utils/author';
+import { getInitialsFromName } from '../utils/author';
 import { isSafeUrl } from '../utils/isSafeUrl';
 import type { AuthorsResponse, AuthorWithCount } from '../types/api';
 
@@ -96,10 +96,9 @@ interface AuthorCardProps {
 }
 
 function AuthorCard({ author, onClick }: AuthorCardProps) {
-  // The 5s8 helper expects a handle, but its rules (extract uppercase letters,
-  // else first-2-chars) also produce reasonable initials for display names
-  // like "Sarah Proost" → "SP". Falls back to "?" for empty strings.
-  const initials = getInitials(author.name) || getInitials(author.handle) || '?';
+  // Display-name flavored initials ("Sarah Proost" → "SP"). Falls back to
+  // "?" for empty names so the avatar circle never renders blank.
+  const initials = getInitialsFromName(author.name) || '?';
   const twitterSafe = isSafeUrl(author.twitterUrl);
 
   return (
