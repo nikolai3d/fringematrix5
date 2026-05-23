@@ -28,31 +28,63 @@ async function gotoCampaign(page: Page, campaignId: string) {
 }
 
 /**
- * Click the gallery card whose `alt` exactly matches `fileName` (the client
- * sets `alt={image.fileName}` in ImageCard). Returns false when no such card
- * is visible — typically because the live backend returned an empty image
- * list, in which case the caller should skip.
+ * Result of an attempted lightbox open:
+ *   - 'opened'      : the requested fileName was found and clicked.
+ *   - 'empty'       : the gallery returned no images at all (caller should
+ *                     skip — typically a no-token test environment).
+ *   - 'missing'     : the gallery had images but none matched fileName
+ *                     (caller should fail loudly — a real regression or
+ *                     fixture drift, not an environment issue).
  */
-async function openLightboxForFile(page: Page, fileName: string): Promise<boolean> {
+type OpenResult =
+  | { status: 'opened' }
+  | { status: 'empty' }
+  | { status: 'missing'; available: string[] };
+
+/**
+ * Click the gallery card whose `alt` exactly matches `fileName` (the client
+ * sets `alt={image.fileName}` in ImageCard).
+ *
+ * We deliberately distinguish "no images at all" (skip) from "the specific
+ * fixture file is gone" (hard fail) so that fixture drift on the live blob
+ * store can never silently turn this spec into a no-op.
+ */
+async function openLightboxForFile(page: Page, fileName: string): Promise<OpenResult> {
   const cards = page.locator('.gallery-grid .card img');
-  if ((await cards.count()) === 0) return false;
+  if ((await cards.count()) === 0) return { status: 'empty' };
+
   const target = page.locator(`.gallery-grid .card img[alt="${fileName}"]`);
-  if ((await target.count()) === 0) return false;
+  if ((await target.count()) === 0) {
+    // Capture a sample of available alt values so the failure message points
+    // straight at the likely culprit (file renamed, moved, removed).
+    const available = await cards.evaluateAll((els: Element[]) =>
+      els.slice(0, 10).map((el) => (el as HTMLImageElement).alt)
+    );
+    return { status: 'missing', available };
+  }
+
   await target.first().click();
   await expect(page.locator('#lightbox')).toBeVisible();
   // Make sure the lightbox is showing the intended image — fileName appears
   // in the HUD line ("FILE: <name> // <i> OF <n>").
   await expect(page.locator('.lightbox-hud')).toContainText(fileName);
-  return true;
+  return { status: 'opened' };
 }
 
 test.describe('Lightbox AUTHOR row — resolved (high confidence)', () => {
   test('renders avatar initials and a Twitter link for a known @Zort70 image', async ({ page }) => {
     await gotoCampaign(page, 'beabetterman');
 
-    const opened = await openLightboxForFile(page, 'beabettermanBrown.jpg');
-    if (!opened) {
+    const result = await openLightboxForFile(page, 'beabettermanBrown.jpg');
+    if (result.status === 'empty') {
       test.skip(true, 'No images available in this environment (BLOB_READ_WRITE_TOKEN likely missing).');
+    }
+    if (result.status === 'missing') {
+      throw new Error(
+        `Fixture 'beabettermanBrown.jpg' not found in BeABetterMan campaign. ` +
+        `Available alts (up to 10): ${JSON.stringify(result.available)}. ` +
+        `If the blob storage layout changed, pick another @Zort70 image and update this spec.`
+      );
     }
 
     // Scope assertions to the inline sidebar so we hit a single instance even
@@ -91,9 +123,16 @@ test.describe('Lightbox AUTHOR row — unresolved with candidates', () => {
 
     // Any image inside the fully-unresolved `oil/` folder works; pick the
     // first one alphabetically that we know lives there.
-    const opened = await openLightboxForFile(page, 'OIL_blue.jpg');
-    if (!opened) {
+    const result = await openLightboxForFile(page, 'OIL_blue.jpg');
+    if (result.status === 'empty') {
       test.skip(true, 'No images available in this environment (BLOB_READ_WRITE_TOKEN likely missing).');
+    }
+    if (result.status === 'missing') {
+      throw new Error(
+        `Fixture 'OIL_blue.jpg' not found in ObserveItLive campaign. ` +
+        `Available alts (up to 10): ${JSON.stringify(result.available)}. ` +
+        `If the blob storage layout changed, pick another image from the unresolved oil/ folder and update this spec.`
+      );
     }
 
     const sidebar = page.locator('.lightbox-details').first();
