@@ -1,0 +1,131 @@
+authors:
+  - handle: "@SarahProost"
+    name: "Sarah Proost"
+    twitter_url: "https://twitter.com/SarahProost"
+    alternate_handles: []
+    roles:
+      - "artist"
+    notes: ""
+  - handle: "@Cheribot"
+    name: "Cheribot"
+    twitter_url: "https://twitter.com/Cheribot"
+    alternate_handles:
+      - "@cheribot"
+    roles:
+      - "artist"
+    notes: ""
+  - handle: "@Zort70"
+    name: "Zort70"
+    twitter_url: "https://twitter.com/Zort70"
+    alternate_handles:
+      - "@zort70"
+    roles:
+      - "artist"
+    notes: ""
+  - handle: "@michisuzette"
+    name: "Michi Suzette"
+    twitter_url: "https://twitter.com/michisuzette"
+    alternate_handles: []
+    roles:
+      - "artist"
+    notes: "Season 4 folders 'ATU-Michi', 'CYW-MS', 'MichiSuzette-FY'. Note: a separate Season-5 handle '@michael1701' may or may not be the same person; treated separately for accuracy."
+  - handle: "@GoldenMonkey7"
+    name: "Golden Monkey"
+    twitter_url: "https://twitter.com/GoldenMonkey7"
+    alternate_handles:
+      - "@goldenmonkey"
+    roles:
+      - "artist"
+    notes: ""
+  - handle: "@Nikolai3D"
+    name: "Nikolai (Nikolai3D)"
+    twitter_url: "https://twitter.com/Nikolai3D"
+    alternate_handles: []
+    roles:
+      - "artist"
+      - "developer"
+    notes: "Software development for the Icon Matrix; also contributed icons."
+  - handle: "@FraggleBerlin"
+    name: "Fraggle (FraggleBerlin)"
+    twitter_url: "https://twitter.com/FraggleBerlin"
+    alternate_handles: []
+    roles:
+      - "artist"
+    notes: ""
+  - handle: "@GreyAndSmart"
+    name: "Grey & Smart"
+    twitter_url: "https://twitter.com/GreyAndSmart"
+    alternate_handles: []
+    roles:
+      - "artist"
+    notes: ""
+  - handle: "@SercanErdogan"
+    name: "Sercan Erdogan"
+    twitter_url: "https://twitter.com/SercanErdogan"
+    alternate_handles: []
+    roles:
+      - "artist"
+    notes: ""
+  - handle: "@PietroVescovo"
+    name: "Pietro Vescovo"
+    twitter_url: "https://twitter.com/PietroVescovo"
+    alternate_handles: []
+    roles:
+      - "artist"
+    notes: ""
+  - handle: "@vasus90"
+    name: "vasus90"
+    twitter_url: "https://twitter.com/vasus90"
+    alternate_handles: []
+    roles:
+      - "artist"
+    notes: ""
+  - handle: "@Alart6"
+    name: "Alart6"
+    twitter_url: "https://twitter.com/Alart6"
+    alternate_handles: []
+    roles:
+      - "artist"
+    notes: "Credited (FightTheFuture + several Season 5 campaigns); no individually named folder identified."
+  - handle: "@fringealltheway"
+    name: "Fringe All The Way"
+    twitter_url: "https://twitter.com/fringealltheway"
+    alternate_handles: []
+    roles:
+      - "artist"
+    notes: "Credited (FreeYourMind/FarFromNormal); no individually named folder identified."
+  - handle: "@FringeOnFOX"
+    name: "Fringe on FOX (official)"
+    twitter_url: "https://twitter.com/FringeOnFOX"
+    alternate_handles: []
+    roles:
+      - "artist"
+    notes: "Official FOX/FRINGE account; credited as an image source."
+  - handle: "@GodsGirl1989"
+    name: "GodsGirl1989"
+    twitter_url: "https://twitter.com/GodsGirl1989"
+    alternate_handles: []
+    roles:
+      - "artist"
+    notes: "Credited across Season 5 campaigns; no individually named folder identified."
+  - handle: "@Krishel"
+    name: "Krishel"
+    twitter_url: "https://twitter.com/Krishel"
+    alternate_handles: []
+    roles:
+      - "artist"
+    notes: "Credited across Season 5 campaigns; no individually named folder identified."
+  - handle: "@michael1701"
+    name: "michael1701"
+    twitter_url: "https://twitter.com/michael1701"
+    alternate_handles: []
+    roles:
+      - "artist"
+    notes: "Credited across Season 5 campaigns; no individually named folder was identified, so appears only as a candidate."
+  - handle: "@taychill"
+    name: "taychill"
+    twitter_url: "https://twitter.com/taychill"
+    alternate_handles: []
+    roles:
+      - "artist"
+    notes: "Credited as an artist (Season 5) and as a tester; no individually named folder identified."
