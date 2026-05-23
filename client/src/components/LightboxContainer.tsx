@@ -301,7 +301,7 @@ export default function LightboxContainer({
           >
             <LightboxDetails
               campaign={currentCampaign}
-              author={images[lightboxIndex]?.author ?? null}
+              author={currentImage?.author ?? null}
               onOpenAuthorGallery={onOpenAuthorGallery}
             />
           </aside>
@@ -380,8 +380,8 @@ export default function LightboxContainer({
             ✕
           </button>
           <LightboxDetails
-            campaign={activeCampaign}
-            author={images[lightboxIndex]?.author ?? null}
+            campaign={currentCampaign}
+            author={currentImage?.author ?? null}
             onOpenAuthorGallery={onOpenAuthorGallery}
           />
         </div>
