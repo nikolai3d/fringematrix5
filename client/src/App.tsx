@@ -32,6 +32,7 @@ import type {
   BuildInfoResponse,
   ContentPage,
   ContentResponse,
+  ImageData,
   LightboxImageSource,
 } from './types/api';
 
@@ -57,17 +58,9 @@ export default function App() {
   // been closed; we fall back to `currentImages` in that case so render code
   // does not have to handle a null source separately.
   //
-  // Author-mode source-setters live in fringematrix5-ik5; today only the
-  // campaign-mode setter (openLightboxForCampaign below) is wired up.
+  // Both source kinds are wired up: campaign-mode via openLightboxForCampaign
+  // and author-mode via openLightboxForAuthor (fringematrix5-ik5).
   const [lightboxImageSource, setLightboxImageSource] = useState<LightboxImageSource | null>(null);
-  // When the user clicks a thumbnail on the author-detail page we navigate to
-  // the containing campaign and remember which image to open in the lightbox.
-  // An effect below watches `currentImages` and opens the lightbox once the
-  // campaign has finished loading and the matching image is present. Stored
-  // as state (not a ref) so React re-renders trigger the effect.
-  const [pendingLightboxImage, setPendingLightboxImage] = useState<
-    { blobPath: string; campaignId: string } | null
-  >(null);
   const [hideLightboxImage, setHideLightboxImage] = useState<boolean>(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isBuildInfoOpen, setIsBuildInfoOpen] = useState<boolean>(false);
@@ -136,23 +129,6 @@ export default function App() {
   const navigateToAuthorDetail = useCallback((handle: string) => {
     window.location.hash = `authors/${encodeURIComponent(handle)}`;
   }, []);
-  // Click handler for author-detail thumbnails. Navigates to the source
-  // campaign and stashes the target image so the effect below can open the
-  // lightbox once `currentImages` arrives.
-  //
-  // Defensive: if matching ever fails (e.g. blobPath mismatch from an older
-  // server build), the effect simply clears `pendingLightboxImage` and the
-  // user lands on the campaign gallery rather than getting stuck.
-  const openImageFromAuthorPage = useCallback(
-    ({ blobPath, campaignId }: { blobPath: string; campaignId: string }) => {
-      setPendingLightboxImage({ blobPath, campaignId });
-      // Setting the hash drives the same route-sync effect that
-      // navigateToCampaign uses; the campaign loader will fire and
-      // `currentImages` updates downstream.
-      window.location.hash = campaignId;
-    },
-    [],
-  );
   const navigateToGalleryHome = useCallback(() => {
     // Drop the hash entirely so the gallery view falls back to its default
     // campaign on next mount; for the current session we just clear route.
@@ -516,6 +492,21 @@ export default function App() {
     openLightbox(index, thumbEl);
   }, [activeCampaignId, currentImages, openLightbox]);
 
+  // Opens the lightbox against an author's image list (author-browse mode,
+  // fringematrix5-ik5). The images may span multiple campaigns; each carries
+  // its own `campaignId` and a synthesized `author` block so LightboxDetails
+  // resolves the source campaign and AUTHOR row per-image as the user pages.
+  //
+  // No thumb element is passed: the close animation would otherwise try to
+  // collapse the image back to the originating thumbnail. The author-detail
+  // grid is still mounted underneath the lightbox, so closing returns the
+  // user there directly without a return-flight animation — the existing
+  // useLightboxAnimations close path tolerates a null/missing thumb.
+  const openLightboxForAuthor = useCallback((images: ImageData[], index: number, handle: string) => {
+    setLightboxImageSource({ kind: 'author', images, handle });
+    openLightbox(index);
+  }, [openLightbox]);
+
   // Clear the lightbox source once the lightbox has fully closed so we never
   // hand stale (e.g. a previous campaign's) images to the next open. Safe to
   // run here: closeLightbox only flips `isLightboxOpen` to false from its
@@ -535,48 +526,6 @@ export default function App() {
     closeLightbox();
     navigateToAuthorDetail(handle);
   }, [closeLightbox, navigateToAuthorDetail]);
-
-  // Open the lightbox at the image flagged by `pendingLightboxImage` once the
-  // matching campaign has finished loading. We wait for `isCampaignLoading`
-  // to flip false so the lightbox renders against the fully-loaded image
-  // array (placeholder rows have `src: null` and would briefly flash blank).
-  //
-  // Defensive: if `currentImages` contains no entry whose blobPath matches we
-  // still clear `pendingLightboxImage` so a transient mismatch does not trap
-  // the user in a half-open state — they land on the campaign gallery and
-  // can find the image manually.
-  //
-  // The `activeCampaignId === pendingLightboxImage.campaignId` guard prevents
-  // us from opening the lightbox on the wrong campaign mid-switch (e.g. if
-  // the user clicks one author thumbnail and then another while the first
-  // campaign is still loading).
-  useEffect(() => {
-    if (!pendingLightboxImage) return;
-    // If the user navigated away from the gallery before the campaign
-    // finished loading (e.g. back to the authors index), drop the pending
-    // request so we don't pop a lightbox over a non-gallery view.
-    if (route.type !== 'gallery') {
-      setPendingLightboxImage(null);
-      return;
-    }
-    if (activeCampaignId !== pendingLightboxImage.campaignId) return;
-    if (isCampaignLoading) return;
-    if (currentImages.length === 0) return;
-    const idx = currentImages.findIndex(
-      (img) => img.blobPath === pendingLightboxImage.blobPath,
-    );
-    if (idx >= 0) {
-      openLightboxForCampaign(idx);
-    }
-    setPendingLightboxImage(null);
-  }, [
-    pendingLightboxImage,
-    currentImages,
-    activeCampaignId,
-    isCampaignLoading,
-    route,
-    openLightboxForCampaign,
-  ]);
 
   // Stable handler for the EPISODE NAME affordance in `LightboxDetails`.
   // Hoisted into useCallback so `LightboxDetails` — which is React.memo'd —
@@ -775,7 +724,7 @@ export default function App() {
         <AuthorDetail
           handle={route.handle}
           onBack={navigateToAuthorsIndex}
-          onOpenImage={openImageFromAuthorPage}
+          onOpenImage={openLightboxForAuthor}
         />
       )}
 

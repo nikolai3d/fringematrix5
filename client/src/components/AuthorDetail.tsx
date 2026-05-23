@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { fetchJSON } from '../utils/fetchJSON';
 import { getInitialsFromName } from '../utils/author';
 import { isSafeUrl } from '../utils/isSafeUrl';
-import type { AuthorDetailResponse } from '../types/api';
+import type { AuthorDetailResponse, ImageData } from '../types/api';
 
 interface Props {
   /** Handle of the author whose detail page we're rendering (includes leading "@"). */
@@ -10,12 +10,19 @@ interface Props {
   /** Navigate back to the authors index page. */
   onBack: () => void;
   /**
-   * Open the lightbox at a specific image. The App-level handler selects the
-   * containing campaign and, once its images finish preloading, opens the
-   * lightbox at the matching index. If the lookup fails for any reason the
-   * handler still navigates to the campaign view so the user is not stranded.
+   * Open the lightbox in author-browse mode against this author's full image
+   * list. The App-level handler sets the lightbox image source to the
+   * provided list and opens it at `index`. The list spans whatever campaigns
+   * the author has attributed images in; per-image `campaignId` is carried so
+   * the IMAGE DETAILS panel can resolve the source campaign per-image (see
+   * fringematrix5-pyd).
+   *
+   * The list is `ImageData[]` (lightbox-ready) so App can stay agnostic to
+   * the AuthorDetail response shape. Each image carries a synthesized
+   * `author` derived from `data.author`, so the lightbox AUTHOR row renders
+   * without an extra lookup.
    */
-  onOpenImage: (params: { blobPath: string; campaignId: string }) => void;
+  onOpenImage: (images: ImageData[], index: number, handle: string) => void;
 }
 
 /**
@@ -64,6 +71,31 @@ export default function AuthorDetail({ handle, onBack, onOpenImage }: Props) {
   }, [handle]);
 
   const isLoading = data === null && error === null;
+
+  // Map the author-detail response into the `ImageData` shape the lightbox
+  // expects. Each image gets a synthesized `author` block derived from the
+  // shared `data.author` (handle / displayName / twitterUrl) plus the
+  // per-image `confidence` from the attribution record. `candidates` stays
+  // empty — the AuthorDetail response only lists resolved attributions, so
+  // the unresolved-candidates branch in the lightbox AUTHOR row is never
+  // reached from this source. Memoized so the array reference is stable
+  // across re-renders that don't change `data` (e.g. parent re-renders).
+  const lightboxImages = useMemo<ImageData[]>(() => {
+    if (!data) return [];
+    return data.images.map((image) => ({
+      fileName: image.fileName,
+      src: image.src,
+      blobPath: image.blobPath,
+      campaignId: image.campaignId,
+      author: {
+        handle: data.author.handle,
+        displayName: data.author.name,
+        twitterUrl: data.author.twitterUrl,
+        confidence: image.confidence,
+        candidates: [],
+      },
+    }));
+  }, [data]);
 
   return (
     <main className="content authors-page author-detail">
@@ -125,12 +157,12 @@ export default function AuthorDetail({ handle, onBack, onOpenImage }: Props) {
               aria-label={`Images by ${data.author.name}`}
               data-testid="author-images-grid"
             >
-              {data.images.map((image) => (
+              {data.images.map((image, index) => (
                 <div className="card" key={image.blobPath}>
                   <button
                     type="button"
                     className="author-image-button"
-                    onClick={() => onOpenImage({ blobPath: image.blobPath, campaignId: image.campaignId })}
+                    onClick={() => onOpenImage(lightboxImages, index, data.author.handle)}
                     aria-label={`Open image ${image.fileName}`}
                   >
                     <img
