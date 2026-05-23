@@ -6,9 +6,16 @@ import dotenv from 'dotenv';
 import { list, ListBlobResultBlob } from '@vercel/blob';
 import { fileURLToPath } from 'url';
 import { VALID_CONTENT_PAGES } from '../shared/types.js';
-import type { ContentPage, ImageAuthor } from '../shared/types.js';
+import type { ContentPage, ImageAuthor, Author, AuthorWithCount } from '../shared/types.js';
 import { timeoutMiddleware } from './middleware/timeout.js';
-import { getAttributionForPath, getAuthorByHandle } from './attribution.js';
+import {
+  getAuthors as getAttributionAuthors,
+  getAuthorByHandle,
+  getAttributionForPath,
+  getAllAttributions,
+  type AuthorRecord,
+  type AttributionRecord,
+} from './attribution.js';
 
 interface Campaign {
   id: string;
@@ -648,6 +655,139 @@ app.get('/api/glyphs', async (_req: Request, res: Response): Promise<void> => {
     }
     console.error('Glyphs listing error:', err);
     res.status(500).json({ error: 'Failed to list glyphs' });
+  }
+});
+
+// Cache-Control header value shared by /api/campaigns, /api/build-info,
+// and the /api/authors endpoints below.
+const AUTHORS_CACHE_CONTROL = 'public, max-age=3600, stale-while-revalidate=86400';
+
+/**
+ * Maps an internal AuthorRecord (snake_case, on-disk shape) to the wire-format
+ * Author (camelCase) consumed by the client.
+ */
+function toWireAuthor(record: AuthorRecord): Author {
+  return {
+    handle: record.handle,
+    name: record.name,
+    twitterUrl: record.twitter_url,
+    alternateHandles: Array.isArray(record.alternate_handles) ? record.alternate_handles : [],
+    roles: Array.isArray(record.roles) ? record.roles : [],
+  };
+}
+
+/**
+ * Derives the campaign id (matching getCampaigns()[].id) from a full
+ * attribution blob path. Paths follow the shape
+ *   avatars/<season>/<campaignFolder>/<...>/<file>
+ * where <campaignFolder> is the slugify() input the campaigns.yaml hashtag
+ * field also produces. Returns null when the path doesn't match the expected
+ * shape (defensive — shouldn't happen for valid attribution entries).
+ */
+function deriveCampaignIdFromBlobPath(blobPath: string): string | null {
+  const parts = blobPath.split('/');
+  // Expect: ['avatars', '<season>', '<campaignFolder>', ...]
+  if (parts.length < 3 || parts[0] !== 'avatars') return null;
+  const campaignFolder = parts[2];
+  if (!campaignFolder) return null;
+  const slug = slugify(campaignFolder);
+  return slug || null;
+}
+
+// API endpoint: list of authors with image counts.
+// Counts are computed by a single O(N) pass over attribution.json on each
+// request. At ~1741 entries this is negligible; if it grows materially we
+// can memoize a handle→count map inside attribution.ts.
+app.get('/api/authors', (_req: Request, res: Response): void => {
+  try {
+    const authorRecords = getAttributionAuthors();
+    const attribution = getAllAttributions();
+
+    // Build a canonical-handle → count map. We canonicalize via
+    // getAuthorByHandle() so alternate-handle attribution entries are
+    // attributed to the primary handle (matching the per-author detail
+    // endpoint below). Entries with unresolved/null handles are skipped.
+    const counts = new Map<string, number>();
+    for (const record of Object.values(attribution)) {
+      if (typeof record.handle !== 'string' || record.handle.length === 0) continue;
+      const author = getAuthorByHandle(record.handle);
+      if (!author) continue;
+      counts.set(author.handle, (counts.get(author.handle) ?? 0) + 1);
+    }
+
+    const authors: AuthorWithCount[] = authorRecords
+      .map((record) => ({
+        ...toWireAuthor(record),
+        imageCount: counts.get(record.handle) ?? 0,
+      }))
+      .sort((a, b) => {
+        if (b.imageCount !== a.imageCount) return b.imageCount - a.imageCount;
+        return a.handle.localeCompare(b.handle);
+      });
+
+    res.set('Cache-Control', AUTHORS_CACHE_CONTROL);
+    res.set('Vary', 'Accept-Encoding');
+    res.json({ authors });
+  } catch (err: unknown) {
+    console.error('Authors listing error:', err);
+    res.status(500).json({ error: 'Failed to load authors' });
+  }
+});
+
+// API endpoint: single-author detail with the list of images attributed to them.
+app.get('/api/authors/:handle', (req: Request, res: Response): void => {
+  try {
+    const handleParam = req.params['handle'];
+    if (typeof handleParam !== 'string' || handleParam.length === 0) {
+      res.status(404).json({ error: 'Author not found' });
+      return;
+    }
+
+    const author = getAuthorByHandle(handleParam);
+    if (!author) {
+      res.status(404).json({ error: 'Author not found' });
+      return;
+    }
+
+    const attribution = getAllAttributions();
+    const canonicalHandleLower = author.handle.toLowerCase();
+    const images: Array<{
+      src: string;
+      fileName: string;
+      blobPath: string;
+      campaignId: string;
+      confidence: AttributionRecord['confidence'];
+    }> = [];
+
+    for (const [blobPath, record] of Object.entries(attribution)) {
+      if (typeof record.handle !== 'string' || record.handle.length === 0) continue;
+      // Resolve attribution.handle to its canonical handle before comparing,
+      // so alternate-handle entries unify under the primary handle.
+      const recordAuthor = getAuthorByHandle(record.handle);
+      if (!recordAuthor || recordAuthor.handle.toLowerCase() !== canonicalHandleLower) continue;
+
+      const campaignId = deriveCampaignIdFromBlobPath(blobPath);
+      if (!campaignId) continue;
+
+      const fileName = blobPath.split('/').pop() || '';
+      // Strip the leading "avatars/" so the public path matches the
+      // /avatars/* redirect route which already handles CDN resolution.
+      const src = `/${blobPath}`;
+      images.push({
+        src,
+        fileName,
+        blobPath,
+        campaignId,
+        confidence: record.confidence,
+      });
+    }
+
+    res.set('Cache-Control', AUTHORS_CACHE_CONTROL);
+    res.set('Vary', 'Accept-Encoding');
+    res.json({ author: toWireAuthor(author), images });
+  } catch (err: unknown) {
+    console.error('Author detail error:', err);
+    res.status(500).json({ error: 'Failed to load author' });
   }
 });
 

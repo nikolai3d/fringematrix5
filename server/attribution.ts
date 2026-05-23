@@ -140,6 +140,36 @@ export function getAuthorByHandle(handle: string): AuthorRecord | null {
 }
 
 /**
+ * Returns the full attribution table (blob-path → AttributionRecord), loading
+ * from data/attribution.json on first call and serving from the module-level
+ * cache thereafter. Used by aggregation endpoints (e.g. /api/authors) that
+ * need to scan all entries; single-path callers should prefer
+ * getAttributionForPath() which avoids exposing the full map.
+ *
+ * The returned object is the cached instance and MUST NOT be mutated by
+ * callers — doing so would corrupt subsequent reads for the process lifetime.
+ */
+export function getAllAttributions(): Record<string, AttributionRecord> {
+  return ensureAttributionLoaded();
+}
+
+/**
+ * Returns the full attribution table (blob-path → AttributionRecord), loading
+ * from data/attribution.json on first call and serving from the module-level
+ * cache thereafter. Used by aggregation endpoints (e.g. /api/authors) that
+ * need to scan all entries; single-path callers should prefer
+ * getAttributionForPath() which avoids exposing the full map.
+ *
+ * The returned object is the cached instance; the Readonly<> return type
+ * blocks accidental writes at compile time. Callers must not bypass it via
+ * casts — mutating the underlying map would corrupt subsequent reads for
+ * the process lifetime.
+ */
+export function getAllAttributions(): Readonly<Record<string, AttributionRecord>> {
+  return ensureAttributionLoaded();
+}
+
+/**
  * Returns the attribution record for an exact blob path (e.g.
  * "avatars/Season4/AcrossTheUniverse/ATU-Cheribot/AtU_amber.jpg"), or null
  * if the path is not present in data/attribution.json. Lookup is exact —
