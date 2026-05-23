@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getInitials } from '../src/utils/author';
+import { getInitials, getInitialsFromName } from '../src/utils/author';
 
 describe('getInitials', () => {
   it('returns first two uppercase letters from a camelCase handle', () => {
@@ -38,5 +38,49 @@ describe('getInitials', () => {
 
   it('uses the first two uppercase letters when there are more than two', () => {
     expect(getInitials('@ABCdef')).toBe('AB');
+  });
+});
+
+describe('getInitialsFromName', () => {
+  it('returns first letter of the first two words for a two-word name', () => {
+    expect(getInitialsFromName('Sarah Proost')).toBe('SP');
+  });
+
+  it('uses only the first two words when more than two are present', () => {
+    expect(getInitialsFromName('Mary Anne Smith')).toBe('MA');
+  });
+
+  it('falls back to first two characters for a single-word name', () => {
+    expect(getInitialsFromName('Cheribot')).toBe('CH');
+  });
+
+  it('upper-cases the result for lowercase input', () => {
+    expect(getInitialsFromName('sarah proost')).toBe('SP');
+  });
+
+  it('returns empty string for an empty name', () => {
+    expect(getInitialsFromName('')).toBe('');
+  });
+
+  it('returns empty string for whitespace-only input', () => {
+    expect(getInitialsFromName('   ')).toBe('');
+  });
+
+  it('handles leading and trailing whitespace', () => {
+    expect(getInitialsFromName('  Sarah Proost  ')).toBe('SP');
+  });
+
+  it('handles a single character name', () => {
+    expect(getInitialsFromName('a')).toBe('A');
+  });
+
+  it('does not strip a leading @ (display names are not handles)', () => {
+    // Unlike `getInitials`, '@' is treated as a literal character of the
+    // first (and only) word, so the first two chars are '@F'.
+    expect(getInitialsFromName('@Foo')).toBe('@F');
+  });
+
+  it('collapses multiple whitespace characters between words', () => {
+    expect(getInitialsFromName('Sarah   Proost')).toBe('SP');
   });
 });
