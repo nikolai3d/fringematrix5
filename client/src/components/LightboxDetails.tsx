@@ -8,6 +8,15 @@ import { getInitials } from '../utils/author';
 interface Props {
   campaign: Campaign | null;
   author?: ImageAuthor | null;
+  /**
+   * When provided, the resolved-author handle renders as an in-app navigation
+   * button that invokes this callback with the (raw, unencoded) handle. The
+   * caller is expected to close the lightbox and navigate to the author's
+   * gallery page. When omitted, the handle is rendered as plain text (or, when
+   * a safe twitterUrl is available, as the legacy external link) — used by
+   * tests and any context where in-app author navigation isn't applicable.
+   */
+  onOpenAuthorGallery?: (handle: string) => void;
 }
 
 interface RowProps {
@@ -32,12 +41,49 @@ function Row({ label, children }: RowProps) {
  *   3. No data (author null OR handle null AND no candidates) → return null
  *      so the caller can omit the row entirely.
  */
-function AuthorRow({ author }: { author: ImageAuthor }) {
+function AuthorRow({
+  author,
+  onOpenAuthorGallery,
+}: {
+  author: ImageAuthor;
+  onOpenAuthorGallery?: (handle: string) => void;
+}) {
   // Case 1: resolved (we have a handle).
   if (author.handle) {
     const initials = getInitials(author.handle) || '?';
     const isMedium = author.confidence === 'medium';
     const hasSafeUrl = isSafeUrl(author.twitterUrl);
+    const handle = author.handle;
+
+    // Design choice: when in-app navigation is available, the handle text
+    // becomes a button that navigates to the author's gallery page. The
+    // external Twitter link is preserved as a small icon-only link next to
+    // it, so users keep both affordances. When the callback isn't provided
+    // (legacy / test contexts), fall back to the previous render: the entire
+    // handle is the external link, or plain text when no safe URL exists.
+    const handleNode = onOpenAuthorGallery ? (
+      <button
+        type="button"
+        className="lightbox-details-link lightbox-author-handle lightbox-author-handle--button"
+        onClick={() => onOpenAuthorGallery(handle)}
+      >
+        {handle}
+      </button>
+    ) : hasSafeUrl && author.twitterUrl ? (
+      <a
+        className="lightbox-details-link lightbox-author-handle"
+        href={author.twitterUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {handle}
+        <span className="lightbox-details-external" aria-hidden={true}>↗</span>
+        <span className="visually-hidden"> (opens in new tab)</span>
+      </a>
+    ) : (
+      <span className="lightbox-author-handle">{handle}</span>
+    );
+
     return (
       <div className="lightbox-details-row lightbox-details-author">
         <div className="lightbox-details-label">AUTHOR</div>
@@ -49,20 +95,18 @@ function AuthorRow({ author }: { author: ImageAuthor }) {
           >
             {initials}
           </span>
-          {hasSafeUrl && author.twitterUrl ? (
+          {handleNode}
+          {onOpenAuthorGallery && hasSafeUrl && author.twitterUrl ? (
             <a
-              className="lightbox-details-link lightbox-author-handle"
+              className="lightbox-details-link lightbox-author-twitter"
               href={author.twitterUrl}
               target="_blank"
               rel="noopener noreferrer"
+              aria-label={`Open ${handle} on Twitter (opens in new tab)`}
             >
-              {author.handle}
               <span className="lightbox-details-external" aria-hidden={true}>↗</span>
-              <span className="visually-hidden"> (opens in new tab)</span>
             </a>
-          ) : (
-            <span className="lightbox-author-handle">{author.handle}</span>
-          )}
+          ) : null}
           {isMedium ? (
             <span
               className="lightbox-author-badge"
@@ -119,7 +163,7 @@ function AuthorRow({ author }: { author: ImageAuthor }) {
  * author props haven't changed — e.g. during prev/next image navigation
  * within the same campaign.
  */
-function LightboxDetails({ campaign, author }: Props) {
+function LightboxDetails({ campaign, author, onOpenAuthorGallery }: Props) {
   if (!campaign) {
     return (
       <>
@@ -155,7 +199,7 @@ function LightboxDetails({ campaign, author }: Props) {
           </a>
         </Row>
       ) : null}
-      {author ? <AuthorRow author={author} /> : null}
+      {author ? <AuthorRow author={author} onOpenAuthorGallery={onOpenAuthorGallery} /> : null}
     </>
   );
 }

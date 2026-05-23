@@ -104,13 +104,18 @@ test.describe('Lightbox AUTHOR row — resolved (high confidence)', () => {
     await expect(avatar).toBeVisible();
     await expect(avatar).toHaveText('ZO');
 
-    // Handle rendered as a link pointing at the canonical Twitter URL.
-    const handleLink = authorRow.getByRole('link', { name: /Zort70/ });
-    await expect(handleLink).toBeVisible();
-    await expect(handleLink).toContainText('@Zort70');
-    await expect(handleLink).toHaveAttribute('href', 'https://twitter.com/Zort70');
-    await expect(handleLink).toHaveAttribute('target', '_blank');
-    await expect(handleLink).toHaveAttribute('rel', /noopener/);
+    // Handle rendered as an in-app navigation button (fringematrix5-4a6o).
+    // The handle text itself is now a <button> that opens the author gallery;
+    // the external Twitter link lives beside it as an icon-only <a>.
+    const handleButton = authorRow.getByRole('button', { name: /Zort70/ });
+    await expect(handleButton).toBeVisible();
+    await expect(handleButton).toContainText('@Zort70');
+
+    const twitterLink = authorRow.getByRole('link', { name: /Zort70/ });
+    await expect(twitterLink).toBeVisible();
+    await expect(twitterLink).toHaveAttribute('href', 'https://twitter.com/Zort70');
+    await expect(twitterLink).toHaveAttribute('target', '_blank');
+    await expect(twitterLink).toHaveAttribute('rel', /noopener/);
 
     // High-confidence images do NOT get the 'uncertain' badge.
     await expect(authorRow.locator('.lightbox-author-badge')).toHaveCount(0);

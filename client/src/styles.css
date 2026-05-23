@@ -520,6 +520,24 @@ footer.navbar {
 .lightbox-author-handle {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
+/* fringematrix5-4a6o: the handle renders as a <button> when in-app author
+   navigation is available. Strip browser button chrome so it visually matches
+   the surrounding link-styled handle. */
+.lightbox-author-handle--button {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.lightbox-author-twitter {
+  display: inline-flex;
+  align-items: center;
+  color: var(--theme-accent);
+  text-decoration: none;
+}
+.lightbox-author-twitter:hover { text-decoration: underline; }
 .lightbox-author-candidates {
   color: rgba(255, 255, 255, 0.65);
   font-size: 13px;
