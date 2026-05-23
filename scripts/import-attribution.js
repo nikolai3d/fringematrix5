@@ -53,22 +53,60 @@ const OUTPUT_ATTRIBUTION = path.join(PROJECT_ROOT, 'data', 'attribution.json');
 
 const BLOB_PREFIX = 'FSRR/unified_icon_matrix/';
 
+// Sanity-check sentinels: the bead description (fringematrix5-kj7) pins the
+// expected input cardinality. Drift from these numbers means the inputs
+// changed shape and the import should stop for re-validation.
+const EXPECTED_AUTHORS_COUNT = 18;
+const EXPECTED_ATTRIBUTION_COUNT = 1741;
+
+/**
+ * Assert that `value` is a non-empty string, throwing with a descriptive
+ * error otherwise. Used for fail-fast schema validation before any
+ * destructive file operations are performed.
+ */
+function assertNonEmptyString(value, fieldPath) {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(
+      `Invalid input: expected non-empty string at '${fieldPath}', got ${JSON.stringify(value)}`
+    );
+  }
+}
+
 /**
  * Build the authors.yaml payload from the raw icon_authors.json structure.
  * Discards derivable fields (resolved_folders, images_confidently_attributed,
  * campaigns_with_attributed_art, campaigns_credited, source) — keeping them
  * here would invite drift since they are recomputable from attribution.json.
+ *
+ * Validates required string fields and array shapes; throws on the first
+ * malformed record so we never write a partial YAML before deleting inputs.
  */
 function buildAuthorsPayload(rawAuthors) {
-  const artists = Array.isArray(rawAuthors.artists) ? rawAuthors.artists : [];
-  const authors = artists.map((a) => ({
-    handle: a.primary_handle,
-    name: a.name,
-    twitter_url: a.twitter_url,
-    alternate_handles: Array.isArray(a.alternate_handles) ? a.alternate_handles : [],
-    roles: Array.isArray(a.roles) ? a.roles : [],
-    notes: typeof a.note === 'string' ? a.note : '',
-  }));
+  if (!rawAuthors || !Array.isArray(rawAuthors.artists)) {
+    throw new Error(
+      `Invalid input: icon_authors.json is missing an 'artists' array`
+    );
+  }
+  const authors = rawAuthors.artists.map((a, i) => {
+    const where = `artists[${i}]`;
+    assertNonEmptyString(a && a.primary_handle, `${where}.primary_handle`);
+    assertNonEmptyString(a.name, `${where}.name`);
+    assertNonEmptyString(a.twitter_url, `${where}.twitter_url`);
+    if (!Array.isArray(a.alternate_handles)) {
+      throw new Error(`Invalid input: ${where}.alternate_handles must be an array`);
+    }
+    if (!Array.isArray(a.roles)) {
+      throw new Error(`Invalid input: ${where}.roles must be an array`);
+    }
+    return {
+      handle: a.primary_handle,
+      name: a.name,
+      twitter_url: a.twitter_url,
+      alternate_handles: a.alternate_handles,
+      roles: a.roles,
+      notes: typeof a.note === 'string' ? a.note : '',
+    };
+  });
   return { authors };
 }
 
@@ -79,27 +117,47 @@ function buildAuthorsPayload(rawAuthors) {
  * hand-edits produce clean diffs.
  */
 function buildAttributionPayload(rawAttribution) {
-  const images = Array.isArray(rawAttribution.images) ? rawAttribution.images : [];
+  if (!rawAttribution || !Array.isArray(rawAttribution.images)) {
+    throw new Error(
+      `Invalid input: icon_attribution.json is missing an 'images' array`
+    );
+  }
   const out = {};
-  for (const img of images) {
-    const file = img.file;
-    if (typeof file !== 'string' || !file.startsWith(BLOB_PREFIX)) {
+  rawAttribution.images.forEach((img, i) => {
+    const where = `images[${i}]`;
+    if (!img || typeof img !== 'object') {
+      throw new Error(`Invalid input: ${where} is not an object`);
+    }
+    assertNonEmptyString(img.file, `${where}.file`);
+    if (!img.file.startsWith(BLOB_PREFIX)) {
       throw new Error(
-        `Unexpected file path (missing '${BLOB_PREFIX}' prefix): ${file}`
+        `Unexpected file path (missing '${BLOB_PREFIX}' prefix): ${img.file}`
       );
     }
-    const key = file.slice(BLOB_PREFIX.length);
+    assertNonEmptyString(img.confidence, `${where}.confidence`);
+    assertNonEmptyString(img.method, `${where}.method`);
+    assertNonEmptyString(img.evidence, `${where}.evidence`);
+    if (!Array.isArray(img.candidates)) {
+      throw new Error(`Invalid input: ${where}.candidates must be an array`);
+    }
+    // resolved_handle is optional (null for unresolved entries) but if present
+    // it must be a non-empty string.
+    if (img.resolved_handle != null) {
+      assertNonEmptyString(img.resolved_handle, `${where}.resolved_handle`);
+    }
+
+    const key = img.file.slice(BLOB_PREFIX.length);
     if (Object.prototype.hasOwnProperty.call(out, key)) {
       throw new Error(`Duplicate attribution entry for key: ${key}`);
     }
     out[key] = {
       handle: img.resolved_handle ?? null,
       confidence: img.confidence,
-      candidates: Array.isArray(img.candidates) ? img.candidates : [],
+      candidates: img.candidates,
       method: img.method,
       evidence: img.evidence,
     };
-  }
+  });
 
   // Sort by key for deterministic output.
   const sorted = {};
@@ -155,18 +213,34 @@ function main() {
   const authorsPayload = buildAuthorsPayload(rawAuthors);
   const attributionPayload = buildAttributionPayload(rawAttribution);
 
+  // Sanity-check counts before doing anything destructive. The bead
+  // (fringematrix5-kj7) documents 18 authors / 1741 attribution entries;
+  // if the inputs ever drift from that we want to stop and re-validate
+  // rather than silently overwrite the source-of-truth files.
+  const authorsCount = authorsPayload.authors.length;
+  const attributionCount = Object.keys(attributionPayload).length;
+  if (authorsCount !== EXPECTED_AUTHORS_COUNT) {
+    throw new Error(
+      `Author count mismatch: expected ${EXPECTED_AUTHORS_COUNT}, got ${authorsCount}`
+    );
+  }
+  if (attributionCount !== EXPECTED_ATTRIBUTION_COUNT) {
+    throw new Error(
+      `Attribution count mismatch: expected ${EXPECTED_ATTRIBUTION_COUNT}, got ${attributionCount}`
+    );
+  }
+
   // Ensure the data directory exists (it does in this repo, but be safe).
   fs.mkdirSync(path.dirname(OUTPUT_AUTHORS), { recursive: true });
 
   writeYaml(OUTPUT_AUTHORS, authorsPayload);
   writeJson(OUTPUT_ATTRIBUTION, attributionPayload);
 
-  const authorsCount = authorsPayload.authors.length;
-  const attributionCount = Object.keys(attributionPayload).length;
   console.log(`Wrote ${OUTPUT_AUTHORS} (${authorsCount} authors)`);
   console.log(`Wrote ${OUTPUT_ATTRIBUTION} (${attributionCount} entries)`);
 
-  // Remove raw inputs from repo root now that on-disk data is the source of truth.
+  // Remove raw inputs from repo root only after both writes succeed, so a
+  // mid-flight failure never leaves us without inputs.
   fs.unlinkSync(INPUT_AUTHORS);
   fs.unlinkSync(INPUT_ATTRIBUTION);
   console.log(`Removed ${INPUT_AUTHORS}`);
