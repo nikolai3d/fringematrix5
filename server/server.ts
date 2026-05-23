@@ -6,8 +6,9 @@ import dotenv from 'dotenv';
 import { list, ListBlobResultBlob } from '@vercel/blob';
 import { fileURLToPath } from 'url';
 import { VALID_CONTENT_PAGES } from '../shared/types.js';
-import type { ContentPage } from '../shared/types.js';
+import type { ContentPage, ImageAuthor } from '../shared/types.js';
 import { timeoutMiddleware } from './middleware/timeout.js';
+import { getAttributionForPath, getAuthorByHandle } from './attribution.js';
 
 interface Campaign {
   id: string;
@@ -21,6 +22,7 @@ interface ImageData {
   fileName: string;
   blobPath: string;
   size: number;
+  author: ImageAuthor | null;
 }
 
 interface BuildInfo {
@@ -345,6 +347,54 @@ function slugify(str: string): string {
 
 // walkDirectoryRecursive function removed - no longer needed with blob storage
 
+/**
+ * Builds the wire-format ImageAuthor block for a given blob path by joining
+ * the per-image attribution record with the authors directory.
+ *
+ * Returns null when:
+ *   - the blob path has no entry in data/attribution.json (defensive —
+ *     should not happen for known images today, but the wire type allows
+ *     null so the client stays robust against future data drift), OR
+ *   - the underlying attribution / authors data fails to load or has an
+ *     unexpected shape. Errors are swallowed (logged once) so a malformed
+ *     data file does not take down the campaign-images endpoint or produce
+ *     misleading "Blob listing error" logs after a successful blob fetch.
+ *
+ * Note: internal-only attribution fields (`method`, `evidence`) are
+ * deliberately excluded from the wire shape.
+ */
+function buildImageAuthor(blobPath: string): ImageAuthor | null {
+  try {
+    const attribution = getAttributionForPath(blobPath);
+    if (attribution === null) {
+      return null;
+    }
+    const { handle, confidence } = attribution;
+    // Defensive runtime shape guard: a hand-edited attribution.json could
+    // produce a record where `candidates` is missing or non-array.
+    const candidates = Array.isArray(attribution.candidates) ? attribution.candidates : [];
+    let displayName: string | null = null;
+    let twitterUrl: string | null = null;
+    if (handle !== null) {
+      const author = getAuthorByHandle(handle);
+      if (author !== null) {
+        displayName = author.name;
+        twitterUrl = author.twitter_url;
+      }
+    }
+    return {
+      handle,
+      displayName,
+      twitterUrl,
+      confidence,
+      candidates,
+    };
+  } catch (err: unknown) {
+    console.error('Attribution lookup failed for', blobPath, '-', toErrorMessage(err));
+    return null;
+  }
+}
+
 function isImageFile(pathname: string): boolean {
   const ext = path.extname(pathname).toLowerCase();
   return ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.bmp', '.svg'].includes(ext);
@@ -485,7 +535,12 @@ app.get('/api/campaigns/:id/images', async (req: Request, res: Response): Promis
       prefix: blobPrefix,
     });
 
-    // Filter for image files and format response
+    // Filter for image files and format response.
+    // Attach an `author` block via an in-memory join with the attribution
+    // module — no extra blob/network calls. Attribution data is read from
+    // disk once on first use and cached at module level (see attribution.ts),
+    // so this hot path performs no per-request I/O. The 30s blob cache still
+    // applies to the blob listing itself.
     const images: ImageData[] = blobs
       .filter(blob => isImageFile(blob.pathname))
       .map(blob => ({
@@ -494,6 +549,7 @@ app.get('/api/campaigns/:id/images', async (req: Request, res: Response): Promis
         // Optional: keep backward compatibility info
         blobPath: blob.pathname,
         size: blob.size,
+        author: buildImageAuthor(blob.pathname),
       }));
 
     res.json({ images });
