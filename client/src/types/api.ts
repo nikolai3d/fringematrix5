@@ -28,6 +28,9 @@ export interface ImageData {
   originalSrc?: string;
   isLoading?: boolean;
   loadedSrc?: string | null;
+  // Carried through from the server's attribution enrichment so the lightbox
+  // AUTHOR row can render without an extra lookup.
+  author?: ImageAuthor | null;
 }
 
 export interface BuildInfo {
