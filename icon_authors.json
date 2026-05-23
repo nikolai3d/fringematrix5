@@ -1,0 +1,640 @@
+{
+  "metadata": {
+    "generated": "2026-05-21",
+    "project": "Fringenuity Icon Matrix (FRINGE Twitter avatar campaigns, Seasons 4-5)",
+    "description": "Artists and contributors gleaned from the FSRR icon-matrix site files. Handles are exactly as printed on the 2012-2013 pages and were not verified against current social media.",
+    "handle_count": 18
+  },
+  "artists": [
+    {
+      "name": "Sarah Proost",
+      "primary_handle": "@SarahProost",
+      "twitter_url": "https://twitter.com/SarahProost",
+      "alternate_handles": [],
+      "roles": [
+        "artist"
+      ],
+      "images_confidently_attributed": 244,
+      "resolved_folders": [
+        "AcrossTheUniverse/ATU-SarahProost",
+        "AnotherWay/sproost",
+        "BuildABetterWorld/sp2",
+        "ChangeYourWorld/CYW-SP",
+        "DarkestBeforeDawn/SarahProost",
+        "FaceYourself/SP-FY",
+        "LoveIsTheAnswer/LITA-Sarah",
+        "TheyAreHere/sproost",
+        "TurningPoint/sptp",
+        "WhereYouBelong/WYB-SP",
+        "WorldsApart/SarahProost"
+      ],
+      "campaigns_with_attributed_art": [
+        "AcrossTheUniverse",
+        "AnotherWay",
+        "BuildABetterWorld",
+        "ChangeYourWorld",
+        "DarkestBeforeDawn",
+        "FaceYourself",
+        "LoveIsTheAnswer",
+        "TheyAreHere",
+        "TurningPoint",
+        "WhereYouBelong",
+        "WorldsApart"
+      ],
+      "campaigns_credited": [
+        "AnotherWay",
+        "BuildABetterWorld",
+        "DarkestBeforeDawn",
+        "FaceYourself",
+        "FarFromNormal",
+        "FightTheFuture",
+        "ForTheRecord",
+        "FreeYourMind",
+        "HumanKind",
+        "NothingIsImpossible",
+        "ShowNoMercy",
+        "TheyAreHere",
+        "TurningPoint",
+        "WorldsApart",
+        "iPredict"
+      ],
+      "note": "",
+      "source": "FSRR iconmanager 'Image credits' lines and avatar folder names"
+    },
+    {
+      "name": "Cheribot",
+      "primary_handle": "@Cheribot",
+      "twitter_url": "https://twitter.com/Cheribot",
+      "alternate_handles": [
+        "@cheribot"
+      ],
+      "roles": [
+        "artist"
+      ],
+      "images_confidently_attributed": 173,
+      "resolved_folders": [
+        "AcrossTheUniverse/ATU-Cheribot",
+        "BeABetterMan/BABM-Cheri",
+        "BreakingOut/BreakingOut-Cheri",
+        "BuildABetterWorld/acheri",
+        "ChangeYourWorld/CYW-Cheri",
+        "CrossTheLine/Cheri",
+        "DarkestBeforeDawn/Cheribot",
+        "FaceYourself/CheriBot-FY",
+        "LoveIsTheAnswer/LITA-Cheri",
+        "TheyAreHere/cheri",
+        "WhereYouBelong/WYB-Cheribot",
+        "WorldsApart/Cheribot"
+      ],
+      "campaigns_with_attributed_art": [
+        "AcrossTheUniverse",
+        "BeABetterMan",
+        "BreakingOut",
+        "BuildABetterWorld",
+        "ChangeYourWorld",
+        "CrossTheLine",
+        "DarkestBeforeDawn",
+        "FaceYourself",
+        "LoveIsTheAnswer",
+        "TheyAreHere",
+        "WhereYouBelong",
+        "WorldsApart"
+      ],
+      "campaigns_credited": [
+        "AnotherWay",
+        "BuildABetterWorld",
+        "DarkestBeforeDawn",
+        "FaceYourself",
+        "FarFromNormal",
+        "FightTheFuture",
+        "ForTheRecord",
+        "FreeYourMind",
+        "HumanKind",
+        "NothingIsImpossible",
+        "ShowNoMercy",
+        "TheyAreHere",
+        "TurningPoint",
+        "WorldsApart",
+        "iPredict"
+      ],
+      "note": "",
+      "source": "FSRR iconmanager 'Image credits' lines and avatar folder names"
+    },
+    {
+      "name": "Zort70",
+      "primary_handle": "@Zort70",
+      "twitter_url": "https://twitter.com/Zort70",
+      "alternate_handles": [
+        "@zort70"
+      ],
+      "roles": [
+        "artist"
+      ],
+      "images_confidently_attributed": 98,
+      "resolved_folders": [
+        "AcrossTheUniverse/ATU-zort70",
+        "BeABetterMan/BABM-zort70",
+        "BreakingOut/BreakingOut-Zort",
+        "ChangeYourWorld/CYW-zort70",
+        "DarkestBeforeDawn/zort70",
+        "FaceYourself/Zort70-FY",
+        "LoveIsTheAnswer/LITA-Zort",
+        "TakeTheLead/TTL_icons_zort70",
+        "WhereYouBelong/WYB-zort70",
+        "WorldsApart/zort70"
+      ],
+      "campaigns_with_attributed_art": [
+        "AcrossTheUniverse",
+        "BeABetterMan",
+        "BreakingOut",
+        "ChangeYourWorld",
+        "DarkestBeforeDawn",
+        "FaceYourself",
+        "LoveIsTheAnswer",
+        "TakeTheLead",
+        "WhereYouBelong",
+        "WorldsApart"
+      ],
+      "campaigns_credited": [
+        "BuildABetterWorld",
+        "DarkestBeforeDawn",
+        "FaceYourself",
+        "FightTheFuture",
+        "WorldsApart"
+      ],
+      "note": "",
+      "source": "FSRR iconmanager 'Image credits' lines and avatar folder names"
+    },
+    {
+      "name": "Michi Suzette",
+      "primary_handle": "@michisuzette",
+      "twitter_url": "https://twitter.com/michisuzette",
+      "alternate_handles": [],
+      "roles": [
+        "artist"
+      ],
+      "images_confidently_attributed": 93,
+      "resolved_folders": [
+        "AcrossTheUniverse/ATU-Michi",
+        "ChangeYourWorld/CYW-MS",
+        "FaceYourself/MichiSuzette-FY"
+      ],
+      "campaigns_with_attributed_art": [
+        "AcrossTheUniverse",
+        "ChangeYourWorld",
+        "FaceYourself"
+      ],
+      "campaigns_credited": [
+        "FaceYourself"
+      ],
+      "note": "Season 4 folders 'ATU-Michi', 'CYW-MS', 'MichiSuzette-FY'. Note: a separate Season-5 handle '@michael1701' may or may not be the same person; treated separately for accuracy.",
+      "source": "FSRR iconmanager 'Image credits' lines and avatar folder names"
+    },
+    {
+      "name": "Golden Monkey",
+      "primary_handle": "@GoldenMonkey7",
+      "twitter_url": "https://twitter.com/GoldenMonkey7",
+      "alternate_handles": [
+        "@goldenmonkey"
+      ],
+      "roles": [
+        "artist"
+      ],
+      "images_confidently_attributed": 47,
+      "resolved_folders": [
+        "AcrossTheUniverse/ATU-Goldenmonkey",
+        "FaceYourself/GoldenMonkey-FY",
+        "TheyAreHere/goldmonkey",
+        "TurningPoint/gmmtp"
+      ],
+      "campaigns_with_attributed_art": [
+        "AcrossTheUniverse",
+        "FaceYourself",
+        "TheyAreHere",
+        "TurningPoint"
+      ],
+      "campaigns_credited": [
+        "AnotherWay",
+        "FaceYourself",
+        "FarFromNormal",
+        "ForTheRecord",
+        "FreeYourMind",
+        "HumanKind",
+        "NothingIsImpossible",
+        "ShowNoMercy",
+        "TheyAreHere",
+        "TurningPoint",
+        "iPredict"
+      ],
+      "note": "",
+      "source": "FSRR iconmanager 'Image credits' lines and avatar folder names"
+    },
+    {
+      "name": "Nikolai (Nikolai3D)",
+      "primary_handle": "@Nikolai3D",
+      "twitter_url": "https://twitter.com/Nikolai3D",
+      "alternate_handles": [],
+      "roles": [
+        "artist",
+        "developer"
+      ],
+      "images_confidently_attributed": 31,
+      "resolved_folders": [
+        "CrossTheLine/Nikolai",
+        "TheyAreHere/nikolai"
+      ],
+      "campaigns_with_attributed_art": [
+        "CrossTheLine",
+        "TheyAreHere"
+      ],
+      "campaigns_credited": [
+        "AnotherWay",
+        "FarFromNormal",
+        "ForTheRecord",
+        "FreeYourMind",
+        "HumanKind",
+        "NothingIsImpossible",
+        "ShowNoMercy",
+        "TheyAreHere",
+        "TurningPoint",
+        "iPredict"
+      ],
+      "note": "Software development for the Icon Matrix; also contributed icons.",
+      "source": "FSRR iconmanager 'Image credits' lines and avatar folder names"
+    },
+    {
+      "name": "Fraggle (FraggleBerlin)",
+      "primary_handle": "@FraggleBerlin",
+      "twitter_url": "https://twitter.com/FraggleBerlin",
+      "alternate_handles": [],
+      "roles": [
+        "artist"
+      ],
+      "images_confidently_attributed": 25,
+      "resolved_folders": [
+        "AnotherWay/fraggle",
+        "TheyAreHere/fraggleberlin"
+      ],
+      "campaigns_with_attributed_art": [
+        "AnotherWay",
+        "TheyAreHere"
+      ],
+      "campaigns_credited": [
+        "AnotherWay",
+        "FarFromNormal",
+        "FightTheFuture",
+        "ForTheRecord",
+        "FreeYourMind",
+        "HumanKind",
+        "NothingIsImpossible",
+        "ShowNoMercy",
+        "TheyAreHere",
+        "TurningPoint",
+        "iPredict"
+      ],
+      "note": "",
+      "source": "FSRR iconmanager 'Image credits' lines and avatar folder names"
+    },
+    {
+      "name": "Grey & Smart",
+      "primary_handle": "@GreyAndSmart",
+      "twitter_url": "https://twitter.com/GreyAndSmart",
+      "alternate_handles": [],
+      "roles": [
+        "artist"
+      ],
+      "images_confidently_attributed": 22,
+      "resolved_folders": [
+        "DarkestBeforeDawn/Grey",
+        "TheyAreHere/gs",
+        "TurningPoint/tgs"
+      ],
+      "campaigns_with_attributed_art": [
+        "DarkestBeforeDawn",
+        "TheyAreHere",
+        "TurningPoint"
+      ],
+      "campaigns_credited": [
+        "AnotherWay",
+        "BuildABetterWorld",
+        "DarkestBeforeDawn",
+        "FarFromNormal",
+        "ForTheRecord",
+        "FreeYourMind",
+        "HumanKind",
+        "NothingIsImpossible",
+        "ShowNoMercy",
+        "TheyAreHere",
+        "TurningPoint",
+        "WorldsApart",
+        "iPredict"
+      ],
+      "note": "",
+      "source": "FSRR iconmanager 'Image credits' lines and avatar folder names"
+    },
+    {
+      "name": "Sercan Erdogan",
+      "primary_handle": "@SercanErdogan",
+      "twitter_url": "https://twitter.com/SercanErdogan",
+      "alternate_handles": [],
+      "roles": [
+        "artist"
+      ],
+      "images_confidently_attributed": 22,
+      "resolved_folders": [
+        "AcrossTheUniverse/ATU-SE",
+        "DarkestBeforeDawn/SercanErdogan",
+        "FaceYourself/SE-FY"
+      ],
+      "campaigns_with_attributed_art": [
+        "AcrossTheUniverse",
+        "DarkestBeforeDawn",
+        "FaceYourself"
+      ],
+      "campaigns_credited": [
+        "FaceYourself",
+        "FightTheFuture"
+      ],
+      "note": "",
+      "source": "FSRR iconmanager 'Image credits' lines and avatar folder names"
+    },
+    {
+      "name": "Pietro Vescovo",
+      "primary_handle": "@PietroVescovo",
+      "twitter_url": "https://twitter.com/PietroVescovo",
+      "alternate_handles": [],
+      "roles": [
+        "artist"
+      ],
+      "images_confidently_attributed": 19,
+      "resolved_folders": [
+        "ChangeYourWorld/CYW_PV1",
+        "FaceYourself/PV-FY"
+      ],
+      "campaigns_with_attributed_art": [
+        "ChangeYourWorld",
+        "FaceYourself"
+      ],
+      "campaigns_credited": [
+        "BuildABetterWorld",
+        "DarkestBeforeDawn",
+        "FaceYourself",
+        "FightTheFuture",
+        "WorldsApart"
+      ],
+      "note": "",
+      "source": "FSRR iconmanager 'Image credits' lines and avatar folder names"
+    },
+    {
+      "name": "vasus90",
+      "primary_handle": "@vasus90",
+      "twitter_url": "https://twitter.com/vasus90",
+      "alternate_handles": [],
+      "roles": [
+        "artist"
+      ],
+      "images_confidently_attributed": 1,
+      "resolved_folders": [
+        "AnotherWay/vasus"
+      ],
+      "campaigns_with_attributed_art": [
+        "AnotherWay"
+      ],
+      "campaigns_credited": [
+        "AnotherWay",
+        "FarFromNormal",
+        "ForTheRecord",
+        "FreeYourMind",
+        "HumanKind",
+        "NothingIsImpossible",
+        "ShowNoMercy",
+        "TurningPoint",
+        "iPredict"
+      ],
+      "note": "",
+      "source": "FSRR iconmanager 'Image credits' lines and avatar folder names"
+    },
+    {
+      "name": "Alart6",
+      "primary_handle": "@Alart6",
+      "twitter_url": "https://twitter.com/Alart6",
+      "alternate_handles": [],
+      "roles": [
+        "artist"
+      ],
+      "images_confidently_attributed": 0,
+      "resolved_folders": [],
+      "campaigns_with_attributed_art": [],
+      "campaigns_credited": [
+        "FarFromNormal",
+        "FightTheFuture",
+        "FreeYourMind",
+        "HumanKind",
+        "iPredict"
+      ],
+      "note": "Credited (FightTheFuture + several Season 5 campaigns); no individually named folder identified.",
+      "source": "FSRR iconmanager 'Image credits' lines and avatar folder names"
+    },
+    {
+      "name": "Fringe All The Way",
+      "primary_handle": "@fringealltheway",
+      "twitter_url": "https://twitter.com/fringealltheway",
+      "alternate_handles": [],
+      "roles": [
+        "artist"
+      ],
+      "images_confidently_attributed": 0,
+      "resolved_folders": [],
+      "campaigns_with_attributed_art": [],
+      "campaigns_credited": [
+        "FarFromNormal",
+        "FreeYourMind"
+      ],
+      "note": "Credited (FreeYourMind/FarFromNormal); no individually named folder identified.",
+      "source": "FSRR iconmanager 'Image credits' lines and avatar folder names"
+    },
+    {
+      "name": "Fringe on FOX (official)",
+      "primary_handle": "@FringeOnFOX",
+      "twitter_url": "https://twitter.com/FringeOnFOX",
+      "alternate_handles": [],
+      "roles": [
+        "artist"
+      ],
+      "images_confidently_attributed": 0,
+      "resolved_folders": [],
+      "campaigns_with_attributed_art": [],
+      "campaigns_credited": [
+        "AnotherWay",
+        "FarFromNormal",
+        "ForTheRecord",
+        "FreeYourMind",
+        "HumanKind",
+        "NothingIsImpossible",
+        "ShowNoMercy",
+        "TheyAreHere",
+        "TurningPoint",
+        "iPredict"
+      ],
+      "note": "Official FOX/FRINGE account; credited as an image source.",
+      "source": "FSRR iconmanager 'Image credits' lines and avatar folder names"
+    },
+    {
+      "name": "GodsGirl1989",
+      "primary_handle": "@GodsGirl1989",
+      "twitter_url": "https://twitter.com/GodsGirl1989",
+      "alternate_handles": [],
+      "roles": [
+        "artist"
+      ],
+      "images_confidently_attributed": 0,
+      "resolved_folders": [],
+      "campaigns_with_attributed_art": [],
+      "campaigns_credited": [
+        "FarFromNormal",
+        "FreeYourMind",
+        "HumanKind",
+        "NothingIsImpossible",
+        "ShowNoMercy",
+        "TurningPoint",
+        "iPredict"
+      ],
+      "note": "Credited across Season 5 campaigns; no individually named folder identified.",
+      "source": "FSRR iconmanager 'Image credits' lines and avatar folder names"
+    },
+    {
+      "name": "Krishel",
+      "primary_handle": "@Krishel",
+      "twitter_url": "https://twitter.com/Krishel",
+      "alternate_handles": [],
+      "roles": [
+        "artist"
+      ],
+      "images_confidently_attributed": 0,
+      "resolved_folders": [],
+      "campaigns_with_attributed_art": [],
+      "campaigns_credited": [
+        "FarFromNormal",
+        "FreeYourMind",
+        "HumanKind",
+        "NothingIsImpossible",
+        "ShowNoMercy",
+        "TurningPoint",
+        "iPredict"
+      ],
+      "note": "Credited across Season 5 campaigns; no individually named folder identified.",
+      "source": "FSRR iconmanager 'Image credits' lines and avatar folder names"
+    },
+    {
+      "name": "michael1701",
+      "primary_handle": "@michael1701",
+      "twitter_url": "https://twitter.com/michael1701",
+      "alternate_handles": [],
+      "roles": [
+        "artist"
+      ],
+      "images_confidently_attributed": 0,
+      "resolved_folders": [],
+      "campaigns_with_attributed_art": [],
+      "campaigns_credited": [
+        "AnotherWay",
+        "FarFromNormal",
+        "ForTheRecord",
+        "FreeYourMind",
+        "HumanKind",
+        "NothingIsImpossible",
+        "ShowNoMercy",
+        "TurningPoint",
+        "iPredict"
+      ],
+      "note": "Credited across Season 5 campaigns; no individually named folder was identified, so appears only as a candidate.",
+      "source": "FSRR iconmanager 'Image credits' lines and avatar folder names"
+    },
+    {
+      "name": "taychill",
+      "primary_handle": "@taychill",
+      "twitter_url": "https://twitter.com/taychill",
+      "alternate_handles": [],
+      "roles": [
+        "artist"
+      ],
+      "images_confidently_attributed": 0,
+      "resolved_folders": [],
+      "campaigns_with_attributed_art": [],
+      "campaigns_credited": [
+        "FarFromNormal",
+        "ForTheRecord",
+        "FreeYourMind",
+        "HumanKind",
+        "NothingIsImpossible",
+        "ShowNoMercy",
+        "TurningPoint",
+        "iPredict"
+      ],
+      "note": "Credited as an artist (Season 5) and as a tester; no individually named folder identified.",
+      "source": "FSRR iconmanager 'Image credits' lines and avatar folder names"
+    }
+  ],
+  "other_credited_contributors": [
+    {
+      "name": "Nikolai (Nikolai3D)",
+      "handle": "@Nikolai3D",
+      "twitter_url": "https://twitter.com/Nikolai3D",
+      "role": "Software development"
+    },
+    {
+      "name": "aimeeinchains",
+      "handle": "@aimeeinchains",
+      "twitter_url": "https://twitter.com/aimeeinchains",
+      "role": "Testing / feedback"
+    },
+    {
+      "name": "birdandbear",
+      "handle": "@birdandbear",
+      "twitter_url": "https://twitter.com/birdandbear",
+      "role": "Testing / feedback"
+    },
+    {
+      "name": "dalliel",
+      "handle": "@dalliel",
+      "twitter_url": "https://twitter.com/dalliel",
+      "role": "Testing / feedback"
+    },
+    {
+      "name": "Cheribot",
+      "handle": "@cheribot",
+      "twitter_url": "https://twitter.com/cheribot",
+      "role": "Testing / feedback (also artist)"
+    },
+    {
+      "name": "tribeoftyrones",
+      "handle": "@tribeoftyrones",
+      "twitter_url": "https://twitter.com/tribeoftyrones",
+      "role": "Testing / feedback"
+    },
+    {
+      "name": "LakeSideNorth",
+      "handle": "@LakeSideNorth",
+      "twitter_url": "https://twitter.com/LakeSideNorth",
+      "role": "Testing / feedback"
+    },
+    {
+      "name": "DixieGirl256",
+      "handle": "@DixieGirl256",
+      "twitter_url": "https://twitter.com/DixieGirl256",
+      "role": "Testing / feedback"
+    },
+    {
+      "name": "taychill",
+      "handle": "@taychill",
+      "twitter_url": "https://twitter.com/taychill",
+      "role": "Testing / feedback (also artist)"
+    },
+    {
+      "name": "Zort70",
+      "handle": "@Zort70",
+      "twitter_url": "https://twitter.com/Zort70",
+      "role": "Testing / feedback (also artist)"
+    }
+  ]
+}
