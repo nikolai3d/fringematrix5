@@ -298,6 +298,106 @@ describe('API contract', () => {
     });
   });
 
+  describe('GET /api/authors', () => {
+    it('returns authors sorted by imageCount desc with non-snake-case shape', async () => {
+      const res = await request(app).get('/api/authors');
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('authors');
+      expect(Array.isArray(res.body.authors)).toBe(true);
+      expect(res.body.authors.length).toBeGreaterThan(0);
+
+      // Wire shape is camelCase — no snake_case fields should leak through.
+      const first = res.body.authors[0];
+      expect(first).toHaveProperty('handle');
+      expect(first).toHaveProperty('name');
+      expect(first).toHaveProperty('twitterUrl');
+      expect(first).toHaveProperty('alternateHandles');
+      expect(first).toHaveProperty('roles');
+      expect(first).toHaveProperty('imageCount');
+      expect(first).not.toHaveProperty('twitter_url');
+      expect(first).not.toHaveProperty('alternate_handles');
+
+      // Sorted by imageCount desc.
+      const counts: number[] = res.body.authors.map((a: { imageCount: number }) => a.imageCount);
+      for (let i = 1; i < counts.length; i++) {
+        expect(counts[i]).toBeLessThanOrEqual(counts[i - 1]!);
+      }
+
+      // @Zort70 should be present with the expected count from data/attribution.json.
+      const zort = res.body.authors.find((a: { handle: string }) => a.handle === '@Zort70');
+      expect(zort).toBeDefined();
+      expect(zort.imageCount).toBe(98);
+    });
+
+    it('includes Cache-Control header for CDN/browser caching', async () => {
+      const res = await request(app).get('/api/authors');
+      expect(res.status).toBe(200);
+      expect(res.headers['cache-control']).toBe('public, max-age=3600, stale-while-revalidate=86400');
+      expect(res.headers['vary']).toContain('Accept-Encoding');
+    });
+  });
+
+  describe('GET /api/authors/:handle', () => {
+    it('returns author detail with non-empty images list', async () => {
+      const res = await request(app).get('/api/authors/@Zort70');
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('author');
+      expect(res.body.author.handle).toBe('@Zort70');
+      expect(res.body.author).toHaveProperty('twitterUrl');
+      expect(Array.isArray(res.body.images)).toBe(true);
+      expect(res.body.images.length).toBeGreaterThan(0);
+
+      const img = res.body.images[0];
+      expect(typeof img.src).toBe('string');
+      expect(img.src.startsWith('/avatars/')).toBe(true);
+      expect(typeof img.fileName).toBe('string');
+      expect(img.fileName.length).toBeGreaterThan(0);
+      expect(typeof img.blobPath).toBe('string');
+      expect(img.blobPath.startsWith('avatars/')).toBe(true);
+      expect(typeof img.campaignId).toBe('string');
+      expect(img.campaignId.length).toBeGreaterThan(0);
+      expect(['high', 'medium', 'unresolved']).toContain(img.confidence);
+    });
+
+    it('matches handles case-insensitively (with @ prefix)', async () => {
+      const res = await request(app).get('/api/authors/@zort70');
+      expect(res.status).toBe(200);
+      expect(res.body.author.handle).toBe('@Zort70');
+      expect(res.body.images.length).toBeGreaterThan(0);
+    });
+
+    it('matches handles without an @ prefix', async () => {
+      const res = await request(app).get('/api/authors/zort70');
+      expect(res.status).toBe(200);
+      expect(res.body.author.handle).toBe('@Zort70');
+    });
+
+    it('campaignId for each image matches an existing campaign', async () => {
+      const campaignsRes = await request(app).get('/api/campaigns');
+      expect(campaignsRes.status).toBe(200);
+      const ids = new Set<string>((campaignsRes.body.campaigns as Array<{ id: string }>).map((c) => c.id));
+
+      const res = await request(app).get('/api/authors/@Zort70');
+      expect(res.status).toBe(200);
+      for (const img of res.body.images as Array<{ campaignId: string }>) {
+        expect(ids.has(img.campaignId)).toBe(true);
+      }
+    });
+
+    it('404s for an unknown handle', async () => {
+      const res = await request(app).get('/api/authors/@Doesnotexist');
+      expect(res.status).toBe(404);
+      expect(res.body).toEqual(expect.objectContaining({ error: 'Author not found' }));
+    });
+
+    it('includes Cache-Control header for CDN/browser caching', async () => {
+      const res = await request(app).get('/api/authors/@Zort70');
+      expect(res.status).toBe(200);
+      expect(res.headers['cache-control']).toBe('public, max-age=3600, stale-while-revalidate=86400');
+      expect(res.headers['vary']).toContain('Accept-Encoding');
+    });
+  });
+
   describe('Security headers', () => {
     it('does not emit X-Powered-By header', async () => {
       const res = await request(app).get('/api/campaigns');
