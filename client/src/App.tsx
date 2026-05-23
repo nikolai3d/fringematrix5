@@ -527,6 +527,15 @@ export default function App() {
     }
   }, [isLightboxOpen, lightboxImageSource]);
 
+  // Handler for clicking the author handle inside the lightbox details panel
+  // (fringematrix5-4a6o). We close the lightbox first so its exit animation
+  // runs, then push the author-detail hash. closeLightbox is idempotent and
+  // hashchange-driven routing keeps the URL as the source of truth.
+  const handleOpenAuthorGalleryFromLightbox = useCallback((handle: string) => {
+    closeLightbox();
+    navigateToAuthorDetail(handle);
+  }, [closeLightbox, navigateToAuthorDetail]);
+
   // Open the lightbox at the image flagged by `pendingLightboxImage` once the
   // matching campaign has finished loading. We wait for `isCampaignLoading`
   // to flip false so the lightbox renders against the fully-loaded image
@@ -826,6 +835,7 @@ export default function App() {
         setLightboxIndex={setLightboxIndex}
         closeLightbox={closeLightbox}
         isAnimatingRef={isAnimatingRef}
+        onOpenAuthorGallery={handleOpenAuthorGalleryFromLightbox}
       />
 
       {/* Settings Modal */}

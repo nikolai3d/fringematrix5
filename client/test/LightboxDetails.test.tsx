@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import LightboxDetails from '../src/components/LightboxDetails';
 import type { Campaign, ImageAuthor } from '../src/types/api';
@@ -161,6 +161,115 @@ describe('LightboxDetails', () => {
       expect(screen.getByText('CH')).toBeTruthy();
       expect(screen.getByText('@cheribot')).toBeTruthy();
       expect(screen.queryByRole('link', { name: /cheribot/ })).toBeNull();
+    });
+
+    describe('onOpenAuthorGallery (fringematrix5-4a6o)', () => {
+      it('renders the handle as a button that fires onOpenAuthorGallery when provided', () => {
+        const onOpen = vi.fn();
+        render(
+          <LightboxDetails
+            campaign={SAMPLE_CAMPAIGN}
+            author={resolvedHigh}
+            onOpenAuthorGallery={onOpen}
+          />,
+        );
+        const handleBtn = screen.getByRole('button', { name: /SarahProost/ });
+        expect(handleBtn.tagName).toBe('BUTTON');
+        fireEvent.click(handleBtn);
+        expect(onOpen).toHaveBeenCalledTimes(1);
+        expect(onOpen).toHaveBeenCalledWith('@SarahProost');
+      });
+
+      it('still exposes the external Twitter link as a separate icon when callback is provided', () => {
+        const onOpen = vi.fn();
+        render(
+          <LightboxDetails
+            campaign={SAMPLE_CAMPAIGN}
+            author={resolvedHigh}
+            onOpenAuthorGallery={onOpen}
+          />,
+        );
+        const twitterLink = screen.getByRole('link', { name: /Twitter/i });
+        expect(twitterLink.getAttribute('href')).toBe('https://twitter.com/SarahProost');
+        expect(twitterLink.getAttribute('target')).toBe('_blank');
+        expect(twitterLink.getAttribute('rel')).toBe('noopener noreferrer');
+      });
+
+      it('omits the Twitter icon when twitterUrl is missing, even with callback provided', () => {
+        const onOpen = vi.fn();
+        const noUrl: ImageAuthor = {
+          handle: '@cheribot',
+          displayName: null,
+          twitterUrl: null,
+          confidence: 'high',
+          candidates: [],
+        };
+        render(
+          <LightboxDetails
+            campaign={SAMPLE_CAMPAIGN}
+            author={noUrl}
+            onOpenAuthorGallery={onOpen}
+          />,
+        );
+        expect(screen.getByRole('button', { name: /cheribot/ })).toBeTruthy();
+        expect(screen.queryByRole('link', { name: /Twitter/i })).toBeNull();
+      });
+
+      it('omits the Twitter icon when twitterUrl is unsafe, even with callback provided', () => {
+        const onOpen = vi.fn();
+        const unsafe: ImageAuthor = {
+          handle: '@evil',
+          displayName: null,
+          // eslint-disable-next-line no-script-url
+          twitterUrl: 'javascript:alert(1)' as string,
+          confidence: 'high',
+          candidates: [],
+        };
+        render(
+          <LightboxDetails
+            campaign={SAMPLE_CAMPAIGN}
+            author={unsafe}
+            onOpenAuthorGallery={onOpen}
+          />,
+        );
+        expect(screen.getByRole('button', { name: /evil/ })).toBeTruthy();
+        expect(screen.queryByRole('link', { name: /Twitter/i })).toBeNull();
+      });
+
+      it('does not render a handle button for the unresolved (candidates-only) case', () => {
+        const onOpen = vi.fn();
+        const unresolvedAuthor: ImageAuthor = {
+          handle: null,
+          displayName: null,
+          twitterUrl: null,
+          confidence: 'unresolved',
+          candidates: ['@AliceA', '@BobB'],
+        };
+        render(
+          <LightboxDetails
+            campaign={SAMPLE_CAMPAIGN}
+            author={unresolvedAuthor}
+            onOpenAuthorGallery={onOpen}
+          />,
+        );
+        expect(screen.queryByRole('button', { name: /AliceA|BobB/ })).toBeNull();
+        // Callback never invoked just by rendering.
+        expect(onOpen).not.toHaveBeenCalled();
+      });
+
+      it('handle button is focusable (participates in lightbox focus trap)', () => {
+        const onOpen = vi.fn();
+        render(
+          <LightboxDetails
+            campaign={SAMPLE_CAMPAIGN}
+            author={resolvedHigh}
+            onOpenAuthorGallery={onOpen}
+          />,
+        );
+        const handleBtn = screen.getByRole('button', { name: /SarahProost/ });
+        handleBtn.focus();
+        expect(document.activeElement).toBe(handleBtn);
+      });
     });
 
     it('rejects unsafe twitterUrl values and renders the handle as plain text', () => {

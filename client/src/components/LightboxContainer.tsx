@@ -22,6 +22,13 @@ interface Props {
   setLightboxIndex: React.Dispatch<React.SetStateAction<number>>;
   closeLightbox: () => void;
   isAnimatingRef: MutableRefObject<boolean>;
+  /**
+   * Optional callback invoked when the user clicks the author handle in the
+   * details sidebar / drawer. Implementations should close the lightbox
+   * (animated) and navigate to the author's gallery page. Passed through to
+   * LightboxDetails. See fringematrix5-4a6o.
+   */
+  onOpenAuthorGallery?: (handle: string) => void;
 }
 
 export default function LightboxContainer({
@@ -33,6 +40,7 @@ export default function LightboxContainer({
   setLightboxIndex,
   closeLightbox,
   isAnimatingRef,
+  onOpenAuthorGallery,
 }: Props) {
   const swipeRef = useRef<{ startX: number; startY: number; startTime: number } | null>(null);
   const infoBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -253,7 +261,11 @@ export default function LightboxContainer({
             ref={sidebarRef}
             aria-label="Image details"
           >
-            <LightboxDetails campaign={activeCampaign} author={images[lightboxIndex]?.author ?? null} />
+            <LightboxDetails
+              campaign={activeCampaign}
+              author={images[lightboxIndex]?.author ?? null}
+              onOpenAuthorGallery={onOpenAuthorGallery}
+            />
           </aside>
         </div>
 
@@ -329,7 +341,11 @@ export default function LightboxContainer({
           >
             ✕
           </button>
-          <LightboxDetails campaign={activeCampaign} author={images[lightboxIndex]?.author ?? null} />
+          <LightboxDetails
+            campaign={activeCampaign}
+            author={images[lightboxIndex]?.author ?? null}
+            onOpenAuthorGallery={onOpenAuthorGallery}
+          />
         </div>
       )}
     </div>
