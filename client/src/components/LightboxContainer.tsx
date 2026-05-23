@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
 import type { Campaign, ImageData } from '../types/api';
 import LightboxDetails from './LightboxDetails';
@@ -18,7 +18,24 @@ interface Props {
   lightboxIndex: number;
   isLightboxOpen: boolean;
   hideLightboxImage: boolean;
+  /**
+   * The campaign currently selected in the app shell. Used as the default /
+   * fallback for the IMAGE DETAILS panel when an image carries no
+   * `campaignId` (legacy path) or when its `campaignId` isn't in the loaded
+   * `campaigns` list (defensive fallback). In campaign-browse mode every
+   * image's `campaignId` matches this campaign, so the visible behavior is
+   * unchanged. In author-browse mode (fringematrix5-ik5) images can come
+   * from different campaigns, so the per-image lookup below produces the
+   * correct campaign for each navigation step. See fringematrix5-pyd.
+   */
   activeCampaign: Campaign | null;
+  /**
+   * Full list of campaigns loaded at app mount. Used to resolve each
+   * image's source campaign by id so the IMAGE DETAILS panel updates as
+   * the user navigates across images that may belong to different
+   * campaigns. See fringematrix5-pyd.
+   */
+  campaigns: Campaign[];
   setLightboxIndex: React.Dispatch<React.SetStateAction<number>>;
   closeLightbox: () => void;
   isAnimatingRef: MutableRefObject<boolean>;
@@ -43,12 +60,33 @@ export default function LightboxContainer({
   isLightboxOpen,
   hideLightboxImage,
   activeCampaign,
+  campaigns,
   setLightboxIndex,
   closeLightbox,
   isAnimatingRef,
   onOpenAuthorGallery,
   onOpenCampaignGallery,
 }: Props) {
+  // Index campaigns by id once per render of `campaigns` so the per-image
+  // lookup below is O(1). Memoizing also stabilizes the map reference so
+  // the resolved campaign reference stays equal across image navigation
+  // within a single source campaign — preserving LightboxDetails' memo
+  // benefits.
+  const campaignsById = useMemo(() => {
+    const map = new Map<string, Campaign>();
+    for (const c of campaigns) map.set(c.id, c);
+    return map;
+  }, [campaigns]);
+
+  // Resolve the campaign for the currently-visible image. Falls back to
+  // `activeCampaign` when the image has no `campaignId` (older / synthetic
+  // sources) or when the id doesn't match a loaded campaign — both are
+  // defensive paths; in normal operation every image carries a valid
+  // `campaignId` stamped by useCampaignLoader (fringematrix5-uyp).
+  const currentImage = images[lightboxIndex];
+  const currentCampaign: Campaign | null = currentImage?.campaignId
+    ? campaignsById.get(currentImage.campaignId) ?? activeCampaign
+    : activeCampaign;
   const swipeRef = useRef<{ startX: number; startY: number; startTime: number } | null>(null);
   const infoBtnRef = useRef<HTMLButtonElement | null>(null);
   const drawerCloseBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -269,8 +307,8 @@ export default function LightboxContainer({
             aria-label="Image details"
           >
             <LightboxDetails
-              campaign={activeCampaign}
-              author={images[lightboxIndex]?.author ?? null}
+              campaign={currentCampaign}
+              author={currentImage?.author ?? null}
               onOpenAuthorGallery={onOpenAuthorGallery}
               onOpenCampaignGallery={onOpenCampaignGallery}
             />
@@ -350,8 +388,8 @@ export default function LightboxContainer({
             ✕
           </button>
           <LightboxDetails
-            campaign={activeCampaign}
-            author={images[lightboxIndex]?.author ?? null}
+            campaign={currentCampaign}
+            author={currentImage?.author ?? null}
             onOpenAuthorGallery={onOpenAuthorGallery}
             onOpenCampaignGallery={onOpenCampaignGallery}
           />

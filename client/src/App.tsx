@@ -848,6 +848,7 @@ export default function App() {
         isLightboxOpen={isLightboxOpen}
         hideLightboxImage={hideLightboxImage}
         activeCampaign={activeCampaign}
+        campaigns={campaigns}
         setLightboxIndex={setLightboxIndex}
         closeLightbox={closeLightbox}
         isAnimatingRef={isAnimatingRef}
