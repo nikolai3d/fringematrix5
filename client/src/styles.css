@@ -2119,3 +2119,164 @@ html.reduce-effects .thumbnail-size-slider input[type='range']:hover:not(:disabl
   gap: 2px;
 }
 
+/* =============================================================================
+   Authors index + detail pages (bead fringematrix5-lfn)
+   ========================================================================== */
+.authors-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+.authors-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.authors-header h1 {
+  margin: 0;
+  font-family: Orbitron, Inter, sans-serif;
+  font-size: 28px;
+  letter-spacing: 0.04em;
+}
+.authors-back {
+  flex-shrink: 0;
+}
+.authors-status,
+.authors-error {
+  padding: 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+.authors-error {
+  color: #ff8b8b;
+}
+.authors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  margin: 18px 0 80px;
+}
+.author-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  background: var(--bg-elev);
+  border: 1px solid rgba(124,77,255,0.2);
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.author-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: 0 6px 16px rgba(var(--theme-accent-rgb), 0.2);
+}
+.author-card-button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+}
+.author-card .author-avatar {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(var(--theme-accent-rgb), 0.6), rgba(124,77,255,0.6));
+  display: grid;
+  place-items: center;
+  font-family: Orbitron, Inter, sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  color: #fff;
+  letter-spacing: 0.04em;
+}
+.author-detail .author-avatar-large {
+  width: 96px;
+  height: 96px;
+  font-size: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(var(--theme-accent-rgb), 0.6), rgba(124,77,255,0.6));
+  display: grid;
+  place-items: center;
+  font-family: Orbitron, Inter, sans-serif;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0.04em;
+}
+.author-card .author-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.author-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.authors-page .author-handle {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(var(--theme-accent-rgb), 0.5);
+}
+.authors-page .author-handle:hover {
+  border-bottom-style: solid;
+}
+.authors-page .author-count {
+  white-space: nowrap;
+  color: var(--muted);
+}
+.author-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 0;
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(124,77,255,0.2);
+}
+.author-detail-header h1 {
+  margin: 0 0 6px;
+  font-family: Orbitron, Inter, sans-serif;
+  font-size: 26px;
+  letter-spacing: 0.04em;
+}
+.author-detail-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.author-detail-info .author-count {
+  margin-top: 6px;
+  font-size: 14px;
+}
+/* Author-detail thumbnail wrapper: a button for keyboard/screen-reader access
+   that visually behaves like the bare <img> in the campaign GalleryGrid. */
+.author-image-button {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+  color: inherit;
+  font: inherit;
+}
+.author-image-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
