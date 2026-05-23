@@ -22,6 +22,9 @@ import SettingsModal from './components/SettingsModal';
 import ThumbnailSizeSlider from './components/ThumbnailSizeSlider';
 import LightboxContainer from './components/LightboxContainer';
 import GalleryGrid, { type GalleryGridHandle } from './components/GalleryGrid';
+import AuthorsIndex from './components/AuthorsIndex';
+import AuthorDetail from './components/AuthorDetail';
+import { parseHashRoute, type HashRoute } from './utils/parseHashRoute';
 import type {
   Campaign,
   BuildInfo,
@@ -79,10 +82,52 @@ export default function App() {
   const modalLoadAbortRef = useRef<AbortController | null>(null);
   const modalTriggerRef = useRef<HTMLElement | null>(null);
 
+  // Route state: which top-level view to render. Driven by the URL hash so it
+  // survives reloads and is bookmarkable. The hash also drives campaign
+  // selection (see the mount effect below); on first render we seed `route`
+  // synchronously from window.location.hash so the correct view paints on
+  // initial render and SSR-friendly fallback ('gallery') for the no-window case.
+  const [route, setRoute] = useState<HashRoute>(() => {
+    if (typeof window === 'undefined') return { type: 'gallery', campaignId: null };
+    return parseHashRoute(window.location.hash);
+  });
+
   // Apply theme CSS variables on mount
   useEffect(() => {
     applyTheme();
   }, []);
+
+  // Keep `route` in sync with the URL hash. This handles direct navigation
+  // (#authors / #authors/:handle) via browser back/forward as well as our
+  // own programmatic navigation that calls window.location.hash = '...'.
+  useEffect(() => {
+    function handleHashChange() {
+      setRoute(parseHashRoute(window.location.hash));
+    }
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Programmatic navigation helpers for the Authors pages. Setting the hash
+  // triggers the listener above, which updates `route`. We don't push
+  // intermediate state — the URL is the source of truth.
+  const navigateToAuthorsIndex = useCallback(() => {
+    window.location.hash = 'authors';
+  }, []);
+  const navigateToAuthorDetail = useCallback((handle: string) => {
+    window.location.hash = `authors/${encodeURIComponent(handle)}`;
+  }, []);
+  const navigateToCampaign = useCallback((campaignId: string) => {
+    // Setting the hash triggers hashchange → setRoute({ type: 'gallery', ... }),
+    // and the gallery view's effect (further below) syncs activeCampaignId.
+    window.location.hash = campaignId;
+  }, []);
+  const navigateToGalleryHome = useCallback(() => {
+    // Drop the hash entirely so the gallery view falls back to its default
+    // campaign on next mount; for the current session we just clear route.
+    window.history.replaceState({}, '', window.location.pathname);
+    setRoute({ type: 'gallery', campaignId: activeCampaignId });
+  }, [activeCampaignId]);
 
   // Load accessibility settings from localStorage on mount
   useEffect(() => {
@@ -149,6 +194,26 @@ export default function App() {
       window.history.replaceState({}, '', `#${campaignId}`);
     });
   }, [selectCampaignFromHook]);
+
+  // Stable ref to `selectCampaign` so the route-sync effect below doesn't
+  // need to re-subscribe every time selectCampaign's identity changes.
+  const selectCampaignRef = useRef(selectCampaign);
+  useEffect(() => {
+    selectCampaignRef.current = selectCampaign;
+  }, [selectCampaign]);
+
+  // When the route flips to gallery with a different campaignId (e.g. an
+  // author-detail thumbnail click sets the hash to a campaign id), select
+  // that campaign so the gallery view shows the right images.
+  useEffect(() => {
+    if (route.type !== 'gallery') return;
+    if (!route.campaignId) return;
+    if (route.campaignId === activeCampaignId) return;
+    if (campaigns.length === 0) return;
+    const exists = campaigns.some((c) => c.id === route.campaignId);
+    if (!exists) return;
+    selectCampaignRef.current?.(route.campaignId);
+  }, [route, campaigns, activeCampaignId]);
 
   const activeIndex = useMemo(() => {
     if (!activeCampaignId) return -1;
@@ -325,9 +390,16 @@ export default function App() {
         // Update loading screen with campaign count
         setLoadingCampaignCount(campaignList.length);
 
-        // Choose initial campaign and load its images
-        const hash = window.location.hash.replace('#', '');
-        const initial = campaignList.find((c: Campaign) => c.id === hash) || campaignList[0];
+        // Choose initial campaign and load its images.
+        // Note: when the URL hash points to a non-gallery route (e.g. #authors
+        // or #authors/:handle) the campaign id lookup will miss and we fall
+        // back to the first campaign for preload. The hash is NOT rewritten in
+        // that case — otherwise we'd clobber the user's authors route on load.
+        const parsedHash = parseHashRoute(window.location.hash);
+        const hashCampaignId = parsedHash.type === 'gallery' ? parsedHash.campaignId : null;
+        const initial = (hashCampaignId
+          ? campaignList.find((c: Campaign) => c.id === hashCampaignId)
+          : null) || campaignList[0];
 
         if (initial) {
           // Mount-time initial campaign load. Shares campaignLoadAbortRef so a
@@ -336,7 +408,11 @@ export default function App() {
           campaignLoadAbortRef.current = controller;
 
           setActiveCampaignId(initial.id);
-          window.history.replaceState({}, '', `#${initial.id}`);
+          // Only sync the hash when we're on a gallery route — never overwrite
+          // an explicit non-gallery hash (#authors, #authors/:handle).
+          if (parsedHash.type === 'gallery') {
+            window.history.replaceState({}, '', `#${initial.id}`);
+          }
 
           await loadCampaignImages(initial.id, controller.signal, setLoadingImageCount);
           if (isMounted && !controller.signal.aborted) setIsDataReady(true);
@@ -407,8 +483,10 @@ export default function App() {
     closeAllSubwindows();
     // Clear the hash from the URL
     window.history.replaceState({}, '', window.location.pathname);
+    // Ensure we're on the gallery view (in case user was on an Authors page)
+    setRoute({ type: 'gallery', campaignId: firstCampaign?.id ?? null });
     // Select the first campaign
-    selectCampaign(firstCampaign.id);
+    if (firstCampaign) selectCampaign(firstCampaign.id);
   }, [campaigns, selectCampaign, closeAllSubwindows]);
 
   // Settings modal: close callback with focus restoration
@@ -482,6 +560,13 @@ export default function App() {
           </button>
           <button
             className="toolbar-button"
+            onClick={navigateToAuthorsIndex}
+            disabled={isCampaignLoading}
+          >
+            Authors
+          </button>
+          <button
+            className="toolbar-button"
             onClick={() => openModal('legal')}
             disabled={isCampaignLoading}
           >
@@ -547,38 +632,55 @@ export default function App() {
         onClose={closeSidebar}
       />
 
-      <main className="content">
-        <section id="campaign-info" className="campaign-info">
-          {activeCampaign && (
-            <>
-              <h1>{activeCampaign.episode} ({activeCampaign.episode_id})</h1>
-              <div className="campaign-meta">
-                <span>Hashtag: #{activeCampaign.hashtag}</span>
-                <span>Air date: {activeCampaign.date}</span>
-                <span>Path: {activeCampaign.icon_path}</span>
-              </div>
-              <div className="campaign-links">
-                {isSafeUrl(activeCampaign.fringenuity_link) && (
-                  <a href={activeCampaign.fringenuity_link} target="_blank" rel="noreferrer noopener">Fringenuity</a>
-                )}
-                {isSafeUrl(activeCampaign.imdb_link) && (
-                  <a href={activeCampaign.imdb_link} target="_blank" rel="noreferrer noopener">IMDB</a>
-                )}
-                {isSafeUrl(activeCampaign.wiki_link) && (
-                  <a href={activeCampaign.wiki_link} target="_blank" rel="noreferrer noopener">Wiki</a>
-                )}
-              </div>
-            </>
-          )}
-        </section>
-
-        <GalleryGrid
-          ref={galleryGridRef}
-          images={currentImages}
-          hasCampaign={!!activeCampaign}
-          onImageClick={openLightbox}
+      {route.type === 'authors-index' && (
+        <AuthorsIndex
+          onSelectAuthor={navigateToAuthorDetail}
+          onBack={navigateToGalleryHome}
         />
-      </main>
+      )}
+
+      {route.type === 'author-detail' && (
+        <AuthorDetail
+          handle={route.handle}
+          onBack={navigateToAuthorsIndex}
+          onSelectCampaign={navigateToCampaign}
+        />
+      )}
+
+      {route.type === 'gallery' && (
+        <main className="content">
+          <section id="campaign-info" className="campaign-info">
+            {activeCampaign && (
+              <>
+                <h1>{activeCampaign.episode} ({activeCampaign.episode_id})</h1>
+                <div className="campaign-meta">
+                  <span>Hashtag: #{activeCampaign.hashtag}</span>
+                  <span>Air date: {activeCampaign.date}</span>
+                  <span>Path: {activeCampaign.icon_path}</span>
+                </div>
+                <div className="campaign-links">
+                  {isSafeUrl(activeCampaign.fringenuity_link) && (
+                    <a href={activeCampaign.fringenuity_link} target="_blank" rel="noreferrer noopener">Fringenuity</a>
+                  )}
+                  {isSafeUrl(activeCampaign.imdb_link) && (
+                    <a href={activeCampaign.imdb_link} target="_blank" rel="noreferrer noopener">IMDB</a>
+                  )}
+                  {isSafeUrl(activeCampaign.wiki_link) && (
+                    <a href={activeCampaign.wiki_link} target="_blank" rel="noreferrer noopener">Wiki</a>
+                  )}
+                </div>
+              </>
+            )}
+          </section>
+
+          <GalleryGrid
+            ref={galleryGridRef}
+            images={currentImages}
+            hasCampaign={!!activeCampaign}
+            onImageClick={openLightbox}
+          />
+        </main>
+      )}
 
       {/* Build info popover */}
       {isBuildInfoOpen && (
