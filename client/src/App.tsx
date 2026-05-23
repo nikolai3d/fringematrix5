@@ -503,6 +503,13 @@ export default function App() {
   // campaign is still loading).
   useEffect(() => {
     if (!pendingLightboxImage) return;
+    // If the user navigated away from the gallery before the campaign
+    // finished loading (e.g. back to the authors index), drop the pending
+    // request so we don't pop a lightbox over a non-gallery view.
+    if (route.type !== 'gallery') {
+      setPendingLightboxImage(null);
+      return;
+    }
     if (activeCampaignId !== pendingLightboxImage.campaignId) return;
     if (isCampaignLoading) return;
     if (currentImages.length === 0) return;
@@ -518,6 +525,7 @@ export default function App() {
     currentImages,
     activeCampaignId,
     isCampaignLoading,
+    route,
     openLightbox,
   ]);
 
