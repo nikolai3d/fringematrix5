@@ -102,9 +102,9 @@ function AuthorRow({ author }: { author: ImageAuthor }) {
 }
 
 /**
- * Renders the IMAGE DETAILS sidebar content (episode name, season/number,
+ * Renders the IMAGE DETAILS sidebar content: episode name, season/number,
  * air date, hashtag, IMDB link, and the AUTHOR row when attribution data is
- * available — see fringematrix5-5s8).
+ * available (see fringematrix5-5s8).
  *
  * The AUTHOR row is conditionally rendered based on the `author` prop:
  *   - high/medium confidence → handle as link (with avatar + optional badge)
