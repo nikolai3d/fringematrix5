@@ -485,6 +485,58 @@ footer.navbar {
   font-style: italic;
   font-size: 14px;
 }
+/* AUTHOR row — fringematrix5-5s8. Avatar circle + handle (link if resolved)
+   + optional "uncertain" badge for medium-confidence attributions. */
+.lightbox-details-author-value {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.lightbox-author-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--theme-accent-rgb), 0.55);
+  background: rgba(var(--theme-accent-rgb), 0.10);
+  color: var(--theme-accent);
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.lightbox-author-avatar--unresolved {
+  color: rgba(255, 255, 255, 0.55);
+  border-color: rgba(255, 255, 255, 0.30);
+  background: rgba(255, 255, 255, 0.04);
+  font-weight: 400;
+  font-size: 16px;
+}
+.lightbox-author-handle {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.lightbox-author-candidates {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.lightbox-author-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.65);
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 .visually-hidden {
   position: absolute;
   width: 1px;

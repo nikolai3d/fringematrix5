@@ -253,7 +253,7 @@ export default function LightboxContainer({
             ref={sidebarRef}
             aria-label="Image details"
           >
-            <LightboxDetails campaign={activeCampaign} />
+            <LightboxDetails campaign={activeCampaign} author={images[lightboxIndex]?.author ?? null} />
           </aside>
         </div>
 
@@ -329,7 +329,7 @@ export default function LightboxContainer({
           >
             ✕
           </button>
-          <LightboxDetails campaign={activeCampaign} />
+          <LightboxDetails campaign={activeCampaign} author={images[lightboxIndex]?.author ?? null} />
         </div>
       )}
     </div>
