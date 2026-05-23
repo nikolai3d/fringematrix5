@@ -191,7 +191,12 @@ export default function App() {
   const selectCampaign = useCallback(async (id: string) => {
     await selectCampaignFromHook(id, (campaignId) => {
       setActiveCampaignId(campaignId);
+      // `replaceState` does NOT fire a hashchange event, so we have to manually
+      // sync `route` here — otherwise the route-sync effect below would see a
+      // mismatch between route.campaignId and activeCampaignId and snap us
+      // back to the previous campaign. (Spotted in code review of bead lfn.)
       window.history.replaceState({}, '', `#${campaignId}`);
+      setRoute({ type: 'gallery', campaignId });
     });
   }, [selectCampaignFromHook]);
 

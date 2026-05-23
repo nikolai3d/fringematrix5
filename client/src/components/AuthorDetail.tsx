@@ -34,6 +34,11 @@ export default function AuthorDetail({ handle, onBack, onSelectCampaign }: Props
   useEffect(() => {
     const controller = new AbortController();
     let cancelled = false;
+    // Reset state when the handle changes so we don't briefly show stale
+    // data (or a stale error alert) from the previous request before the
+    // new one resolves.
+    setData(null);
+    setError(null);
     (async () => {
       try {
         // Server :handle param accepts the raw "@..." string; we URL-encode so
@@ -44,10 +49,12 @@ export default function AuthorDetail({ handle, onBack, onSelectCampaign }: Props
         });
         if (cancelled) return;
         setData(res);
+        setError(null);
       } catch (e) {
         if (cancelled) return;
         if (e instanceof DOMException && e.name === 'AbortError') return;
         console.error('Failed to load author detail:', e);
+        setData(null);
         setError('Failed to load author');
       }
     })();
@@ -121,12 +128,18 @@ export default function AuthorDetail({ handle, onBack, onSelectCampaign }: Props
             >
               {data.images.map((image) => (
                 <div className="card" key={image.blobPath}>
-                  <img
-                    src={image.src}
-                    alt={image.fileName}
-                    loading="lazy"
+                  <button
+                    type="button"
+                    className="author-image-button"
                     onClick={() => onSelectCampaign(image.campaignId)}
-                  />
+                    aria-label={`Open campaign ${image.campaignId}`}
+                  >
+                    <img
+                      src={image.src}
+                      alt={image.fileName}
+                      loading="lazy"
+                    />
+                  </button>
                 </div>
               ))}
             </section>

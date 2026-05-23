@@ -2261,4 +2261,22 @@ html.reduce-effects .thumbnail-size-slider input[type='range']:hover:not(:disabl
   margin-top: 6px;
   font-size: 14px;
 }
+/* Author-detail thumbnail wrapper: a button for keyboard/screen-reader access
+   that visually behaves like the bare <img> in the campaign GalleryGrid. */
+.author-image-button {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+  color: inherit;
+  font: inherit;
+}
+.author-image-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 

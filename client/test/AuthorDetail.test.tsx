@@ -88,10 +88,50 @@ describe('AuthorDetail', () => {
     );
 
     const grid = await screen.findByTestId('author-images-grid');
-    const firstImg = grid.querySelectorAll('img')[0]!;
-    fireEvent.click(firstImg);
+    const firstButton = grid.querySelector('button')!;
+    fireEvent.click(firstButton);
 
     expect(onSelectCampaign).toHaveBeenCalledWith('crosstheline');
+  });
+
+  it('clears stale data and error when the handle prop changes', async () => {
+    // First render: successful response for @first.
+    const FIRST = {
+      ...SAMPLE_DETAIL,
+      author: { ...SAMPLE_DETAIL.author, handle: '@first', name: 'First Person' },
+    };
+    let callIdx = 0;
+    const fetchSpy = vi.fn(async () => {
+      const body = callIdx++ === 0
+        ? FIRST
+        : { error: 'not found' };
+      const status = callIdx === 1 ? 200 : 404;
+      return new Response(JSON.stringify(body), {
+        status,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const { rerender } = render(
+      <AuthorDetail handle="@first" onBack={() => {}} onSelectCampaign={() => {}} />,
+    );
+    await screen.findByText('First Person');
+
+    // Re-render with a different handle — the previous "First Person" header
+    // and image grid should disappear immediately while the new fetch runs.
+    rerender(
+      <AuthorDetail handle="@second" onBack={() => {}} onSelectCampaign={() => {}} />,
+    );
+    expect(screen.queryByText('First Person')).toBeNull();
+    expect(screen.queryByTestId('author-images-grid')).toBeNull();
+
+    // Second fetch resolves to 404 — error alert appears.
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/failed to load author/i);
+    });
+    errSpy.mockRestore();
   });
 
   it('shows an inline error message when the request fails (e.g. 404)', async () => {
