@@ -113,8 +113,11 @@ describe('LightboxDetails', () => {
       render(
         <LightboxDetails campaign={SAMPLE_CAMPAIGN} onOpenCampaignGallery={onOpen} />
       );
+      // Scope to the EPISODE NAME button specifically — the HASHTAG row
+      // also exposes a "view campaign gallery for #..." button now
+      // (fringematrix5-8fwv), so an unanchored regex would match both.
       const btn = screen.getByRole('button', {
-        name: /view campaign gallery/i,
+        name: /view campaign gallery for back to where you've never been/i,
       });
       fireEvent.click(btn);
       expect(onOpen).toHaveBeenCalledTimes(1);
@@ -133,8 +136,10 @@ describe('LightboxDetails', () => {
       render(
         <LightboxDetails campaign={SAMPLE_CAMPAIGN} onOpenCampaignGallery={onOpen} />
       );
+      // Same scoping note as above — name the EPISODE NAME button
+      // explicitly to disambiguate from the HASHTAG button.
       const btn = screen.getByRole('button', {
-        name: /view campaign gallery/i,
+        name: /view campaign gallery for back to where you've never been/i,
       }) as HTMLButtonElement;
       // Focusable via .focus().
       btn.focus();
@@ -154,6 +159,75 @@ describe('LightboxDetails', () => {
       expect(link.tagName).toBe('A');
       expect(link.getAttribute('href')).toBe('http://www.imdb.com/title/tt2125636/');
       expect(link.getAttribute('target')).toBe('_blank');
+    });
+  });
+
+  describe('HASHTAG → campaign gallery link (fringematrix5-8fwv)', () => {
+    it('renders the hashtag as plain text when no onOpenCampaignGallery handler is provided', () => {
+      render(<LightboxDetails campaign={SAMPLE_CAMPAIGN} />);
+      // No button-role element for the hashtag value.
+      expect(screen.queryByRole('button', { name: /#CrossTheLine/ })).toBeNull();
+      // The hashtag value is still rendered (as plain text).
+      expect(screen.getByText('#CrossTheLine')).toBeTruthy();
+    });
+
+    it('renders the hashtag as a button when onOpenCampaignGallery is provided', () => {
+      const onOpen = vi.fn();
+      render(
+        <LightboxDetails campaign={SAMPLE_CAMPAIGN} onOpenCampaignGallery={onOpen} />
+      );
+      const btn = screen.getByRole('button', {
+        name: /view campaign gallery for #crosstheline/i,
+      });
+      expect(btn).toBeTruthy();
+      expect(btn.tagName).toBe('BUTTON');
+      // Must be of type="button" so it never accidentally submits a form.
+      expect(btn.getAttribute('type')).toBe('button');
+      // The `#` sigil is INSIDE the button so the whole visible hashtag is
+      // a single click target.
+      expect(btn.textContent).toBe('#CrossTheLine');
+    });
+
+    it('invokes onOpenCampaignGallery with the campaign id when the hashtag is clicked', () => {
+      const onOpen = vi.fn();
+      render(
+        <LightboxDetails campaign={SAMPLE_CAMPAIGN} onOpenCampaignGallery={onOpen} />
+      );
+      const btn = screen.getByRole('button', {
+        name: /view campaign gallery for #crosstheline/i,
+      });
+      fireEvent.click(btn);
+      expect(onOpen).toHaveBeenCalledTimes(1);
+      expect(onOpen).toHaveBeenCalledWith('crosstheline');
+    });
+
+    it('reuses the same `.lightbox-details-campaign-link` class as the EPISODE NAME affordance', () => {
+      const onOpen = vi.fn();
+      render(
+        <LightboxDetails campaign={SAMPLE_CAMPAIGN} onOpenCampaignGallery={onOpen} />
+      );
+      const episodeBtn = screen.getByRole('button', {
+        name: /view campaign gallery for back to where you've never been/i,
+      });
+      const hashtagBtn = screen.getByRole('button', {
+        name: /view campaign gallery for #crosstheline/i,
+      });
+      expect(episodeBtn.className).toContain('lightbox-details-campaign-link');
+      expect(hashtagBtn.className).toContain('lightbox-details-campaign-link');
+    });
+
+    it('hashtag button is focusable (participates in lightbox focus trap)', () => {
+      const onOpen = vi.fn();
+      render(
+        <LightboxDetails campaign={SAMPLE_CAMPAIGN} onOpenCampaignGallery={onOpen} />
+      );
+      const btn = screen.getByRole('button', {
+        name: /view campaign gallery for #crosstheline/i,
+      }) as HTMLButtonElement;
+      btn.focus();
+      expect(document.activeElement).toBe(btn);
+      expect(btn.tagName).toBe('BUTTON');
+      expect(btn.hasAttribute('disabled')).toBe(false);
     });
   });
 
