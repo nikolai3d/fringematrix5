@@ -69,12 +69,12 @@ describe('LightboxDetails', () => {
 
   it('omits the AUTHOR row when no author prop is provided', () => {
     render(<LightboxDetails campaign={SAMPLE_CAMPAIGN} />);
-    expect(screen.queryByText(/^author$/i)).toBeNull();
+    expect(screen.queryByText(/^artist$/i)).toBeNull();
   });
 
   it('omits the AUTHOR row when author is null', () => {
     render(<LightboxDetails campaign={SAMPLE_CAMPAIGN} author={null} />);
-    expect(screen.queryByText(/^author$/i)).toBeNull();
+    expect(screen.queryByText(/^artist$/i)).toBeNull();
   });
 
   it('renders an empty-state message when no campaign is provided', () => {
@@ -256,7 +256,7 @@ describe('LightboxDetails', () => {
 
     it('renders an AUTHOR row with avatar initials and a link for resolved high-confidence authors', () => {
       render(<LightboxDetails campaign={SAMPLE_CAMPAIGN} author={resolvedHigh} />);
-      expect(screen.getByText('AUTHOR')).toBeTruthy();
+      expect(screen.getByText('ARTIST')).toBeTruthy();
       // Avatar initials derived from camelCase
       expect(screen.getByText('SP')).toBeTruthy();
       const link = screen.getByRole('link', { name: /SarahProost/ });
@@ -269,7 +269,7 @@ describe('LightboxDetails', () => {
 
     it('renders an "uncertain" badge for medium-confidence authors', () => {
       render(<LightboxDetails campaign={SAMPLE_CAMPAIGN} author={resolvedMedium} />);
-      expect(screen.getByText('AUTHOR')).toBeTruthy();
+      expect(screen.getByText('ARTIST')).toBeTruthy();
       expect(screen.getByText('ZO')).toBeTruthy();
       expect(screen.getByText(/uncertain/i)).toBeTruthy();
       expect(screen.getByRole('link', { name: /Zort70/ })).toBeTruthy();
@@ -277,7 +277,7 @@ describe('LightboxDetails', () => {
 
     it('renders "Possibly: @A, @B, @C" with a "?" avatar for unresolved authors with candidates', () => {
       render(<LightboxDetails campaign={SAMPLE_CAMPAIGN} author={unresolved} />);
-      expect(screen.getByText('AUTHOR')).toBeTruthy();
+      expect(screen.getByText('ARTIST')).toBeTruthy();
       expect(screen.getByText('?')).toBeTruthy();
       expect(screen.getByText(/Possibly:\s*@AliceA,\s*@BobB,\s*@Carol_C/)).toBeTruthy();
       // No link in unresolved state.
@@ -293,7 +293,7 @@ describe('LightboxDetails', () => {
         candidates: [],
       };
       render(<LightboxDetails campaign={SAMPLE_CAMPAIGN} author={empty} />);
-      expect(screen.queryByText(/^author$/i)).toBeNull();
+      expect(screen.queryByText(/^artist$/i)).toBeNull();
     });
 
     it('does not render a link when twitterUrl is missing for a resolved author', () => {
@@ -305,7 +305,7 @@ describe('LightboxDetails', () => {
         candidates: [],
       };
       render(<LightboxDetails campaign={SAMPLE_CAMPAIGN} author={noUrl} />);
-      expect(screen.getByText('AUTHOR')).toBeTruthy();
+      expect(screen.getByText('ARTIST')).toBeTruthy();
       expect(screen.getByText('CH')).toBeTruthy();
       expect(screen.getByText('@cheribot')).toBeTruthy();
       expect(screen.queryByRole('link', { name: /cheribot/ })).toBeNull();

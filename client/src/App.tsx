@@ -665,7 +665,7 @@ export default function App() {
             onClick={navigateToAuthorsIndex}
             disabled={isCampaignLoading}
           >
-            Authors
+            Artists
           </button>
           <button
             className="toolbar-button"

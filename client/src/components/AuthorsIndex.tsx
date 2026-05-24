@@ -32,7 +32,7 @@ export default function AuthorsIndex({ onSelectAuthor, onBack }: Props) {
         if (cancelled) return;
         if (e instanceof DOMException && e.name === 'AbortError') return;
         console.error('Failed to load authors:', e);
-        setError('Failed to load authors');
+        setError('Failed to load artists');
       }
     })();
     return () => {
@@ -55,7 +55,7 @@ export default function AuthorsIndex({ onSelectAuthor, onBack }: Props) {
 
       {isLoading && (
         <div className="authors-status" role="status" aria-live="polite">
-          Loading authors…
+          Loading artists…
         </div>
       )}
 
@@ -67,14 +67,14 @@ export default function AuthorsIndex({ onSelectAuthor, onBack }: Props) {
 
       {isEmpty && (
         <div className="authors-status" role="status" aria-live="polite">
-          No authors found.
+          No artists found.
         </div>
       )}
 
       {authors && authors.length > 0 && (
         <section
           className="authors-grid"
-          aria-label="Authors"
+          aria-label="Artists"
           data-testid="authors-grid"
         >
           {authors.map((author) => (

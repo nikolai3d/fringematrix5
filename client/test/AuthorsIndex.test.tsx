@@ -89,7 +89,7 @@ describe('AuthorsIndex', () => {
     render(<AuthorsIndex onSelectAuthor={() => {}} onBack={() => {}} />);
 
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent(/failed to load authors/i);
+      expect(screen.getByRole('alert')).toHaveTextContent(/failed to load artists/i);
     });
     errSpy.mockRestore();
   });
@@ -99,7 +99,7 @@ describe('AuthorsIndex', () => {
     render(<AuthorsIndex onSelectAuthor={() => {}} onBack={() => {}} />);
 
     await waitFor(() => {
-      expect(screen.getByText(/no authors found/i)).toBeTruthy();
+      expect(screen.getByText(/no artists found/i)).toBeTruthy();
     });
     expect(screen.queryByTestId('authors-grid')).toBeNull();
   });
