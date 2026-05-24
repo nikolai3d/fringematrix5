@@ -37,13 +37,15 @@ const ImageCard = React.memo(function ImageCard({ image, onClick, imgRef }: Imag
           tabIndex={0}
           onKeyDown={(e) => {
             // Keyboard activation: Enter or Space should behave like a click.
-            // preventDefault on Space suppresses the default page-scroll behavior.
-            if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+            // Triggering the native click event keeps the onClick callback's
+            // MouseEvent contract intact (so consumers can still rely on
+            // mouse-event semantics) and avoids unsafe type casts.
+            if (e.key === 'Enter') {
+              e.currentTarget.click();
+            } else if (e.key === ' ' || e.key === 'Spacebar') {
+              // preventDefault on Space suppresses the default page-scroll.
               e.preventDefault();
-              // Re-use the same onClick handler. React's MouseEvent and KeyboardEvent
-              // share the relevant fields (target, currentTarget) for our consumers
-              // which only inspect `target`/`currentTarget`.
-              onClick(e as unknown as React.MouseEvent<HTMLImageElement>);
+              e.currentTarget.click();
             }
           }}
         />

@@ -148,7 +148,8 @@ describe('ImageCard — keyboard accessibility', () => {
     const img = screen.getByRole('button');
     fireEvent.keyDown(img, { key: 'Enter' });
     const event = onClick.mock.calls[0][0] as React.SyntheticEvent;
-    // `target` survives React's synthetic-event pooling, unlike `currentTarget`.
+    // The keyboard handler triggers a native click on the img, so onClick
+    // receives a real MouseEvent whose `target` is the img itself.
     expect(event.target).toBe(img);
   });
 });
