@@ -74,7 +74,7 @@ export default function AuthorDetail({ handle, onBack, onOpenImage, gridRef }: P
         if (e instanceof DOMException && e.name === 'AbortError') return;
         console.error('Failed to load author detail:', e);
         setData(null);
-        setError('Failed to load author');
+        setError('Failed to load artist');
       }
     })();
     return () => {
@@ -132,15 +132,15 @@ export default function AuthorDetail({ handle, onBack, onOpenImage, gridRef }: P
         <button
           className="toolbar-button authors-back"
           onClick={onBack}
-          aria-label="Back to authors"
+          aria-label="Back to artists"
         >
-          ← All authors
+          ← All artists
         </button>
       </div>
 
       {isLoading && (
         <div className="authors-status" role="status" aria-live="polite">
-          Loading author…
+          Loading artist…
         </div>
       )}
 
@@ -178,7 +178,7 @@ export default function AuthorDetail({ handle, onBack, onOpenImage, gridRef }: P
 
           {data.images.length === 0 ? (
             <div className="authors-status" role="status" aria-live="polite">
-              No images attributed to this author yet.
+              No images attributed to this artist yet.
             </div>
           ) : (
             <GalleryGrid

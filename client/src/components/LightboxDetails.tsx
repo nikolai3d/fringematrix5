@@ -98,7 +98,7 @@ function AuthorRow({
 
     return (
       <div className="lightbox-details-row lightbox-details-author">
-        <div className="lightbox-details-label">AUTHOR</div>
+        <div className="lightbox-details-label">ARTIST</div>
         <div className="lightbox-details-value lightbox-details-author-value">
           <span
             className="lightbox-author-avatar"
@@ -137,7 +137,7 @@ function AuthorRow({
   if (author.candidates && author.candidates.length > 0) {
     return (
       <div className="lightbox-details-row lightbox-details-author">
-        <div className="lightbox-details-label">AUTHOR</div>
+        <div className="lightbox-details-label">ARTIST</div>
         <div className="lightbox-details-value lightbox-details-author-value">
           <span
             className="lightbox-author-avatar lightbox-author-avatar--unresolved"

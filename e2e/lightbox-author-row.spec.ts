@@ -95,7 +95,7 @@ test.describe('Lightbox AUTHOR row — resolved (high confidence)', () => {
     // AUTHOR row should be present.
     const authorRow = sidebar.locator('.lightbox-details-author');
     await expect(authorRow).toBeVisible();
-    await expect(authorRow.getByText('AUTHOR', { exact: true })).toBeVisible();
+    await expect(authorRow.getByText('ARTIST', { exact: true })).toBeVisible();
 
     // Avatar element with initials derived from '@Zort70' → 'ZO' (one
     // uppercase letter in the handle, so getInitials() falls through to the
@@ -143,7 +143,7 @@ test.describe('Lightbox AUTHOR row — unresolved with candidates', () => {
     const sidebar = page.locator('.lightbox-details').first();
     const authorRow = sidebar.locator('.lightbox-details-author');
     await expect(authorRow).toBeVisible();
-    await expect(authorRow.getByText('AUTHOR', { exact: true })).toBeVisible();
+    await expect(authorRow.getByText('ARTIST', { exact: true })).toBeVisible();
 
     // Unresolved avatar shows a literal '?'.
     const avatar = authorRow.locator('.lightbox-author-avatar--unresolved');

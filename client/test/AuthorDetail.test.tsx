@@ -169,7 +169,7 @@ describe('AuthorDetail', () => {
 
     // Second fetch resolves to 404 — error alert appears.
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent(/failed to load author/i);
+      expect(screen.getByRole('alert')).toHaveTextContent(/failed to load artist/i);
     });
     errSpy.mockRestore();
   });
@@ -187,7 +187,7 @@ describe('AuthorDetail', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent(/failed to load author/i);
+      expect(screen.getByRole('alert')).toHaveTextContent(/failed to load artist/i);
     });
     errSpy.mockRestore();
   });
