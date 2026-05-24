@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type RefObject } from 'react';
 import { fetchJSON } from '../utils/fetchJSON';
 import { getInitialsFromName } from '../utils/author';
 import { isSafeUrl } from '../utils/isSafeUrl';
 import type { AuthorDetailResponse, ImageData } from '../types/api';
+import GalleryGrid, { type GalleryGridHandle } from './GalleryGrid';
 
 interface Props {
   /** Handle of the author whose detail page we're rendering (includes leading "@"). */
@@ -21,8 +22,20 @@ interface Props {
    * the AuthorDetail response shape. Each image carries a synthesized
    * `author` derived from `data.author`, so the lightbox AUTHOR row renders
    * without an extra lookup.
+   *
+   * The 4th arg `thumbEl` is the clicked thumbnail `<img>`. App forwards it
+   * to `useLightboxAnimations.openLightbox` so the zoom-in/zoom-out flight
+   * has a real source rect to animate from/to. Matches the campaign-mode
+   * `GalleryGrid.onImageClick(index, thumbEl)` contract — see
+   * fringematrix5-jq33 for the author-browse parity work.
    */
-  onOpenImage: (images: ImageData[], index: number, handle: string) => void;
+  onOpenImage: (images: ImageData[], index: number, handle: string, thumbEl: HTMLImageElement) => void;
+  /**
+   * Optional ref forwarded onto the inner `<GalleryGrid />`. App owns the ref
+   * and passes it down so `App.getThumbElement` can route to this grid when
+   * the lightbox is in author-browse mode (lightboxImageSource.kind === 'author').
+   */
+  gridRef?: RefObject<GalleryGridHandle | null>;
 }
 
 /**
@@ -33,7 +46,7 @@ interface Props {
  * Errors render an inline message rather than crashing the app — 404s from a
  * missing handle surface as "Failed to load author".
  */
-export default function AuthorDetail({ handle, onBack, onOpenImage }: Props) {
+export default function AuthorDetail({ handle, onBack, onOpenImage, gridRef }: Props) {
   const [data, setData] = useState<AuthorDetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -97,6 +110,22 @@ export default function AuthorDetail({ handle, onBack, onOpenImage }: Props) {
     }));
   }, [data]);
 
+  /**
+   * Per-thumbnail click handler delegated to the parent. GalleryGrid passes
+   * `(index, thumbEl)`; we forward the author-image list and handle so App's
+   * `openLightboxForAuthor` can both open the lightbox against the right
+   * source AND hand the thumbnail element to the zoom animation. Stable
+   * across renders while `lightboxImages` / `data.author.handle` don't
+   * change, keeping `React.memo(GalleryGrid)` effective.
+   */
+  const handleImageClick = useCallback(
+    (index: number, thumbEl: HTMLImageElement) => {
+      if (!data) return;
+      onOpenImage(lightboxImages, index, data.author.handle, thumbEl);
+    },
+    [data, lightboxImages, onOpenImage],
+  );
+
   return (
     <main className="content authors-page author-detail">
       <div className="authors-header">
@@ -152,28 +181,13 @@ export default function AuthorDetail({ handle, onBack, onOpenImage }: Props) {
               No images attributed to this author yet.
             </div>
           ) : (
-            <section
-              className="gallery-grid"
-              aria-label={`Images by ${data.author.name}`}
-              data-testid="author-images-grid"
-            >
-              {data.images.map((image, index) => (
-                <div className="card" key={image.blobPath}>
-                  <button
-                    type="button"
-                    className="author-image-button"
-                    onClick={() => onOpenImage(lightboxImages, index, data.author.handle)}
-                    aria-label={`Open image ${image.fileName}`}
-                  >
-                    <img
-                      src={image.src}
-                      alt={image.fileName}
-                      loading="lazy"
-                    />
-                  </button>
-                </div>
-              ))}
-            </section>
+            <GalleryGrid
+              ref={gridRef}
+              images={lightboxImages}
+              onImageClick={handleImageClick}
+              ariaLabel={`Images by ${data.author.name}`}
+              testId="author-images-grid"
+            />
           )}
         </>
       )}

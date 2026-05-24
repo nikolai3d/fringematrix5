@@ -75,7 +75,7 @@ describe('AuthorDetail', () => {
     expect(grid.querySelectorAll('img').length).toBe(2);
   });
 
-  it('opens the lightbox in author-browse mode with the full image list + clicked index', async () => {
+  it('opens the lightbox in author-browse mode with the full image list + clicked index + thumb element', async () => {
     globalThis.fetch = mockFetch(SAMPLE_DETAIL) as unknown as typeof fetch;
     const onOpenImage = vi.fn();
 
@@ -88,15 +88,22 @@ describe('AuthorDetail', () => {
     );
 
     const grid = await screen.findByTestId('author-images-grid');
-    const buttons = grid.querySelectorAll('button');
-    fireEvent.click(buttons[0]!);
+    // AuthorDetail now renders the shared GalleryGrid, which attaches the
+    // click handler directly to the <img> (no wrapping <button>). Drive the
+    // click off the <img> tags. (fringematrix5-jq33.)
+    const imgs = grid.querySelectorAll('img');
+    expect(imgs.length).toBe(2);
+    fireEvent.click(imgs[0]!);
 
-    // First arg: full image list mapped to ImageData with synthesized author
-    // and per-image campaignId; second arg: clicked index; third arg: handle.
+    // 1st arg: full image list mapped to ImageData with synthesized author
+    // and per-image campaignId. 2nd: clicked index. 3rd: handle. 4th: the
+    // <img> element clicked — forwarded so App.openLightboxForAuthor can
+    // seed the zoom-in flight's source rect (parity with campaign gallery).
     expect(onOpenImage).toHaveBeenCalledTimes(1);
-    const [images0, index0, handle0] = onOpenImage.mock.calls[0]!;
+    const [images0, index0, handle0, thumb0] = onOpenImage.mock.calls[0]!;
     expect(handle0).toBe('@Zort70');
     expect(index0).toBe(0);
+    expect(thumb0).toBe(imgs[0]);
     expect(images0).toHaveLength(2);
     expect(images0[0]).toMatchObject({
       fileName: 'abc.jpg',
@@ -120,10 +127,11 @@ describe('AuthorDetail', () => {
     // Clicking a different thumbnail dispatches the matching index. Guards
     // against a regression where the click handler captures the wrong row
     // from the map.
-    fireEvent.click(buttons[1]!);
-    const [, index1, handle1] = onOpenImage.mock.calls[1]!;
+    fireEvent.click(imgs[1]!);
+    const [, index1, handle1, thumb1] = onOpenImage.mock.calls[1]!;
     expect(index1).toBe(1);
     expect(handle1).toBe('@Zort70');
+    expect(thumb1).toBe(imgs[1]);
   });
 
   it('clears stale data and error when the handle prop changes', async () => {
