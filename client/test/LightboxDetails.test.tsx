@@ -69,12 +69,12 @@ describe('LightboxDetails', () => {
 
   it('omits the AUTHOR row when no author prop is provided', () => {
     render(<LightboxDetails campaign={SAMPLE_CAMPAIGN} />);
-    expect(screen.queryByText(/^author$/i)).toBeNull();
+    expect(screen.queryByText(/^artist$/i)).toBeNull();
   });
 
   it('omits the AUTHOR row when author is null', () => {
     render(<LightboxDetails campaign={SAMPLE_CAMPAIGN} author={null} />);
-    expect(screen.queryByText(/^author$/i)).toBeNull();
+    expect(screen.queryByText(/^artist$/i)).toBeNull();
   });
 
   it('renders an empty-state message when no campaign is provided', () => {
