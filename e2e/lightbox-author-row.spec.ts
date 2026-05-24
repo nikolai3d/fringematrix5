@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { waitForLoaderToFinish } from './helpers/wireframe';
 
 /**
  * E2E coverage for the lightbox AUTHOR row introduced in fringematrix5-5s8.
@@ -14,13 +15,6 @@ import { test, expect, Page } from '@playwright/test';
  * we follow the existing spec convention and `test.skip` with a reason
  * rather than failing.
  */
-
-async function waitForLoaderToFinish(page: Page) {
-  const loader = page.getByRole('dialog', { name: 'Loading' });
-  if (await loader.isVisible().catch(() => false)) {
-    await loader.waitFor({ state: 'detached' });
-  }
-}
 
 async function gotoCampaign(page: Page, campaignId: string) {
   await page.goto(`/#${campaignId}`);

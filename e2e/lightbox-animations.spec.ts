@@ -1,16 +1,15 @@
 import { test, expect, Page } from '@playwright/test';
+import {
+  waitForLoaderToFinish,
+  waitForWireframeVisible,
+  waitForWireframeHidden,
+} from './helpers/wireframe';
 
 let escapeForAttributeSelectorFn: (value: string) => string;
 test.beforeAll(async () => {
   const mod = await import('../client/src/utils/escapeForAttributeSelector.js');
   escapeForAttributeSelectorFn = mod.escapeForAttributeSelector as (value: string) => string;
 });
-
-async function waitForLoaderToFinish(page: Page) {
-  const loader = page.getByRole('dialog', { name: 'Loading' });
-  const visible = await loader.isVisible().catch(() => false);
-  if (visible) await loader.waitFor({ state: 'detached' });
-}
 
 async function getWireframeState(page: Page) {
   return page.evaluate(() => {
@@ -19,23 +18,6 @@ async function getWireframeState(page: Page) {
     const cs = getComputedStyle(el);
     return { present: true, display: cs.display, opacity: parseFloat(cs.opacity || '0') };
   });
-}
-
-async function waitForWireframeVisible(page: Page, timeout = 3000) {
-  await page.waitForFunction(() => {
-    const el = document.querySelector('.wireframe-rect') as HTMLElement | null;
-    if (!el) return false;
-    const cs = getComputedStyle(el);
-    return cs.display !== 'none';
-  }, { timeout });
-}
-
-async function waitForWireframeHidden(page: Page, timeout = 3000) {
-  await page.waitForFunction(() => {
-    const el = document.querySelector('.wireframe-rect') as HTMLElement | null;
-    if (!el) return true;
-    return getComputedStyle(el).display === 'none';
-  }, { timeout });
 }
 
 
