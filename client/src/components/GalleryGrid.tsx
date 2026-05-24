@@ -34,8 +34,11 @@ interface GalleryGridProps {
  *
  * App re-renders at 2.5 Hz while loadingDots ticks during image preload.
  * Wrapping this section in React.memo prevents the entire N-card VDOM diff
- * from running on every tick — it only re-renders when images or
- * onImageClick actually change.
+ * from running on every tick — React.memo's shallow prop compare means the
+ * grid re-renders only when any prop (images, onImageClick, ariaLabel,
+ * testId) changes identity. Keep `images` and `onImageClick` stable across
+ * renders to retain the benefit; `ariaLabel`/`testId` are typically string
+ * literals so they're effectively stable.
  *
  * Callers are responsible for rendering their own empty-state UI (the
  * campaign view renders "No Images In Campaign" and AuthorDetail renders
@@ -131,7 +134,6 @@ const GalleryGrid = React.memo(React.forwardRef<GalleryGridHandle, GalleryGridPr
       <section
         id="gallery"
         className="gallery-grid"
-        aria-live="polite"
         aria-label={ariaLabel}
         data-testid={testId}
       >

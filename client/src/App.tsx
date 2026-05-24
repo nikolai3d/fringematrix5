@@ -461,11 +461,11 @@ export default function App() {
   // Mirror lightboxImageSource into a ref so getThumbElement can read the
   // current kind without itself becoming a new function reference on every
   // source change (which would cascade into useLightboxAnimations re-creating
-  // its own callbacks).
+  // its own callbacks). Updated synchronously during render so the ref is
+  // always consistent with the rendered state — `getThumbElement` cannot
+  // observe a stale value between a state change and an effect flush.
   const lightboxImageSourceRef = useRef(lightboxImageSource);
-  useEffect(() => {
-    lightboxImageSourceRef.current = lightboxImageSource;
-  }, [lightboxImageSource]);
+  lightboxImageSourceRef.current = lightboxImageSource;
 
   // Stable callback so the hook never re-creates its callbacks due to a new
   // function reference. The grid refs and source-kind are read at call time
