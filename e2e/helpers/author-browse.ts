@@ -17,34 +17,52 @@ export const ZORT_HASH = `#authors/${encodeURIComponent(ZORT_HANDLE)}`;
 
 /**
  * Navigate to the @Zort70 author detail page and wait for it to populate.
- * Returns the number of thumbnails in the grid (== the count the lightbox
- * counter should reflect).
  *
- * When the environment has no blob token the grid comes back empty; this
- * helper calls `test.skip` with a descriptive reason and returns 0. Callers
- * can still branch on `total === 0` if they want, but the skip is already
- * owned here so they don't need to.
+ * Resolution rules:
+ *   - If the gallery grid renders, returns the thumbnail count (== the
+ *     count the lightbox counter should reflect).
+ *   - If the page renders the explicit empty-state status instead (i.e. the
+ *     backend returned 0 attributed images for @Zort70, which in practice
+ *     happens when `BLOB_READ_WRITE_TOKEN` is absent and the live blob
+ *     listings are empty), this helper calls `test.skip` and never returns —
+ *     `test.skip(true, …)` aborts the current test.
+ *   - If neither shows up before the timeout, the underlying `expect.poll`
+ *     fails the test — we deliberately do NOT swallow that, so real
+ *     regressions (e.g. AuthorDetail failing to render, backend errors)
+ *     surface as failures instead of being masked as environment skips.
  */
 export async function gotoZortAuthorDetail(page: Page): Promise<number> {
   await page.goto(`/${ZORT_HASH}`);
   await waitForLoaderToFinish(page);
 
-  // The grid only renders once the /api/authors/@Zort70 fetch resolves with
-  // images. In empty-blob environments the page shows the "no images" status
-  // and the grid never appears — wait with a short escape hatch by polling
-  // the count directly.
   const grid = page.locator('[data-testid="author-images-grid"]');
-  await expect.poll(
-    async () => (await grid.count()) > 0,
-    { timeout: 15_000 }
-  ).toBe(true).catch(() => {
-    // fall through — count will read 0 and we'll skip below
-  });
+  // The "No images attributed to this artist yet." status div rendered by
+  // AuthorDetail.tsx when `data.images.length === 0`. Using this explicit
+  // empty-state signal lets us distinguish the empty-backend case from a
+  // render failure, so the helper skips only when the backend positively
+  // confirmed "no images" rather than swallowing all timeouts.
+  const emptyStatus = page
+    .locator('.authors-status')
+    .filter({ hasText: /no images attributed/i });
 
-  const cards = grid.locator('.card img');
-  const total = await cards.count();
-  if (total === 0) {
-    test.skip(true, 'No images returned for @Zort70 (BLOB_READ_WRITE_TOKEN likely missing).');
+  // Wait until exactly one of the two terminal states appears. If neither
+  // does within the timeout, let the poll fail — that's a real regression,
+  // not an environment skip.
+  await expect
+    .poll(
+      async () =>
+        (await grid.count()) > 0 || (await emptyStatus.count()) > 0,
+      { timeout: 15_000 },
+    )
+    .toBe(true);
+
+  if ((await emptyStatus.count()) > 0 && (await grid.count()) === 0) {
+    test.skip(
+      true,
+      'No images returned for @Zort70 (BLOB_READ_WRITE_TOKEN likely missing). ' +
+        'AuthorDetail rendered the empty-state status.',
+    );
   }
-  return total;
+
+  return grid.locator('.card img').count();
 }
