@@ -28,7 +28,6 @@ describe('GalleryGridHandle.getThumbElement — loaded images', () => {
       <GalleryGrid
         ref={ref}
         images={[makeImage('a.png'), makeImage('b.png'), makeImage('c.png')]}
-        hasCampaign
         onImageClick={noop}
       />,
     );
@@ -43,7 +42,6 @@ describe('GalleryGridHandle.getThumbElement — loaded images', () => {
       <GalleryGrid
         ref={ref}
         images={[makeImage('a.png', '/a.png'), makeImage('b.png', '/b.png')]}
-        hasCampaign
         onImageClick={noop}
       />,
     );
@@ -58,7 +56,6 @@ describe('GalleryGridHandle.getThumbElement — loaded images', () => {
       <GalleryGrid
         ref={ref}
         images={[makeImage('a.png'), makeImage('b.png')]}
-        hasCampaign
         onImageClick={noop}
       />,
     );
@@ -82,7 +79,6 @@ describe('GalleryGridHandle.getThumbElement — null cases', () => {
       <GalleryGrid
         ref={ref}
         images={[makeImage('a.png')]}
-        hasCampaign
         onImageClick={noop}
       />,
     );
@@ -96,7 +92,6 @@ describe('GalleryGridHandle.getThumbElement — null cases', () => {
       <GalleryGrid
         ref={ref}
         images={[makeImage('a.png')]}
-        hasCampaign
         onImageClick={noop}
       />,
     );
@@ -110,7 +105,6 @@ describe('GalleryGridHandle.getThumbElement — null cases', () => {
       <GalleryGrid
         ref={ref}
         images={[makeLoading('x.png')]}
-        hasCampaign
         onImageClick={noop}
       />,
     );
@@ -126,7 +120,6 @@ describe('GalleryGridHandle.getThumbElement — null cases', () => {
       <GalleryGrid
         ref={ref}
         images={[]}
-        hasCampaign={false}
         onImageClick={noop}
       />,
     );
@@ -147,7 +140,6 @@ describe('GalleryGridHandle.getThumbElement — after campaign switch', () => {
       <GalleryGrid
         ref={ref}
         images={[makeImage('a.png'), makeImage('b.png'), makeImage('c.png')]}
-        hasCampaign
         onImageClick={noop}
       />,
     );
@@ -161,7 +153,6 @@ describe('GalleryGridHandle.getThumbElement — after campaign switch', () => {
         <GalleryGrid
           ref={ref}
           images={[makeImage('x.png')]}
-          hasCampaign
           onImageClick={noop}
         />,
       );
@@ -179,7 +170,6 @@ describe('GalleryGridHandle.getThumbElement — after campaign switch', () => {
       <GalleryGrid
         ref={ref}
         images={[makeImage('old.png', '/old.png')]}
-        hasCampaign
         onImageClick={noop}
       />,
     );
@@ -189,7 +179,6 @@ describe('GalleryGridHandle.getThumbElement — after campaign switch', () => {
         <GalleryGrid
           ref={ref}
           images={[makeImage('new.png', '/new.png')]}
-          hasCampaign
           onImageClick={noop}
         />,
       );
@@ -206,7 +195,6 @@ describe('GalleryGridHandle.getThumbElement — after campaign switch', () => {
       <GalleryGrid
         ref={ref}
         images={[makeImage('a.png'), makeImage('b.png')]}
-        hasCampaign
         onImageClick={noop}
       />,
     );
@@ -218,7 +206,6 @@ describe('GalleryGridHandle.getThumbElement — after campaign switch', () => {
         <GalleryGrid
           ref={ref}
           images={[makeLoading('a.png'), makeLoading('b.png')]}
-          hasCampaign
           onImageClick={noop}
         />,
       );
@@ -247,7 +234,6 @@ describe('GalleryGridHandle — setThumbRef callback caching', () => {
       <GalleryGrid
         ref={ref}
         images={[makeImage('a.png'), makeImage('b.png')]}
-        hasCampaign
         onImageClick={onClick}
       />,
     );
@@ -258,7 +244,6 @@ describe('GalleryGridHandle — setThumbRef callback caching', () => {
         <GalleryGrid
           ref={ref}
           images={[makeImage('a.png'), makeImage('b.png')]}
-          hasCampaign
           onImageClick={onClick}
         />,
       );
@@ -276,7 +261,6 @@ describe('GalleryGridHandle — setThumbRef callback caching', () => {
       <GalleryGrid
         ref={ref}
         images={[makeImage('a.png')]}
-        hasCampaign
         onImageClick={noop}
       />,
     );
@@ -286,7 +270,6 @@ describe('GalleryGridHandle — setThumbRef callback caching', () => {
         <GalleryGrid
           ref={ref}
           images={[makeImage('a.png'), makeImage('b.png')]}
-          hasCampaign
           onImageClick={noop}
         />,
       );
@@ -304,13 +287,13 @@ describe('GalleryGridHandle — setThumbRef callback caching', () => {
 describe('GalleryGrid — image card rendering', () => {
   it('renders one card per image', () => {
     const images = [makeImage('a.png'), makeImage('b.png'), makeImage('c.png')];
-    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={noop} />);
+    render(<GalleryGrid images={images} onImageClick={noop} />);
     expect(screen.getAllByRole('img')).toHaveLength(3);
   });
 
   it('does not render a visible filename label for each image card', () => {
     const images = [makeImage('fringe-avatar.png'), makeImage('walter-bishop.jpg')];
-    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={noop} />);
+    render(<GalleryGrid images={images} onImageClick={noop} />);
     // Filename text must not appear as visible text — only used for img alt.
     expect(screen.queryByText('fringe-avatar.png')).toBeNull();
     expect(screen.queryByText('walter-bishop.jpg')).toBeNull();
@@ -318,14 +301,14 @@ describe('GalleryGrid — image card rendering', () => {
 
   it('renders the image src as the img element src', () => {
     const images = [makeImage('specific.png', 'https://cdn.example.com/specific.png')];
-    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={noop} />);
+    render(<GalleryGrid images={images} onImageClick={noop} />);
     const img = screen.getByRole('img');
     expect(img.getAttribute('src')).toBe('https://cdn.example.com/specific.png');
   });
 
   it('uses the fileName as the img alt text', () => {
     const images = [makeImage('my-avatar.png')];
-    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={noop} />);
+    render(<GalleryGrid images={images} onImageClick={noop} />);
     expect(screen.getByAltText('my-avatar.png')).toBeTruthy();
   });
 });
@@ -338,7 +321,7 @@ describe('GalleryGrid — click handler', () => {
   it('calls onImageClick with correct index when first image is clicked', () => {
     const onImageClick = vi.fn();
     const images = [makeImage('first.png'), makeImage('second.png')];
-    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={onImageClick} />);
+    render(<GalleryGrid images={images} onImageClick={onImageClick} />);
     const imgs = screen.getAllByRole('img');
     fireEvent.click(imgs[0]);
     expect(onImageClick).toHaveBeenCalledTimes(1);
@@ -348,7 +331,7 @@ describe('GalleryGrid — click handler', () => {
   it('calls onImageClick with correct index when a middle image is clicked', () => {
     const onImageClick = vi.fn();
     const images = [makeImage('first.png'), makeImage('second.png'), makeImage('third.png')];
-    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={onImageClick} />);
+    render(<GalleryGrid images={images} onImageClick={onImageClick} />);
     const imgs = screen.getAllByRole('img');
     fireEvent.click(imgs[1]);
     expect(onImageClick).toHaveBeenCalledTimes(1);
@@ -358,7 +341,7 @@ describe('GalleryGrid — click handler', () => {
   it('calls onImageClick with the img element as the second argument', () => {
     const onImageClick = vi.fn();
     const images = [makeImage('avatar.png')];
-    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={onImageClick} />);
+    render(<GalleryGrid images={images} onImageClick={onImageClick} />);
     const img = screen.getByRole('img');
     fireEvent.click(img);
     expect(onImageClick.mock.calls[0][1]).toBe(img);
@@ -366,34 +349,48 @@ describe('GalleryGrid — click handler', () => {
 });
 
 // =============================================================================
-// 7. Empty state — hasCampaign=true + images=[] shows the empty-state UI
+// 7. Empty list — GalleryGrid is a pure list view; the caller renders the
+// empty-state UI. (fringematrix5-jq33 dropped the in-grid `hasCampaign`
+// empty-state branch so the same component is reusable from AuthorDetail.)
 // =============================================================================
 
-describe('GalleryGrid — empty state', () => {
-  it('renders the empty state when hasCampaign=true and images=[]', () => {
-    render(<GalleryGrid images={[]} hasCampaign={true} onImageClick={noop} />);
-    expect(screen.getByRole('status')).toBeTruthy();
-    expect(screen.getByText('No Images In Campaign')).toBeTruthy();
-    expect(screen.getByText('This campaign has no uploaded images yet.')).toBeTruthy();
-  });
-
-  it('adds the "empty" class to the gallery section when in empty state', () => {
-    const { container } = render(<GalleryGrid images={[]} hasCampaign={true} onImageClick={noop} />);
+describe('GalleryGrid — empty list', () => {
+  it('renders an empty <section> when images=[] (no in-grid empty-state UI)', () => {
+    const { container } = render(<GalleryGrid images={[]} onImageClick={noop} />);
     const section = container.querySelector('section#gallery');
-    expect(section?.classList.contains('empty')).toBe(true);
-  });
-
-  it('does NOT render empty state when hasCampaign=false and images=[]', () => {
-    render(<GalleryGrid images={[]} hasCampaign={false} onImageClick={noop} />);
-    expect(screen.queryByRole('status')).toBeNull();
+    expect(section).toBeTruthy();
+    // Grid no longer owns the "No Images In Campaign" copy — the campaign
+    // view in App.tsx and AuthorDetail each render their own empty state.
     expect(screen.queryByText('No Images In Campaign')).toBeNull();
+    expect(screen.queryByText('This campaign has no uploaded images yet.')).toBeNull();
+    // No image cards rendered either.
+    expect(container.querySelectorAll('.card').length).toBe(0);
   });
 
-  it('does NOT render empty state when images are present', () => {
+  it('does NOT render a status role when images=[] (caller owns aria-live empty state)', () => {
+    render(<GalleryGrid images={[]} onImageClick={noop} />);
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('renders image cards (not an empty state) when images are present', () => {
     const images = [makeImage('avatar.png')];
-    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={noop} />);
-    expect(screen.queryByRole('status')).toBeNull();
+    render(<GalleryGrid images={images} onImageClick={noop} />);
     expect(screen.queryByText('No Images In Campaign')).toBeNull();
+    expect(screen.getByRole('img')).toBeTruthy();
+  });
+
+  it('applies the optional ariaLabel and testId to the underlying section', () => {
+    const { container } = render(
+      <GalleryGrid
+        images={[]}
+        onImageClick={noop}
+        ariaLabel="Images by Sarah"
+        testId="author-images-grid"
+      />,
+    );
+    const section = container.querySelector('section#gallery');
+    expect(section?.getAttribute('aria-label')).toBe('Images by Sarah');
+    expect(section?.getAttribute('data-testid')).toBe('author-images-grid');
   });
 });
 
@@ -404,28 +401,28 @@ describe('GalleryGrid — empty state', () => {
 describe('GalleryGrid — loading placeholder', () => {
   it('renders a loading placeholder (not an img) when isLoading=true', () => {
     const images = [makeLoading('pending.png')];
-    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={noop} />);
+    render(<GalleryGrid images={images} onImageClick={noop} />);
     expect(screen.queryByRole('img')).toBeNull();
     expect(screen.getByText('Loading...')).toBeTruthy();
   });
 
   it('does not render a visible filename alongside the loading placeholder', () => {
     const images = [makeLoading('pending.png')];
-    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={noop} />);
+    render(<GalleryGrid images={images} onImageClick={noop} />);
     // Filename text must not appear as visible text in loading state either.
     expect(screen.queryByText('pending.png')).toBeNull();
   });
 
   it('renders an img (not a placeholder) when isLoading=false', () => {
     const images = [makeImage('loaded.png')];
-    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={noop} />);
+    render(<GalleryGrid images={images} onImageClick={noop} />);
     expect(screen.getByRole('img')).toBeTruthy();
     expect(screen.queryByText('Loading...')).toBeNull();
   });
 
   it('renders mixed loaded and loading cards correctly', () => {
     const images = [makeImage('loaded.png'), makeLoading('loading.png')];
-    render(<GalleryGrid images={images} hasCampaign={true} onImageClick={noop} />);
+    render(<GalleryGrid images={images} onImageClick={noop} />);
     expect(screen.getAllByRole('img')).toHaveLength(1);
     expect(screen.getByText('Loading...')).toBeTruthy();
   });

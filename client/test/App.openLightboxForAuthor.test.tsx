@@ -139,9 +139,11 @@ describe('App: openLightboxForAuthor wiring (fringematrix5-w18z)', () => {
     });
 
     // Wait for the author-detail grid to render after /api/authors resolves.
+    // Post-jq33 the grid is the shared GalleryGrid, which attaches onClick to
+    // the <img> directly (no wrapping <button>).
     const grid = await screen.findByTestId('author-images-grid');
-    const buttons = grid.querySelectorAll('button');
-    expect(buttons.length).toBe(3);
+    const imgs = grid.querySelectorAll('img');
+    expect(imgs.length).toBe(3);
 
     const hashBeforeClick = window.location.hash;
     expect(hashBeforeClick).toBe(AUTHOR_HASH);
@@ -150,7 +152,7 @@ describe('App: openLightboxForAuthor wiring (fringematrix5-w18z)', () => {
     // the author's image list at that index — not against the (empty) active
     // campaign's images.
     await act(async () => {
-      fireEvent.click(buttons[1]!);
+      fireEvent.click(imgs[1]!);
     });
 
     // The lightbox dialog renders once isLightboxOpen flips. With
@@ -186,10 +188,10 @@ describe('App: openLightboxForAuthor wiring (fringematrix5-w18z)', () => {
     });
 
     const grid = await screen.findByTestId('author-images-grid');
-    const buttons = grid.querySelectorAll('button');
+    const imgs = grid.querySelectorAll('img');
 
     await act(async () => {
-      fireEvent.click(buttons[0]!);
+      fireEvent.click(imgs[0]!);
     });
 
     const lightbox = await screen.findByRole('dialog', { name: /image viewer/i });
@@ -215,10 +217,10 @@ describe('App: openLightboxForAuthor wiring (fringematrix5-w18z)', () => {
     });
 
     const grid = await screen.findByTestId('author-images-grid');
-    const buttons = grid.querySelectorAll('button');
+    const imgs = grid.querySelectorAll('img');
 
     await act(async () => {
-      fireEvent.click(buttons[0]!);
+      fireEvent.click(imgs[0]!);
     });
 
     const lightbox = await screen.findByRole('dialog', { name: /image viewer/i });

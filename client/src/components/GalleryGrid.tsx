@@ -14,10 +14,19 @@ export interface GalleryGridHandle {
 
 interface GalleryGridProps {
   images: ImageData[];
-  /** Whether an active campaign is selected (used to show the empty state) */
-  hasCampaign: boolean;
   /** Stable callback — receives the image index and the thumbnail element */
   onImageClick: (index: number, thumbEl: HTMLImageElement) => void;
+  /**
+   * Optional ARIA label for the underlying <section>. Defaults to nothing
+   * (the campaign gallery doesn't need one because it has an h1 above it).
+   * Author detail provides a per-author label.
+   */
+  ariaLabel?: string;
+  /**
+   * Optional data-testid for the underlying <section>. Lets callers tag the
+   * grid for tests (e.g. the author-detail grid uses `author-images-grid`).
+   */
+  testId?: string;
 }
 
 /**
@@ -25,11 +34,16 @@ interface GalleryGridProps {
  *
  * App re-renders at 2.5 Hz while loadingDots ticks during image preload.
  * Wrapping this section in React.memo prevents the entire N-card VDOM diff
- * from running on every tick — it only re-renders when images, hasCampaign,
- * or onImageClick actually change.
+ * from running on every tick — it only re-renders when images or
+ * onImageClick actually change.
+ *
+ * Callers are responsible for rendering their own empty-state UI (the
+ * campaign view renders "No Images In Campaign" and AuthorDetail renders
+ * "No images attributed to this author yet."). This keeps the grid a pure
+ * list view, reusable across both call sites.
  */
 const GalleryGrid = React.memo(React.forwardRef<GalleryGridHandle, GalleryGridProps>(
-  function GalleryGrid({ images, hasCampaign, onImageClick }, ref) {
+  function GalleryGrid({ images, onImageClick, ariaLabel, testId }, ref) {
     /** Tracks the <img> DOM element for each image index. */
     const thumbMapRef = useRef<Map<number, HTMLImageElement>>(new Map());
 
@@ -113,30 +127,22 @@ const GalleryGrid = React.memo(React.forwardRef<GalleryGridHandle, GalleryGridPr
       [],
     );
 
-    const isEmpty = hasCampaign && images.length === 0;
-
     return (
       <section
         id="gallery"
-        className={`gallery-grid${isEmpty ? ' empty' : ''}`}
+        className="gallery-grid"
         aria-live="polite"
+        aria-label={ariaLabel}
+        data-testid={testId}
       >
-        {isEmpty ? (
-          <div className="empty-state" role="status" aria-live="polite">
-            <div className="empty-emoji" aria-hidden>🖼️</div>
-            <div className="empty-title">No Images In Campaign</div>
-            <div className="empty-desc">This campaign has no uploaded images yet.</div>
-          </div>
-        ) : (
-          images.map((img, i) => (
-            <ImageCard
-              key={`${img.src}-${i}`}
-              image={img}
-              imgRef={setThumbRef(i)}
-              onClick={getClickCallback(i)}
-            />
-          ))
-        )}
+        {images.map((img, i) => (
+          <ImageCard
+            key={`${img.src}-${i}`}
+            image={img}
+            imgRef={setThumbRef(i)}
+            onClick={getClickCallback(i)}
+          />
+        ))}
       </section>
     );
   }

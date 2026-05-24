@@ -74,6 +74,10 @@ export default function App() {
   const [loadingDots, setLoadingDots] = useState<number>(0);
   const [loadingError, setLoadingError] = useState<boolean>(false);
   const galleryGridRef = useRef<GalleryGridHandle>(null);
+  // Ref to the AuthorDetail's inner GalleryGrid. App owns it (passed down as
+  // a prop) so `getThumbElement` below can route to the correct grid based on
+  // the active lightbox source. Null when not on the author-detail route.
+  const authorGridRef = useRef<GalleryGridHandle>(null);
   const shareBtnRef = useRef<HTMLButtonElement>(null);
   const buildBtnRef = useRef<HTMLButtonElement>(null);
   const [shareStyle, setShareStyle] = useState<React.CSSProperties>({});
@@ -454,10 +458,26 @@ export default function App() {
     return () => clearInterval(id);
   }, [isPreloading, isCampaignLoading]);
 
+  // Mirror lightboxImageSource into a ref so getThumbElement can read the
+  // current kind without itself becoming a new function reference on every
+  // source change (which would cascade into useLightboxAnimations re-creating
+  // its own callbacks).
+  const lightboxImageSourceRef = useRef(lightboxImageSource);
+  useEffect(() => {
+    lightboxImageSourceRef.current = lightboxImageSource;
+  }, [lightboxImageSource]);
+
   // Stable callback so the hook never re-creates its callbacks due to a new
-  // function reference.  galleryGridRef.current is read at call time, so the
-  // useCallback dep array is intentionally empty.
+  // function reference. The grid refs and source-kind are read at call time
+  // via refs, so the useCallback dep array is intentionally empty.
+  //
+  // Routes by the active lightbox source: author-browse mode reads from the
+  // AuthorDetail grid; everything else (campaign-mode + fallback) reads from
+  // the campaign GalleryGrid. fringematrix5-jq33.
   const getThumbElement = useCallback((index: number): HTMLImageElement | null => {
+    if (lightboxImageSourceRef.current?.kind === 'author') {
+      return authorGridRef.current?.getThumbElement(index) ?? null;
+    }
     return galleryGridRef.current?.getThumbElement(index) ?? null;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -497,14 +517,15 @@ export default function App() {
   // its own `campaignId` and a synthesized `author` block so LightboxDetails
   // resolves the source campaign and AUTHOR row per-image as the user pages.
   //
-  // No thumb element is passed: the close animation would otherwise try to
-  // collapse the image back to the originating thumbnail. The author-detail
-  // grid is still mounted underneath the lightbox, so closing returns the
-  // user there directly without a return-flight animation — the existing
-  // useLightboxAnimations close path tolerates a null/missing thumb.
-  const openLightboxForAuthor = useCallback((images: ImageData[], index: number, handle: string) => {
+  // `thumbEl` is the clicked thumbnail `<img>` (forwarded from AuthorDetail's
+  // GalleryGrid). It seeds the zoom-in animation's source rect and lets the
+  // active-thumb-hide path know which cell to blank out — matching campaign
+  // gallery parity (fringematrix5-jq33). The hook's getThumbElement (above)
+  // routes back to authorGridRef for next/prev navigation while the lightbox
+  // is open.
+  const openLightboxForAuthor = useCallback((images: ImageData[], index: number, handle: string, thumbEl?: HTMLElement) => {
     setLightboxImageSource({ kind: 'author', images, handle });
-    openLightbox(index);
+    openLightbox(index, thumbEl);
   }, [openLightbox]);
 
   // Clear the lightbox source once the lightbox has fully closed so we never
@@ -725,6 +746,7 @@ export default function App() {
           handle={route.handle}
           onBack={navigateToAuthorsIndex}
           onOpenImage={openLightboxForAuthor}
+          gridRef={authorGridRef}
         />
       )}
 
@@ -754,12 +776,28 @@ export default function App() {
             )}
           </section>
 
-          <GalleryGrid
-            ref={galleryGridRef}
-            images={currentImages}
-            hasCampaign={!!activeCampaign}
-            onImageClick={openLightboxForCampaign}
-          />
+          {activeCampaign && currentImages.length === 0 ? (
+            // Caller-owned empty state, previously rendered inside GalleryGrid
+            // behind a `hasCampaign` prop. Hoisted up here in fringematrix5-jq33
+            // so GalleryGrid stays a pure list view reusable by AuthorDetail.
+            <section
+              id="gallery"
+              className="gallery-grid empty"
+              aria-live="polite"
+            >
+              <div className="empty-state" role="status" aria-live="polite">
+                <div className="empty-emoji" aria-hidden>🖼️</div>
+                <div className="empty-title">No Images In Campaign</div>
+                <div className="empty-desc">This campaign has no uploaded images yet.</div>
+              </div>
+            </section>
+          ) : (
+            <GalleryGrid
+              ref={galleryGridRef}
+              images={currentImages}
+              onImageClick={openLightboxForCampaign}
+            />
+          )}
         </main>
       )}
 
