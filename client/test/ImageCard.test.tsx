@@ -22,13 +22,16 @@ describe('ImageCard — rendering', () => {
   it('renders an img element when isLoading is false', () => {
     const image = makeImage('avatar.png', 'https://cdn.example.com/avatar.png');
     render(<ImageCard image={image} onClick={vi.fn()} />);
-    expect(screen.getByRole('img')).toBeTruthy();
+    // The thumbnail is an <img> with an explicit role="button" override so
+    // keyboard activation works. Both pieces — IMG tag and button role — matter.
+    const img = screen.getByRole('button');
+    expect(img.tagName).toBe('IMG');
   });
 
   it('renders the img with the correct src (loadedSrc)', () => {
     const image = makeImage('avatar.png', 'https://cdn.example.com/avatar.png');
     render(<ImageCard image={image} onClick={vi.fn()} />);
-    const img = screen.getByRole('img');
+    const img = screen.getByRole('button');
     expect(img.getAttribute('src')).toBe('https://cdn.example.com/avatar.png');
   });
 
@@ -48,7 +51,7 @@ describe('ImageCard — rendering', () => {
   it('falls back to src when loadedSrc is not set', () => {
     const image: ImageData = { fileName: 'raw.png', src: '/raw.png', isLoading: false };
     render(<ImageCard image={image} onClick={vi.fn()} />);
-    expect(screen.getByRole('img').getAttribute('src')).toBe('/raw.png');
+    expect(screen.getByRole('button').getAttribute('src')).toBe('/raw.png');
   });
 });
 
@@ -61,7 +64,7 @@ describe('ImageCard — click handler', () => {
     const onClick = vi.fn();
     const image = makeImage('clickable.png');
     render(<ImageCard image={image} onClick={onClick} />);
-    fireEvent.click(screen.getByRole('img'));
+    fireEvent.click(screen.getByRole('button'));
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
@@ -69,11 +72,11 @@ describe('ImageCard — click handler', () => {
     const onClick = vi.fn();
     const image = makeImage('event-check.png');
     render(<ImageCard image={image} onClick={onClick} />);
-    fireEvent.click(screen.getByRole('img'));
+    fireEvent.click(screen.getByRole('button'));
     // React wraps native events in a SyntheticEvent; verify the event object
     // has a `target` pointing to the clicked img element.
     const event = onClick.mock.calls[0][0] as React.MouseEvent<HTMLImageElement>;
-    expect(event.target).toBe(screen.getByRole('img'));
+    expect(event.target).toBe(screen.getByRole('button'));
   });
 
   it('does not call onClick without a click', () => {
@@ -85,6 +88,72 @@ describe('ImageCard — click handler', () => {
 });
 
 // =============================================================================
+// 2b. Keyboard accessibility — Enter/Space activation + focusability
+// =============================================================================
+
+describe('ImageCard — keyboard accessibility', () => {
+  it('exposes the thumbnail as a focusable, button-like element', () => {
+    const image = makeImage('focusable.png');
+    render(<ImageCard image={image} onClick={vi.fn()} />);
+    const img = screen.getByRole('button');
+    // `role="button"` ensures screen readers announce it as actionable.
+    expect(img.tagName).toBe('IMG');
+    // tabIndex=0 puts it in the natural tab order.
+    expect(img.getAttribute('tabindex')).toBe('0');
+  });
+
+  it('invokes onClick when Enter is pressed', () => {
+    const onClick = vi.fn();
+    const image = makeImage('enter-key.png');
+    render(<ImageCard image={image} onClick={onClick} />);
+    const img = screen.getByRole('button');
+    fireEvent.keyDown(img, { key: 'Enter' });
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('invokes onClick when Space is pressed', () => {
+    const onClick = vi.fn();
+    const image = makeImage('space-key.png');
+    render(<ImageCard image={image} onClick={onClick} />);
+    const img = screen.getByRole('button');
+    fireEvent.keyDown(img, { key: ' ' });
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('preventDefault on Space to suppress page scroll', () => {
+    const onClick = vi.fn();
+    const image = makeImage('space-prevent.png');
+    render(<ImageCard image={image} onClick={onClick} />);
+    const img = screen.getByRole('button');
+    // fireEvent.keyDown returns false when preventDefault was called on the event.
+    const notDefaulted = fireEvent.keyDown(img, { key: ' ' });
+    expect(notDefaulted).toBe(false);
+  });
+
+  it('does not invoke onClick for other keys (e.g. Tab, ArrowDown)', () => {
+    const onClick = vi.fn();
+    const image = makeImage('other-keys.png');
+    render(<ImageCard image={image} onClick={onClick} />);
+    const img = screen.getByRole('button');
+    fireEvent.keyDown(img, { key: 'Tab' });
+    fireEvent.keyDown(img, { key: 'ArrowDown' });
+    fireEvent.keyDown(img, { key: 'a' });
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('passes an event whose target is the focused img to onClick', () => {
+    const onClick = vi.fn();
+    const image = makeImage('event-target.png');
+    render(<ImageCard image={image} onClick={onClick} />);
+    const img = screen.getByRole('button');
+    fireEvent.keyDown(img, { key: 'Enter' });
+    const event = onClick.mock.calls[0][0] as React.SyntheticEvent;
+    // `target` survives React's synthetic-event pooling, unlike `currentTarget`.
+    expect(event.target).toBe(img);
+  });
+});
+
+// =============================================================================
 // 3. Loading / placeholder state
 // =============================================================================
 
@@ -92,7 +161,8 @@ describe('ImageCard — loading placeholder', () => {
   it('renders a placeholder (not an img) when isLoading is true', () => {
     const image = makeLoading('pending.png');
     render(<ImageCard image={image} onClick={vi.fn()} />);
-    expect(screen.queryByRole('img')).toBeNull();
+    // No interactive thumbnail and no <img> element in the loading state.
+    expect(screen.queryByRole('button')).toBeNull();
     expect(screen.getByText('Loading...')).toBeTruthy();
   });
 
@@ -106,7 +176,8 @@ describe('ImageCard — loading placeholder', () => {
   it('renders an img (not a placeholder) when isLoading is false', () => {
     const image = makeImage('loaded.png');
     render(<ImageCard image={image} onClick={vi.fn()} />);
-    expect(screen.getByRole('img')).toBeTruthy();
+    const img = screen.getByRole('button');
+    expect(img.tagName).toBe('IMG');
     expect(screen.queryByText('Loading...')).toBeNull();
   });
 });
@@ -138,13 +209,13 @@ describe('ImageCard — memo effectiveness', () => {
     const image2 = makeImage('second.png', '/second.png');
 
     const { rerender } = render(<ImageCard image={image1} onClick={onClick} />);
-    expect(screen.getByRole('img').getAttribute('src')).toBe('/first.png');
+    expect(screen.getByRole('button').getAttribute('src')).toBe('/first.png');
 
     act(() => {
       rerender(<ImageCard image={image2} onClick={onClick} />);
     });
 
-    expect(screen.getByRole('img').getAttribute('src')).toBe('/second.png');
+    expect(screen.getByRole('button').getAttribute('src')).toBe('/second.png');
   });
 });
 
@@ -173,7 +244,7 @@ describe('ImageCard — callback stability', () => {
     expect(newOnClick).not.toHaveBeenCalled();
 
     // Now click — only the current callback should fire.
-    fireEvent.click(screen.getByRole('img'));
+    fireEvent.click(screen.getByRole('button'));
     expect(newOnClick).toHaveBeenCalledTimes(1);
     expect(onClick).not.toHaveBeenCalled();
   });
@@ -190,7 +261,7 @@ describe('ImageCard — callback stability', () => {
       rerender(<ImageCard image={image} onClick={second} />);
     });
 
-    fireEvent.click(screen.getByRole('img'));
+    fireEvent.click(screen.getByRole('button'));
 
     // The new callback should have fired; the old one should not.
     expect(second).toHaveBeenCalledTimes(1);

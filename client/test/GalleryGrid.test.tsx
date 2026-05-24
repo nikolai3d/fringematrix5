@@ -288,7 +288,7 @@ describe('GalleryGrid — image card rendering', () => {
   it('renders one card per image', () => {
     const images = [makeImage('a.png'), makeImage('b.png'), makeImage('c.png')];
     render(<GalleryGrid images={images} onImageClick={noop} />);
-    expect(screen.getAllByRole('img')).toHaveLength(3);
+    expect(screen.getAllByRole('button')).toHaveLength(3);
   });
 
   it('does not render a visible filename label for each image card', () => {
@@ -302,7 +302,7 @@ describe('GalleryGrid — image card rendering', () => {
   it('renders the image src as the img element src', () => {
     const images = [makeImage('specific.png', 'https://cdn.example.com/specific.png')];
     render(<GalleryGrid images={images} onImageClick={noop} />);
-    const img = screen.getByRole('img');
+    const img = screen.getByRole('button');
     expect(img.getAttribute('src')).toBe('https://cdn.example.com/specific.png');
   });
 
@@ -322,7 +322,7 @@ describe('GalleryGrid — click handler', () => {
     const onImageClick = vi.fn();
     const images = [makeImage('first.png'), makeImage('second.png')];
     render(<GalleryGrid images={images} onImageClick={onImageClick} />);
-    const imgs = screen.getAllByRole('img');
+    const imgs = screen.getAllByRole('button');
     fireEvent.click(imgs[0]);
     expect(onImageClick).toHaveBeenCalledTimes(1);
     expect(onImageClick.mock.calls[0][0]).toBe(0);
@@ -332,7 +332,7 @@ describe('GalleryGrid — click handler', () => {
     const onImageClick = vi.fn();
     const images = [makeImage('first.png'), makeImage('second.png'), makeImage('third.png')];
     render(<GalleryGrid images={images} onImageClick={onImageClick} />);
-    const imgs = screen.getAllByRole('img');
+    const imgs = screen.getAllByRole('button');
     fireEvent.click(imgs[1]);
     expect(onImageClick).toHaveBeenCalledTimes(1);
     expect(onImageClick.mock.calls[0][0]).toBe(1);
@@ -342,7 +342,7 @@ describe('GalleryGrid — click handler', () => {
     const onImageClick = vi.fn();
     const images = [makeImage('avatar.png')];
     render(<GalleryGrid images={images} onImageClick={onImageClick} />);
-    const img = screen.getByRole('img');
+    const img = screen.getByRole('button');
     fireEvent.click(img);
     expect(onImageClick.mock.calls[0][1]).toBe(img);
   });
@@ -376,7 +376,7 @@ describe('GalleryGrid — empty list', () => {
     const images = [makeImage('avatar.png')];
     render(<GalleryGrid images={images} onImageClick={noop} />);
     expect(screen.queryByText('No Images In Campaign')).toBeNull();
-    expect(screen.getByRole('img')).toBeTruthy();
+    expect(screen.getByRole('button')).toBeTruthy();
   });
 
   it('applies the optional ariaLabel and testId to the underlying section', () => {
@@ -402,7 +402,7 @@ describe('GalleryGrid — loading placeholder', () => {
   it('renders a loading placeholder (not an img) when isLoading=true', () => {
     const images = [makeLoading('pending.png')];
     render(<GalleryGrid images={images} onImageClick={noop} />);
-    expect(screen.queryByRole('img')).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
     expect(screen.getByText('Loading...')).toBeTruthy();
   });
 
@@ -416,14 +416,14 @@ describe('GalleryGrid — loading placeholder', () => {
   it('renders an img (not a placeholder) when isLoading=false', () => {
     const images = [makeImage('loaded.png')];
     render(<GalleryGrid images={images} onImageClick={noop} />);
-    expect(screen.getByRole('img')).toBeTruthy();
+    expect(screen.getByRole('button')).toBeTruthy();
     expect(screen.queryByText('Loading...')).toBeNull();
   });
 
   it('renders mixed loaded and loading cards correctly', () => {
     const images = [makeImage('loaded.png'), makeLoading('loading.png')];
     render(<GalleryGrid images={images} onImageClick={noop} />);
-    expect(screen.getAllByRole('img')).toHaveLength(1);
+    expect(screen.getAllByRole('button')).toHaveLength(1);
     expect(screen.getByText('Loading...')).toBeTruthy();
   });
 });
