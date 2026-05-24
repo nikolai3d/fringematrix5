@@ -291,4 +291,51 @@ test.describe('Author-browse mode — info-box in-app links', () => {
     await expect(page.locator('[data-testid="author-images-grid"]')).toHaveCount(0);
     await expect(page.locator('#campaign-info')).toBeVisible();
   });
+
+  test('clicking HASHTAG inside the lightbox switches the gallery to that campaign', async ({ page }) => {
+    const total = await gotoZortAuthorDetail(page);
+    if (total === 0) {
+      test.skip(true, 'No images returned for @Zort70 (BLOB_READ_WRITE_TOKEN likely missing).');
+    }
+
+    const grid = page.locator('[data-testid="author-images-grid"]');
+    await grid.locator('.card img').first().click();
+    await expect(page.locator('#lightbox')).toBeVisible();
+
+    // Scope to the first .lightbox-details instance (the inline sidebar)
+    // so we don't accidentally pick up the mobile drawer copy.
+    const sidebar = page.locator('.lightbox-details').first();
+    const hashtagRow = sidebar
+      .locator('.lightbox-details-row')
+      .filter({ hasText: 'HASHTAG' })
+      .first();
+    // The new button reuses `.lightbox-details-campaign-link` — same as
+    // EPISODE NAME — and lives inside the HASHTAG row's value cell.
+    const hashtagButton = hashtagRow.locator('.lightbox-details-campaign-link');
+    await expect(hashtagButton).toBeVisible();
+
+    // Capture the hashtag label so we can sanity-check it begins with `#`
+    // (the `#` sigil lives inside the button per the implementation).
+    const hashtagLabel = (await hashtagButton.textContent())?.trim() ?? '';
+    expect(hashtagLabel.startsWith('#')).toBe(true);
+    expect(hashtagLabel.length).toBeGreaterThan(1);
+
+    await hashtagButton.click();
+
+    // Lightbox closes …
+    await expect(page.locator('#lightbox')).toBeHidden();
+
+    // … the URL hash becomes #<campaignId>. We don't know the id up-front
+    // (it's derived from the image's source campaign), but the hash must
+    // NOT still be the author-detail hash, and it must not be empty / #authors.
+    const hash = new URL(page.url()).hash;
+    expect(hash).not.toBe('');
+    expect(hash).not.toBe('#authors');
+    expect(hash.startsWith('#authors/')).toBe(false);
+    expect(hash.startsWith('#')).toBe(true);
+
+    // And we're on the campaign view, not the author detail view.
+    await expect(page.locator('[data-testid="author-images-grid"]')).toHaveCount(0);
+    await expect(page.locator('#campaign-info')).toBeVisible();
+  });
 });

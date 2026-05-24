@@ -219,7 +219,30 @@ function LightboxDetails({ campaign, author, onOpenAuthorGallery, onOpenCampaign
       </Row>
       <Row label="SEASON / NUMBER">{seasonNumberLabel}</Row>
       <Row label="AIR DATE">{campaign.date}</Row>
-      <Row label="HASHTAG">{`#${campaign.hashtag}`}</Row>
+      <Row label="HASHTAG">
+        {handleOpenCampaign ? (
+          // Same hoisting pattern as EPISODE NAME: reuse the memoized
+          // `handleOpenCampaign` closure (computed once per campaign change)
+          // so React.memo on LightboxDetails keeps working across prev/next
+          // image navigation. Reuse the existing `.lightbox-details-campaign-link`
+          // class for visual parity with the EPISODE NAME affordance.
+          //
+          // Design choice: the `#` prefix lives INSIDE the button so the
+          // entire visible hashtag (including the sigil that visually
+          // identifies it as a hashtag) is a single uninterrupted click
+          // target.
+          <button
+            type="button"
+            className="lightbox-details-campaign-link"
+            onClick={handleOpenCampaign}
+            aria-label={`View campaign gallery for #${campaign.hashtag}`}
+          >
+            {`#${campaign.hashtag}`}
+          </button>
+        ) : (
+          `#${campaign.hashtag}`
+        )}
+      </Row>
       {isSafeUrl(campaign.imdb_link) && imdbLinkText ? (
         <Row label="IMDB">
           <a
