@@ -242,14 +242,16 @@ export default function App() {
     selectCampaignRef.current?.(route.campaignId);
   }, [route, campaigns, activeCampaignId]);
 
-  // Lazily fetch the artists list the first time we land on an authors route
-  // (index or detail). The artists switcher in the top/bottom navbars and the
-  // AuthorsIndex page both benefit from this cached list — but AuthorsIndex
-  // keeps its own fetch for backward compatibility (it surfaces its own
-  // loading / error state). We only fetch once per session; refetching would
-  // require invalidation logic that isn't worth the complexity here.
+  // Lazily fetch the artists list the first time we land on the author-detail
+  // route. Only the artist nav-switcher (in the top/bottom navbars) needs
+  // this list at the App level — AuthorsIndex keeps its own fetch with its
+  // own loading/error state. Scoped to `author-detail` so visiting the
+  // authors-index page does NOT trigger a duplicate /api/authors request
+  // alongside the one AuthorsIndex already makes. We only fetch once per
+  // session; refetching would require invalidation logic that isn't worth
+  // the complexity here.
   useEffect(() => {
-    if (route.type !== 'author-detail' && route.type !== 'authors-index') return;
+    if (route.type !== 'author-detail') return;
     if (artists !== null) return;
     const controller = new AbortController();
     let cancelled = false;
