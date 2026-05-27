@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import React from 'react';
 import AuthorsIndex from '../src/components/AuthorsIndex';
 import type { AuthorWithCount } from '../src/types/api';
@@ -104,6 +104,41 @@ describe('AuthorsIndex', () => {
     expect(screen.queryByTestId('authors-grid')).toBeNull();
   });
 
+  // fringematrix5-z86p
+  describe('Attribution disclaimer', () => {
+    it('renders the attribution disclaimer above the grid', async () => {
+      globalThis.fetch = mockFetch({ authors: SAMPLE_AUTHORS }) as unknown as typeof fetch;
+      render(<AuthorsIndex onSelectAuthor={() => {}} onBack={() => {}} />);
+
+      const disclaimer = await screen.findByTestId('authors-disclaimer');
+      expect(disclaimer).toBeTruthy();
+      // Body copy mentions incomplete / missing attribution.
+      expect(disclaimer.textContent || '').toMatch(/attribution/i);
+      expect(disclaimer.textContent || '').toMatch(/incomplete|lost|undercount/i);
+    });
+
+    it('links the Unknown artist mention to #authors/__unknown__', async () => {
+      globalThis.fetch = mockFetch({ authors: SAMPLE_AUTHORS }) as unknown as typeof fetch;
+      render(<AuthorsIndex onSelectAuthor={() => {}} onBack={() => {}} />);
+
+      const disclaimer = await screen.findByTestId('authors-disclaimer');
+      const link = disclaimer.querySelector('a');
+      expect(link).not.toBeNull();
+      expect(link!.getAttribute('href')).toBe('#authors/__unknown__');
+      expect(link!.textContent).toBe('Unknown artist');
+    });
+
+    it('renders the disclaimer even on the empty state', async () => {
+      globalThis.fetch = mockFetch({ authors: [] }) as unknown as typeof fetch;
+      render(<AuthorsIndex onSelectAuthor={() => {}} onBack={() => {}} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/no artists found/i)).toBeTruthy();
+      });
+      expect(screen.getByTestId('authors-disclaimer')).toBeTruthy();
+    });
+  });
+
   // fringematrix5-obvh
   describe('Unknown artist pinned card', () => {
     it('renders the pinned "Unknown artist" card when unknownCount > 0', async () => {
@@ -112,8 +147,11 @@ describe('AuthorsIndex', () => {
 
       const card = await screen.findByTestId('unknown-artist-card');
       expect(card).toBeTruthy();
-      expect(screen.getByText('Unknown artist')).toBeTruthy();
-      expect(screen.getByText('42 images')).toBeTruthy();
+      // Scope to the card — the disclaimer above the grid also mentions
+      // "Unknown artist" (as a link), so an unscoped getByText would match
+      // multiple nodes.
+      expect(within(card).getByText('Unknown artist')).toBeTruthy();
+      expect(within(card).getByText('42 images')).toBeTruthy();
     });
 
     it('pins the Unknown artist card before all real-artist cards', async () => {
