@@ -3,6 +3,7 @@ import { fetchJSON } from '../utils/fetchJSON';
 import { getInitialsFromName } from '../utils/author';
 import { isSafeUrl } from '../utils/isSafeUrl';
 import type { AuthorsResponse, AuthorWithCount } from '../types/api';
+import { UNKNOWN_ARTIST_HANDLE, UNKNOWN_ARTIST_NAME } from '../types/api';
 
 interface Props {
   /** Navigate to a single-author detail page. */
@@ -15,9 +16,17 @@ interface Props {
  * Authors index page. Lists all known artists as cards (avatar + name + handle
  * + image count). Sorted by imageCount desc — the order is preserved from the
  * /api/authors response.
+ *
+ * If the response includes a non-zero `unknownCount`, an additional pinned
+ * "Unknown artist" card renders at the TOP of the grid (fringematrix5-obvh).
+ * Clicking it routes to `#authors/__unknown__`, which the server's
+ * `/api/authors/:handle` endpoint resolves to the list of every unattributed
+ * image. The card uses a distinct visual treatment (`author-card--unknown`)
+ * so it's visually separated from real artists.
  */
 export default function AuthorsIndex({ onSelectAuthor, onBack }: Props) {
   const [authors, setAuthors] = useState<AuthorWithCount[] | null>(null);
+  const [unknownCount, setUnknownCount] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -28,6 +37,10 @@ export default function AuthorsIndex({ onSelectAuthor, onBack }: Props) {
         const data = await fetchJSON<AuthorsResponse>('/api/authors', { signal: controller.signal });
         if (cancelled) return;
         setAuthors(data.authors ?? []);
+        // Defensive: older server responses may omit `unknownCount`. Treat
+        // missing / non-finite / negative values as 0 (card stays hidden).
+        const raw = data.unknownCount;
+        setUnknownCount(typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? raw : 0);
       } catch (e) {
         if (cancelled) return;
         if (e instanceof DOMException && e.name === 'AbortError') return;
@@ -42,7 +55,10 @@ export default function AuthorsIndex({ onSelectAuthor, onBack }: Props) {
   }, []);
 
   const isLoading = authors === null && error === null;
-  const isEmpty = authors !== null && authors.length === 0;
+  // The grid is "empty" only when there are no real artists AND no unknown
+  // images to surface — otherwise the unknown card alone is enough content.
+  const isEmpty = authors !== null && authors.length === 0 && unknownCount === 0;
+  const hasContent = authors !== null && (authors.length > 0 || unknownCount > 0);
 
   return (
     <main className="content authors-page">
@@ -71,13 +87,19 @@ export default function AuthorsIndex({ onSelectAuthor, onBack }: Props) {
         </div>
       )}
 
-      {authors && authors.length > 0 && (
+      {hasContent && (
         <section
           className="authors-grid"
           aria-label="Artists"
           data-testid="authors-grid"
         >
-          {authors.map((author) => (
+          {unknownCount > 0 && (
+            <UnknownArtistCard
+              imageCount={unknownCount}
+              onClick={() => onSelectAuthor(UNKNOWN_ARTIST_HANDLE)}
+            />
+          )}
+          {authors!.map((author) => (
             <AuthorCard
               key={author.handle}
               author={author}
@@ -128,6 +150,48 @@ function AuthorCard({ author, onClick }: AuthorCardProps) {
         )}
         <span className="author-count" aria-label={`${author.imageCount} images`}>
           {author.imageCount} {author.imageCount === 1 ? 'image' : 'images'}
+        </span>
+      </div>
+    </article>
+  );
+}
+
+interface UnknownArtistCardProps {
+  imageCount: number;
+  onClick: () => void;
+}
+
+/**
+ * Pinned "Unknown artist" card. Visually distinct from real-artist cards
+ * (placeholder avatar with '?', `author-card--unknown` modifier) so users can
+ * recognize it as a virtual aggregate. Click navigates to the
+ * `#authors/__unknown__` detail view, which lists every image without a
+ * resolved attribution.
+ */
+function UnknownArtistCard({ imageCount, onClick }: UnknownArtistCardProps) {
+  return (
+    <article
+      className="author-card author-card--unknown"
+      data-testid="unknown-artist-card"
+    >
+      <button
+        type="button"
+        className="author-card-button"
+        onClick={onClick}
+        aria-label={`Open ${UNKNOWN_ARTIST_NAME} (${imageCount} images)`}
+      >
+        <div
+          className="author-avatar author-avatar--unknown"
+          aria-hidden={true}
+        >
+          ?
+        </div>
+        <div className="author-name">{UNKNOWN_ARTIST_NAME}</div>
+      </button>
+      <div className="author-meta">
+        <span className="author-handle author-handle--unknown">Unattributed</span>
+        <span className="author-count" aria-label={`${imageCount} images`}>
+          {imageCount} {imageCount === 1 ? 'image' : 'images'}
         </span>
       </div>
     </article>

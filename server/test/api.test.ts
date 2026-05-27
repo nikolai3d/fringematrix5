@@ -398,6 +398,81 @@ describe('API contract', () => {
     });
   });
 
+  describe('GET /api/authors (unknownCount)', () => {
+    it('includes a numeric unknownCount field', async () => {
+      const res = await request(app).get('/api/authors');
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('unknownCount');
+      // We don't assert > 0 — a future fully-attributed dataset should still
+      // be a valid response (the client just hides the pinned card). Just
+      // assert the field is a non-negative number per the wire contract.
+      expect(typeof res.body.unknownCount).toBe('number');
+      expect(res.body.unknownCount).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('GET /api/authors/__unknown__ (sentinel)', () => {
+    it('returns the synthetic Unknown artist with an images list', async () => {
+      const res = await request(app).get('/api/authors/__unknown__');
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('author');
+      expect(res.body.author.handle).toBe('__unknown__');
+      expect(res.body.author.name).toBe('Unknown artist');
+      expect(res.body.author.twitterUrl).toBeNull();
+      expect(res.body.author.alternateHandles).toEqual([]);
+      expect(res.body.author.roles).toEqual([]);
+
+      // Array shape — but we don't require non-empty. A fully-attributed
+      // dataset returning [] is a valid response (the client surfaces the
+      // dedicated empty-state copy in that case).
+      expect(Array.isArray(res.body.images)).toBe(true);
+
+      // Per-image shape, only if there are any to inspect. Hard-asserting on
+      // a non-empty list would encode a transient property of today's data;
+      // the loop below verifies the shape for every entry that exists.
+      for (const img of res.body.images) {
+        expect(typeof img.src).toBe('string');
+        expect(img.src.startsWith('/avatars/')).toBe(true);
+        expect(typeof img.fileName).toBe('string');
+        expect(img.fileName.length).toBeGreaterThan(0);
+        expect(typeof img.blobPath).toBe('string');
+        expect(img.blobPath.startsWith('avatars/')).toBe(true);
+        expect(typeof img.campaignId).toBe('string');
+        expect(img.campaignId.length).toBeGreaterThan(0);
+        expect(['high', 'medium', 'unresolved']).toContain(img.confidence);
+      }
+    });
+
+    it('image count is consistent with the unknownCount on /api/authors', async () => {
+      const listRes = await request(app).get('/api/authors');
+      const detailRes = await request(app).get('/api/authors/__unknown__');
+      expect(listRes.status).toBe(200);
+      expect(detailRes.status).toBe(200);
+      // unknownCount counts every record with handle === null. The detail
+      // endpoint additionally skips records whose blobPath doesn't yield a
+      // campaignId, so the detail list can be slightly smaller. Both 0 and
+      // a positive count are valid; this assertion checks consistency
+      // without encoding the current dataset size.
+      expect(detailRes.body.images.length).toBeLessThanOrEqual(listRes.body.unknownCount);
+    });
+
+    it('is case-insensitive on the sentinel', async () => {
+      const lower = await request(app).get('/api/authors/__unknown__');
+      const upper = await request(app).get('/api/authors/__UNKNOWN__');
+      expect(lower.status).toBe(200);
+      expect(upper.status).toBe(200);
+      expect(upper.body.author.handle).toBe('__unknown__');
+      expect(upper.body.images.length).toBe(lower.body.images.length);
+    });
+
+    it('includes Cache-Control header for CDN/browser caching', async () => {
+      const res = await request(app).get('/api/authors/__unknown__');
+      expect(res.status).toBe(200);
+      expect(res.headers['cache-control']).toBe('public, max-age=3600, stale-while-revalidate=86400');
+      expect(res.headers['vary']).toContain('Accept-Encoding');
+    });
+  });
+
   describe('Security headers', () => {
     it('does not emit X-Powered-By header', async () => {
       const res = await request(app).get('/api/campaigns');
