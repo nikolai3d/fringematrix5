@@ -80,6 +80,7 @@ import type {
   AuthorWithCount,
 } from '../../../shared/types';
 export type { ContentPage, AttributionConfidence, ImageAuthor, Author, AuthorWithCount };
+export { UNKNOWN_ARTIST_HANDLE, UNKNOWN_ARTIST_NAME } from '../../../shared/types';
 
 export interface ContentResponse {
   content: string;
@@ -87,8 +88,16 @@ export interface ContentResponse {
 }
 
 // Response from GET /api/authors — list of known authors with image counts.
+//
+// `unknownCount` is the number of images whose attribution has no resolved
+// handle (AttributionRecord.handle === null on the server). Surfaces on the
+// all-artists page as a pinned "Unknown artist" card; clicking it navigates
+// to the synthetic `#authors/__unknown__` detail page. Optional + defensive
+// so older server responses without the field still parse cleanly (the card
+// is hidden when the count is missing or zero).
 export interface AuthorsResponse {
   authors: AuthorWithCount[];
+  unknownCount?: number;
 }
 
 // Response from GET /api/authors/:handle — the author plus their images.

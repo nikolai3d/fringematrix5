@@ -103,4 +103,73 @@ describe('AuthorsIndex', () => {
     });
     expect(screen.queryByTestId('authors-grid')).toBeNull();
   });
+
+  // fringematrix5-obvh
+  describe('Unknown artist pinned card', () => {
+    it('renders the pinned "Unknown artist" card when unknownCount > 0', async () => {
+      globalThis.fetch = mockFetch({ authors: SAMPLE_AUTHORS, unknownCount: 42 }) as unknown as typeof fetch;
+      render(<AuthorsIndex onSelectAuthor={() => {}} onBack={() => {}} />);
+
+      const card = await screen.findByTestId('unknown-artist-card');
+      expect(card).toBeTruthy();
+      expect(screen.getByText('Unknown artist')).toBeTruthy();
+      expect(screen.getByText('42 images')).toBeTruthy();
+    });
+
+    it('pins the Unknown artist card before all real-artist cards', async () => {
+      globalThis.fetch = mockFetch({ authors: SAMPLE_AUTHORS, unknownCount: 5 }) as unknown as typeof fetch;
+      render(<AuthorsIndex onSelectAuthor={() => {}} onBack={() => {}} />);
+
+      await screen.findByTestId('unknown-artist-card');
+      const grid = screen.getByTestId('authors-grid');
+      // First child of the grid should be the unknown card; real-artist cards follow.
+      const firstChild = grid.children[0] as HTMLElement;
+      expect(firstChild.getAttribute('data-testid')).toBe('unknown-artist-card');
+    });
+
+    it('hides the Unknown artist card when unknownCount is 0', async () => {
+      globalThis.fetch = mockFetch({ authors: SAMPLE_AUTHORS, unknownCount: 0 }) as unknown as typeof fetch;
+      render(<AuthorsIndex onSelectAuthor={() => {}} onBack={() => {}} />);
+
+      await screen.findAllByTestId('author-card');
+      expect(screen.queryByTestId('unknown-artist-card')).toBeNull();
+    });
+
+    it('hides the Unknown artist card when unknownCount is missing (older server response)', async () => {
+      globalThis.fetch = mockFetch({ authors: SAMPLE_AUTHORS }) as unknown as typeof fetch;
+      render(<AuthorsIndex onSelectAuthor={() => {}} onBack={() => {}} />);
+
+      await screen.findAllByTestId('author-card');
+      expect(screen.queryByTestId('unknown-artist-card')).toBeNull();
+    });
+
+    it('uses singular "image" copy when unknownCount is exactly 1', async () => {
+      globalThis.fetch = mockFetch({ authors: [], unknownCount: 1 }) as unknown as typeof fetch;
+      render(<AuthorsIndex onSelectAuthor={() => {}} onBack={() => {}} />);
+
+      await screen.findByTestId('unknown-artist-card');
+      expect(screen.getByText('1 image')).toBeTruthy();
+    });
+
+    it('calls onSelectAuthor with the sentinel handle when the card is clicked', async () => {
+      globalThis.fetch = mockFetch({ authors: [], unknownCount: 7 }) as unknown as typeof fetch;
+      const onSelectAuthor = vi.fn();
+      render(<AuthorsIndex onSelectAuthor={onSelectAuthor} onBack={() => {}} />);
+
+      const btn = await screen.findByRole('button', { name: /Open Unknown artist/ });
+      fireEvent.click(btn);
+
+      expect(onSelectAuthor).toHaveBeenCalledWith('__unknown__');
+    });
+
+    it('shows the Unknown artist card even when there are no real artists', async () => {
+      globalThis.fetch = mockFetch({ authors: [], unknownCount: 3 }) as unknown as typeof fetch;
+      render(<AuthorsIndex onSelectAuthor={() => {}} onBack={() => {}} />);
+
+      await screen.findByTestId('unknown-artist-card');
+      // The friendly "No artists found" empty-state copy should NOT render
+      // when we have unknown content to surface.
+      expect(screen.queryByText(/no artists found/i)).toBeNull();
+    });
+  });
 });

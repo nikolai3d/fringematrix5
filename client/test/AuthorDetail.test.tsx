@@ -191,4 +191,129 @@ describe('AuthorDetail', () => {
     });
     errSpy.mockRestore();
   });
+
+  // fringematrix5-obvh
+  describe('Unknown artist mode (sentinel handle)', () => {
+    const UNKNOWN_DETAIL = {
+      author: {
+        handle: '__unknown__',
+        name: 'Unknown artist',
+        twitterUrl: null,
+        alternateHandles: [],
+        roles: [],
+      },
+      images: [
+        {
+          src: '/avatars/Season4/AcrossTheUniverse/orphan1.gif',
+          fileName: 'orphan1.gif',
+          blobPath: 'avatars/Season4/AcrossTheUniverse/orphan1.gif',
+          campaignId: 'acrosstheuniverse',
+          confidence: 'unresolved' as const,
+        },
+        {
+          src: '/avatars/Season4/BuildABetterWorld/orphan2.jpg',
+          fileName: 'orphan2.jpg',
+          blobPath: 'avatars/Season4/BuildABetterWorld/orphan2.jpg',
+          campaignId: 'buildabetterworld',
+          confidence: 'unresolved' as const,
+        },
+      ],
+    };
+
+    it('fetches /api/authors/__unknown__ and renders the Unknown-artist header', async () => {
+      const fetchSpy = mockFetch(UNKNOWN_DETAIL);
+      globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+      render(
+        <AuthorDetail
+          handle="__unknown__"
+          onBack={() => {}}
+          onOpenImage={() => {}}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Unknown artist')).toBeTruthy();
+      });
+
+      const calledUrl = fetchSpy.mock.calls[0]![0] as string;
+      expect(calledUrl).toContain('/api/authors/__unknown__');
+
+      // No Twitter link should ever render for the synthetic author.
+      expect(screen.queryByRole('link')).toBeNull();
+      // Dedicated explainer copy replaces the @handle row.
+      expect(screen.getByText(/images without resolved attribution/i)).toBeTruthy();
+      expect(screen.getByText('2 images')).toBeTruthy();
+
+      // Grid renders with the unattributed-specific aria-label.
+      expect(screen.getByLabelText('Unattributed images')).toBeTruthy();
+    });
+
+    it('synthesizes ImageData with author === null so the lightbox AUTHOR row is omitted', async () => {
+      globalThis.fetch = mockFetch(UNKNOWN_DETAIL) as unknown as typeof fetch;
+      const onOpenImage = vi.fn();
+
+      render(
+        <AuthorDetail
+          handle="__unknown__"
+          onBack={() => {}}
+          onOpenImage={onOpenImage}
+        />,
+      );
+
+      const grid = await screen.findByTestId('author-images-grid');
+      const imgs = grid.querySelectorAll('img');
+      fireEvent.click(imgs[0]!);
+
+      expect(onOpenImage).toHaveBeenCalledTimes(1);
+      const [images0, index0, handle0] = onOpenImage.mock.calls[0]!;
+      expect(handle0).toBe('__unknown__');
+      expect(index0).toBe(0);
+      // Each synthesized lightbox image carries `author: null` for the
+      // unknown view — so LightboxDetails routes to its "no data" branch.
+      expect(images0[0].author).toBeNull();
+      expect(images0[1].author).toBeNull();
+      // Other fields are still populated for IMAGE DETAILS / EPISODE NAME panels.
+      expect(images0[0].campaignId).toBe('acrosstheuniverse');
+      expect(images0[1].campaignId).toBe('buildabetterworld');
+    });
+
+    it('shows a tailored empty state when there are no unattributed images', async () => {
+      globalThis.fetch = mockFetch({
+        author: UNKNOWN_DETAIL.author,
+        images: [],
+      }) as unknown as typeof fetch;
+
+      render(
+        <AuthorDetail
+          handle="__unknown__"
+          onBack={() => {}}
+          onOpenImage={() => {}}
+        />,
+      );
+
+      await screen.findByText('Unknown artist');
+      expect(
+        screen.getByText(/no unattributed images — every image has an artist\./i),
+      ).toBeTruthy();
+    });
+
+    it('matches the sentinel handle case-insensitively in the URL', async () => {
+      const fetchSpy = mockFetch(UNKNOWN_DETAIL);
+      globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+      render(
+        <AuthorDetail
+          handle="__UNKNOWN__"
+          onBack={() => {}}
+          onOpenImage={() => {}}
+        />,
+      );
+
+      await screen.findByText('Unknown artist');
+      // The branch is selected even though the URL handle was upper-case;
+      // No Twitter link is rendered.
+      expect(screen.queryByRole('link')).toBeNull();
+    });
+  });
 });

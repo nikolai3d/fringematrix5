@@ -2292,6 +2292,28 @@ html.reduce-effects .thumbnail-size-slider input[type='range']:hover:not(:disabl
   white-space: nowrap;
   color: var(--muted);
 }
+/* Unknown artist pinned card + detail-page header (fringematrix5-obvh).
+   Distinct dashed border + muted avatar gradient so users can tell at a
+   glance it's the virtual "Unknown artist" aggregate, not a real artist. */
+.author-card--unknown {
+  border-style: dashed;
+  border-color: rgba(var(--theme-accent-rgb), 0.5);
+  grid-column: 1 / -1;
+}
+.author-card--unknown:hover {
+  border-style: dashed;
+}
+.author-avatar--unknown {
+  background: linear-gradient(135deg, rgba(140,140,140,0.5), rgba(80,80,80,0.5));
+}
+.authors-page .author-handle--unknown {
+  color: var(--muted);
+  border-bottom: none;
+  font-style: italic;
+}
+.author-detail-header--unknown {
+  border-bottom-style: dashed;
+}
 .author-detail-header {
   display: flex;
   align-items: center;

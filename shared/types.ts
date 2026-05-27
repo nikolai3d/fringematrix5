@@ -49,3 +49,23 @@ export interface Author {
 export interface AuthorWithCount extends Author {
   imageCount: number;
 }
+
+// Sentinel handle for the virtual "Unknown artist" entry.
+//
+// This is NOT a real Twitter handle — it cannot collide with one because real
+// handles cannot contain '__'. The all-artists page surfaces a pinned card
+// using this handle; clicking it navigates to `#authors/__unknown__`, which
+// the server's /api/authors/:handle endpoint recognizes and answers with a
+// synthetic author + the list of every image whose attribution has no
+// resolved handle (i.e. AttributionRecord.handle === null).
+//
+// Dependent beads fringematrix5-0y9l (image → Unknown artist link from the
+// lightbox) and fringematrix5-zh88 (empty-artist disclaimer link) target the
+// same URL/route shape: `#authors/__unknown__` → AuthorDetail page in
+// "unknown" mode.
+export const UNKNOWN_ARTIST_HANDLE = '__unknown__';
+
+// The user-visible display name for the virtual "Unknown artist" entry.
+// Kept in shared/ so both server (synthetic author payload) and client
+// (AuthorsIndex pinned card + AuthorDetail header) use the exact same string.
+export const UNKNOWN_ARTIST_NAME = 'Unknown artist';

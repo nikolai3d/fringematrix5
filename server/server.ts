@@ -5,7 +5,7 @@ import yaml from 'js-yaml';
 import dotenv from 'dotenv';
 import { list, ListBlobResultBlob } from '@vercel/blob';
 import { fileURLToPath } from 'url';
-import { VALID_CONTENT_PAGES } from '../shared/types.js';
+import { VALID_CONTENT_PAGES, UNKNOWN_ARTIST_HANDLE, UNKNOWN_ARTIST_NAME } from '../shared/types.js';
 import type { ContentPage, ImageAuthor, Author, AuthorWithCount } from '../shared/types.js';
 import { timeoutMiddleware } from './middleware/timeout.js';
 import {
@@ -701,6 +701,15 @@ function deriveCampaignIdFromBlobPath(blobPath: string): string | null {
 // Counts are computed by a single O(N) pass over attribution.json on each
 // request. At ~1741 entries this is negligible; if it grows materially we
 // can memoize a handle→count map inside attribution.ts.
+//
+// The response also includes `unknownCount` — the number of attribution
+// records with a null/empty `handle`. The client uses it to render a pinned
+// "Unknown artist" card on the all-artists page (fringematrix5-obvh). The
+// strict on-disk definition would require `candidates.length === 0` too, but
+// the current dataset has zero such entries — every unresolved record has
+// candidates. To keep "Unknown artist" useful (rather than always empty), we
+// treat ANY record with a null handle as unattributed for routing purposes.
+// See /api/authors/:handle below for the matching listing.
 app.get('/api/authors', (_req: Request, res: Response): void => {
   try {
     const authorRecords = getAttributionAuthors();
@@ -709,10 +718,15 @@ app.get('/api/authors', (_req: Request, res: Response): void => {
     // Build a canonical-handle → count map. We canonicalize via
     // getAuthorByHandle() so alternate-handle attribution entries are
     // attributed to the primary handle (matching the per-author detail
-    // endpoint below). Entries with unresolved/null handles are skipped.
+    // endpoint below). Entries with unresolved/null handles are skipped here
+    // and counted into `unknownCount` separately.
     const counts = new Map<string, number>();
+    let unknownCount = 0;
     for (const record of Object.values(attribution)) {
-      if (typeof record.handle !== 'string' || record.handle.length === 0) continue;
+      if (typeof record.handle !== 'string' || record.handle.length === 0) {
+        unknownCount += 1;
+        continue;
+      }
       const author = getAuthorByHandle(record.handle);
       if (!author) continue;
       counts.set(author.handle, (counts.get(author.handle) ?? 0) + 1);
@@ -730,19 +744,79 @@ app.get('/api/authors', (_req: Request, res: Response): void => {
 
     res.set('Cache-Control', AUTHORS_CACHE_CONTROL);
     res.set('Vary', 'Accept-Encoding');
-    res.json({ authors });
+    res.json({ authors, unknownCount });
   } catch (err: unknown) {
     console.error('Authors listing error:', err);
     res.status(500).json({ error: 'Failed to load authors' });
   }
 });
 
+/**
+ * Synthetic author payload returned by /api/authors/:handle for the sentinel
+ * UNKNOWN_ARTIST_HANDLE. Mirrors the wire-format `Author` shape but with no
+ * Twitter link, no alternates, and no roles. The display name lives in
+ * shared/types.ts so client and server stay in sync.
+ */
+function buildUnknownAuthor(): Author {
+  return {
+    handle: UNKNOWN_ARTIST_HANDLE,
+    name: UNKNOWN_ARTIST_NAME,
+    twitterUrl: null,
+    alternateHandles: [],
+    roles: [],
+  };
+}
+
 // API endpoint: single-author detail with the list of images attributed to them.
+//
+// Special-cases the UNKNOWN_ARTIST_HANDLE sentinel (fringematrix5-obvh): when
+// requested, returns a synthetic "Unknown artist" author plus every image
+// whose attribution has no resolved handle. The response shape matches the
+// real-author path so the client can reuse the AuthorDetail page unchanged.
 app.get('/api/authors/:handle', (req: Request, res: Response): void => {
   try {
     const handleParam = req.params['handle'];
     if (typeof handleParam !== 'string' || handleParam.length === 0) {
       res.status(404).json({ error: 'Author not found' });
+      return;
+    }
+
+    // Sentinel branch: "Unknown artist". Compared case-insensitively for
+    // symmetry with the real-handle path below (which canonicalizes via
+    // getAuthorByHandle). Real twitter handles cannot contain '__', so this
+    // sentinel cannot collide with one.
+    if (handleParam.toLowerCase() === UNKNOWN_ARTIST_HANDLE.toLowerCase()) {
+      const attribution = getAllAttributions();
+      const unknownImages: Array<{
+        src: string;
+        fileName: string;
+        blobPath: string;
+        campaignId: string;
+        confidence: AttributionRecord['confidence'];
+      }> = [];
+
+      for (const [blobPath, record] of Object.entries(attribution)) {
+        // Include every record without a resolved handle. See the comment on
+        // /api/authors above for the broader-than-strict rationale.
+        if (typeof record.handle === 'string' && record.handle.length > 0) continue;
+
+        const campaignId = deriveCampaignIdFromBlobPath(blobPath);
+        if (!campaignId) continue;
+
+        const fileName = blobPath.split('/').pop() || '';
+        const src = `/${blobPath}`;
+        unknownImages.push({
+          src,
+          fileName,
+          blobPath,
+          campaignId,
+          confidence: record.confidence,
+        });
+      }
+
+      res.set('Cache-Control', AUTHORS_CACHE_CONTROL);
+      res.set('Vary', 'Accept-Encoding');
+      res.json({ author: buildUnknownAuthor(), images: unknownImages });
       return;
     }
 
