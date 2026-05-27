@@ -34,6 +34,8 @@ import type {
   ContentResponse,
   ImageData,
   LightboxImageSource,
+  AuthorWithCount,
+  AuthorsResponse,
 } from './types/api';
 
 export default function App() {
@@ -97,6 +99,15 @@ export default function App() {
   const settingsTriggerRef = useRef<HTMLElement | null>(null);
   const modalLoadAbortRef = useRef<AbortController | null>(null);
   const modalTriggerRef = useRef<HTMLElement | null>(null);
+
+  // Artists list cached at App-level so the artist switcher in the top/bottom
+  // navbars (used when route.type === 'author-detail') can render prev/next
+  // arrows + the current artist name without each navigation re-fetching the
+  // full list. Lazily fetched the first time we land on an author-detail
+  // route, then reused for the rest of the session. Reuses the existing
+  // `/api/authors` endpoint that powers AuthorsIndex — no new server work
+  // required for this bead.
+  const [artists, setArtists] = useState<AuthorWithCount[] | null>(null);
 
   // Route state: which top-level view to render. Driven by the URL hash so it
   // survives reloads and is bookmarkable. The hash also drives campaign
@@ -230,6 +241,82 @@ export default function App() {
     if (!exists) return;
     selectCampaignRef.current?.(route.campaignId);
   }, [route, campaigns, activeCampaignId]);
+
+  // Lazily fetch the artists list the first time we land on the author-detail
+  // route. Only the artist nav-switcher (in the top/bottom navbars) needs
+  // this list at the App level — AuthorsIndex keeps its own fetch with its
+  // own loading/error state. Scoped to `author-detail` so visiting the
+  // authors-index page does NOT trigger a duplicate /api/authors request
+  // alongside the one AuthorsIndex already makes. We only fetch once per
+  // session; refetching would require invalidation logic that isn't worth
+  // the complexity here.
+  useEffect(() => {
+    if (route.type !== 'author-detail') return;
+    if (artists !== null) return;
+    const controller = new AbortController();
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await fetchJSON<AuthorsResponse>('/api/authors', { signal: controller.signal });
+        if (cancelled) return;
+        setArtists(data.authors ?? []);
+      } catch (e) {
+        if (cancelled) return;
+        if (e instanceof DOMException && e.name === 'AbortError') return;
+        console.error('Failed to load artists for nav switcher:', e);
+        // Set to empty array so we stop retrying. The nav switcher will fall
+        // back to showing just the handle from the route — better than
+        // looping fetches.
+        setArtists([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [route.type, artists]);
+
+  // Resolve the currently active artist (when on the author-detail route)
+  // from the cached artists list. Returns null if the list hasn't loaded yet
+  // or if the handle isn't in the list — callers fall back to the raw handle
+  // from the route.
+  const activeArtist = useMemo<AuthorWithCount | null>(() => {
+    if (route.type !== 'author-detail') return null;
+    if (!artists) return null;
+    return artists.find((a) => a.handle === route.handle) ?? null;
+  }, [route, artists]);
+
+  // Title shown in the top/bottom navbars when on the author-detail route.
+  // Prefers the resolved display name from the artists list; falls back to
+  // the URL handle so the bar is never empty while the list is still loading
+  // or if the handle isn't found.
+  const artistNavTitle = useMemo<string>(() => {
+    if (route.type !== 'author-detail') return '';
+    if (activeArtist) return activeArtist.name || activeArtist.handle;
+    return route.handle;
+  }, [route, activeArtist]);
+
+  const activeArtistIndex = useMemo<number>(() => {
+    if (route.type !== 'author-detail') return -1;
+    if (!artists) return -1;
+    return artists.findIndex((a) => a.handle === route.handle);
+  }, [route, artists]);
+
+  const goToNextArtist = useCallback(() => {
+    if (!artists || artists.length === 0) return;
+    const nextIdx = activeArtistIndex < 0 ? 0 : (activeArtistIndex + 1) % artists.length;
+    const next = artists[nextIdx];
+    if (next) navigateToAuthorDetail(next.handle);
+  }, [artists, activeArtistIndex, navigateToAuthorDetail]);
+
+  const goToPrevArtist = useCallback(() => {
+    if (!artists || artists.length === 0) return;
+    const prevIdx = activeArtistIndex < 0
+      ? artists.length - 1
+      : (activeArtistIndex - 1 + artists.length) % artists.length;
+    const prev = artists[prevIdx];
+    if (prev) navigateToAuthorDetail(prev.handle);
+  }, [artists, activeArtistIndex, navigateToAuthorDetail]);
 
   const activeIndex = useMemo(() => {
     if (!activeCampaignId) return -1;
@@ -691,11 +778,37 @@ export default function App() {
       </div>
       <header className="navbar" id="top-navbar">
         <div className="navbar-inner">
-          <button className="nav-arrow" aria-label="Previous campaign" onClick={goToPrevCampaign} disabled={isCampaignLoading}>◀</button>
-          <div className="current-campaign" data-testid="current-campaign-top" title={activeCampaign ? `#${activeCampaign.hashtag}` : ''}>
-            {activeCampaign ? `#${activeCampaign.hashtag}` : ''}
-          </div>
-          <button className="nav-arrow" aria-label="Next campaign" onClick={goToNextCampaign} disabled={isCampaignLoading}>▶</button>
+          {route.type === 'author-detail' ? (
+            <>
+              <button
+                className="nav-arrow"
+                aria-label="Previous artist"
+                onClick={goToPrevArtist}
+                disabled={!artists || artists.length <= 1}
+              >◀</button>
+              <div
+                className="current-campaign"
+                data-testid="current-artist-top"
+                title={artistNavTitle}
+              >
+                {artistNavTitle}
+              </div>
+              <button
+                className="nav-arrow"
+                aria-label="Next artist"
+                onClick={goToNextArtist}
+                disabled={!artists || artists.length <= 1}
+              >▶</button>
+            </>
+          ) : (
+            <>
+              <button className="nav-arrow" aria-label="Previous campaign" onClick={goToPrevCampaign} disabled={isCampaignLoading}>◀</button>
+              <div className="current-campaign" data-testid="current-campaign-top" title={activeCampaign ? `#${activeCampaign.hashtag}` : ''}>
+                {activeCampaign ? `#${activeCampaign.hashtag}` : ''}
+              </div>
+              <button className="nav-arrow" aria-label="Next campaign" onClick={goToNextCampaign} disabled={isCampaignLoading}>▶</button>
+            </>
+          )}
         </div>
       </header>
 
@@ -821,11 +934,37 @@ export default function App() {
 
       <footer className="navbar" id="bottom-navbar">
         <div className="navbar-inner">
-          <button className="nav-arrow" aria-label="Previous campaign" onClick={goToPrevCampaign} disabled={isCampaignLoading}>◀</button>
-          <div className="current-campaign" data-testid="current-campaign-bottom" title={activeCampaign ? `#${activeCampaign.hashtag}` : ''}>
-            {activeCampaign ? `#${activeCampaign.hashtag}` : ''}
-          </div>
-          <button className="nav-arrow" aria-label="Next campaign" onClick={goToNextCampaign} disabled={isCampaignLoading}>▶</button>
+          {route.type === 'author-detail' ? (
+            <>
+              <button
+                className="nav-arrow"
+                aria-label="Previous artist"
+                onClick={goToPrevArtist}
+                disabled={!artists || artists.length <= 1}
+              >◀</button>
+              <div
+                className="current-campaign"
+                data-testid="current-artist-bottom"
+                title={artistNavTitle}
+              >
+                {artistNavTitle}
+              </div>
+              <button
+                className="nav-arrow"
+                aria-label="Next artist"
+                onClick={goToNextArtist}
+                disabled={!artists || artists.length <= 1}
+              >▶</button>
+            </>
+          ) : (
+            <>
+              <button className="nav-arrow" aria-label="Previous campaign" onClick={goToPrevCampaign} disabled={isCampaignLoading}>◀</button>
+              <div className="current-campaign" data-testid="current-campaign-bottom" title={activeCampaign ? `#${activeCampaign.hashtag}` : ''}>
+                {activeCampaign ? `#${activeCampaign.hashtag}` : ''}
+              </div>
+              <button className="nav-arrow" aria-label="Next campaign" onClick={goToNextCampaign} disabled={isCampaignLoading}>▶</button>
+            </>
+          )}
         </div>
       </footer>
 
