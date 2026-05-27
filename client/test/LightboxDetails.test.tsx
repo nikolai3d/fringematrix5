@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import LightboxDetails from '../src/components/LightboxDetails';
 import type { Campaign, ImageAuthor } from '../src/types/api';
+import { UNKNOWN_ARTIST_HANDLE } from '../src/types/api';
 
 const SAMPLE_CAMPAIGN: Campaign = {
   id: 'crosstheline',
@@ -275,16 +276,23 @@ describe('LightboxDetails', () => {
       expect(screen.getByRole('link', { name: /Zort70/ })).toBeTruthy();
     });
 
-    it('renders "Possibly: @A, @B, @C" with a "?" avatar for unresolved authors with candidates', () => {
+    // fringematrix5-0y9l: unresolved images (no handle) now render a single
+    // "unknown" affordance regardless of whether candidates exist. The
+    // previous "Possibly: @A, @B" candidate list was removed in favor of a
+    // link to the Unknown artist gallery (`#authors/__unknown__`).
+    it('renders "unknown" (not the candidate list) with a "?" avatar for unresolved authors with candidates', () => {
       render(<LightboxDetails campaign={SAMPLE_CAMPAIGN} author={unresolved} />);
       expect(screen.getByText('ARTIST')).toBeTruthy();
       expect(screen.getByText('?')).toBeTruthy();
-      expect(screen.getByText(/Possibly:\s*@AliceA,\s*@BobB,\s*@Carol_C/)).toBeTruthy();
-      // No link in unresolved state.
-      expect(screen.queryByRole('link', { name: /AliceA/ })).toBeNull();
+      expect(screen.getByText(/^unknown artist$/i)).toBeTruthy();
+      // Candidates are NOT surfaced in the lightbox anymore.
+      expect(screen.queryByText(/Possibly:/i)).toBeNull();
+      expect(screen.queryByText(/AliceA/)).toBeNull();
+      expect(screen.queryByText(/BobB/)).toBeNull();
+      expect(screen.queryByText(/Carol_C/)).toBeNull();
     });
 
-    it('omits the AUTHOR row entirely when handle is null and there are no candidates', () => {
+    it('renders "unknown" with a "?" avatar for unresolved authors with NO candidates', () => {
       const empty: ImageAuthor = {
         handle: null,
         displayName: null,
@@ -293,6 +301,19 @@ describe('LightboxDetails', () => {
         candidates: [],
       };
       render(<LightboxDetails campaign={SAMPLE_CAMPAIGN} author={empty} />);
+      // The AUTHOR row IS now rendered (it used to be omitted before
+      // fringematrix5-0y9l). It surfaces the "unknown" affordance so the
+      // user can jump to the all-unattributed gallery.
+      expect(screen.getByText('ARTIST')).toBeTruthy();
+      expect(screen.getByText('?')).toBeTruthy();
+      expect(screen.getByText(/^unknown artist$/i)).toBeTruthy();
+    });
+
+    it('still omits the AUTHOR row entirely when author is null (no attribution record)', () => {
+      // When the server returns no attribution data at all (author === null),
+      // we don't know that the image even has an attribution record, so we
+      // keep the row hidden rather than guess.
+      render(<LightboxDetails campaign={SAMPLE_CAMPAIGN} author={null} />);
       expect(screen.queryByText(/^artist$/i)).toBeNull();
     });
 
@@ -384,7 +405,7 @@ describe('LightboxDetails', () => {
         expect(screen.queryByRole('link', { name: /Twitter/i })).toBeNull();
       });
 
-      it('does not render a handle button for the unresolved (candidates-only) case', () => {
+      it('does not render a candidate-named button for unresolved authors (candidates are no longer surfaced)', () => {
         const onOpen = vi.fn();
         const unresolvedAuthor: ImageAuthor = {
           handle: null,
@@ -400,9 +421,96 @@ describe('LightboxDetails', () => {
             onOpenAuthorGallery={onOpen}
           />,
         );
+        // The candidate handles are NOT rendered as buttons (or as text).
         expect(screen.queryByRole('button', { name: /AliceA|BobB/ })).toBeNull();
         // Callback never invoked just by rendering.
         expect(onOpen).not.toHaveBeenCalled();
+      });
+
+      // fringematrix5-0y9l: the unresolved "unknown" affordance is a button
+      // that invokes the same `onOpenAuthorGallery` callback used by resolved
+      // handles — but with the UNKNOWN_ARTIST_HANDLE sentinel. The App-level
+      // handler then closes the lightbox and navigates to `#authors/__unknown__`,
+      // which the server serves via /api/authors/__unknown__.
+      it('renders the "unknown" affordance as a button that fires onOpenAuthorGallery with the sentinel handle (unresolved + candidates)', () => {
+        const onOpen = vi.fn();
+        const unresolvedAuthor: ImageAuthor = {
+          handle: null,
+          displayName: null,
+          twitterUrl: null,
+          confidence: 'unresolved',
+          candidates: ['@AliceA', '@BobB'],
+        };
+        render(
+          <LightboxDetails
+            campaign={SAMPLE_CAMPAIGN}
+            author={unresolvedAuthor}
+            onOpenAuthorGallery={onOpen}
+          />,
+        );
+        const btn = screen.getByRole('button', { name: /view all images by unknown artist/i });
+        expect(btn.tagName).toBe('BUTTON');
+        expect(btn.getAttribute('type')).toBe('button');
+        fireEvent.click(btn);
+        expect(onOpen).toHaveBeenCalledTimes(1);
+        expect(onOpen).toHaveBeenCalledWith(UNKNOWN_ARTIST_HANDLE);
+      });
+
+      it('renders the "unknown" affordance for unresolved authors with NO candidates and fires the sentinel callback', () => {
+        const onOpen = vi.fn();
+        const noCandidates: ImageAuthor = {
+          handle: null,
+          displayName: null,
+          twitterUrl: null,
+          confidence: 'unresolved',
+          candidates: [],
+        };
+        render(
+          <LightboxDetails
+            campaign={SAMPLE_CAMPAIGN}
+            author={noCandidates}
+            onOpenAuthorGallery={onOpen}
+          />,
+        );
+        const btn = screen.getByRole('button', { name: /view all images by unknown artist/i });
+        fireEvent.click(btn);
+        expect(onOpen).toHaveBeenCalledTimes(1);
+        expect(onOpen).toHaveBeenCalledWith(UNKNOWN_ARTIST_HANDLE);
+      });
+
+      it('renders the "unknown" affordance as plain text (no button) when no onOpenAuthorGallery callback is provided', () => {
+        const unresolvedAuthor: ImageAuthor = {
+          handle: null,
+          displayName: null,
+          twitterUrl: null,
+          confidence: 'unresolved',
+          candidates: ['@AliceA', '@BobB'],
+        };
+        render(<LightboxDetails campaign={SAMPLE_CAMPAIGN} author={unresolvedAuthor} />);
+        expect(screen.getByText(/^unknown artist$/i)).toBeTruthy();
+        // No button — falls back to static text.
+        expect(screen.queryByRole('button', { name: /unknown/i })).toBeNull();
+      });
+
+      it('"unknown" button is focusable (participates in lightbox focus trap)', () => {
+        const onOpen = vi.fn();
+        const unresolvedAuthor: ImageAuthor = {
+          handle: null,
+          displayName: null,
+          twitterUrl: null,
+          confidence: 'unresolved',
+          candidates: [],
+        };
+        render(
+          <LightboxDetails
+            campaign={SAMPLE_CAMPAIGN}
+            author={unresolvedAuthor}
+            onOpenAuthorGallery={onOpen}
+          />,
+        );
+        const btn = screen.getByRole('button', { name: /view all images by unknown artist/i }) as HTMLButtonElement;
+        btn.focus();
+        expect(document.activeElement).toBe(btn);
       });
 
       it('handle button is focusable (participates in lightbox focus trap)', () => {
