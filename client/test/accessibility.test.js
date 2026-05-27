@@ -235,6 +235,12 @@ describe('ARIA Attributes in App.tsx', () => {
     // grep-style guard survives the extraction without losing its intent.
     expect(appContent).toMatch(/(?:aria-label|prevLabel)="Previous campaign"/);
     expect(appContent).toMatch(/(?:aria-label|nextLabel)="Next campaign"/);
+    // Also verify that NavSwitcher actually wires its prevLabel/nextLabel
+    // props through to real aria-label attributes — otherwise the assertions
+    // above would just be checking for prop names without proving the arrows
+    // are accessible at runtime.
+    expect(appContent).toMatch(/aria-label=\{prevLabel\}/);
+    expect(appContent).toMatch(/aria-label=\{nextLabel\}/);
   });
 
   it('sidebar should have aria-hidden attribute', () => {
