@@ -229,8 +229,12 @@ describe('ARIA Attributes in App.tsx', () => {
   });
 
   it('nav arrows should have aria-labels', () => {
-    expect(appContent).toMatch(/aria-label="Previous campaign"/);
-    expect(appContent).toMatch(/aria-label="Next campaign"/);
+    // After fringematrix5-y6kl the literal aria-label is set inside NavSwitcher
+    // via the `prevLabel` / `nextLabel` props, which carry the same strings.
+    // Accept either the inline attribute form or the prop-based form so this
+    // grep-style guard survives the extraction without losing its intent.
+    expect(appContent).toMatch(/(?:aria-label|prevLabel)="Previous campaign"/);
+    expect(appContent).toMatch(/(?:aria-label|nextLabel)="Next campaign"/);
   });
 
   it('sidebar should have aria-hidden attribute', () => {

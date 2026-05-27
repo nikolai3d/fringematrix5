@@ -15,6 +15,7 @@ import {
 } from './config/gallery';
 import LoadingManager from './components/LoadingManager';
 import CampaignNavigation from './components/CampaignNavigation';
+import NavSwitcher from './components/NavSwitcher';
 import BuildInfoPopover from './components/BuildInfoPopover';
 import SharePopover from './components/SharePopover';
 import ContentModal from './components/ContentModal';
@@ -793,35 +794,27 @@ export default function App() {
       <header className="navbar" id="top-navbar">
         <div className="navbar-inner">
           {route.type === 'author-detail' ? (
-            <>
-              <button
-                className="nav-arrow"
-                aria-label="Previous artist"
-                onClick={goToPrevArtist}
-                disabled={!artists || artists.length <= 1}
-              >◀</button>
-              <div
-                className="current-campaign"
-                data-testid="current-artist-top"
-                title={artistNavTitle}
-              >
-                {artistNavTitle}
-              </div>
-              <button
-                className="nav-arrow"
-                aria-label="Next artist"
-                onClick={goToNextArtist}
-                disabled={!artists || artists.length <= 1}
-              >▶</button>
-            </>
+            <NavSwitcher
+              label={artistNavTitle}
+              title={artistNavTitle}
+              testId="current-artist-top"
+              prevLabel="Previous artist"
+              nextLabel="Next artist"
+              onPrev={goToPrevArtist}
+              onNext={goToNextArtist}
+              disabled={!artists || artists.length <= 1}
+            />
           ) : (
-            <>
-              <button className="nav-arrow" aria-label="Previous campaign" onClick={goToPrevCampaign} disabled={isCampaignLoading}>◀</button>
-              <div className="current-campaign" data-testid="current-campaign-top" title={activeCampaign ? `#${activeCampaign.hashtag}` : ''}>
-                {activeCampaign ? `#${activeCampaign.hashtag}` : ''}
-              </div>
-              <button className="nav-arrow" aria-label="Next campaign" onClick={goToNextCampaign} disabled={isCampaignLoading}>▶</button>
-            </>
+            <NavSwitcher
+              label={activeCampaign ? `#${activeCampaign.hashtag}` : ''}
+              title={activeCampaign ? `#${activeCampaign.hashtag}` : ''}
+              testId="current-campaign-top"
+              prevLabel="Previous campaign"
+              nextLabel="Next campaign"
+              onPrev={goToPrevCampaign}
+              onNext={goToNextCampaign}
+              disabled={isCampaignLoading}
+            />
           )}
         </div>
       </header>
@@ -949,35 +942,27 @@ export default function App() {
       <footer className="navbar" id="bottom-navbar">
         <div className="navbar-inner">
           {route.type === 'author-detail' ? (
-            <>
-              <button
-                className="nav-arrow"
-                aria-label="Previous artist"
-                onClick={goToPrevArtist}
-                disabled={!artists || artists.length <= 1}
-              >◀</button>
-              <div
-                className="current-campaign"
-                data-testid="current-artist-bottom"
-                title={artistNavTitle}
-              >
-                {artistNavTitle}
-              </div>
-              <button
-                className="nav-arrow"
-                aria-label="Next artist"
-                onClick={goToNextArtist}
-                disabled={!artists || artists.length <= 1}
-              >▶</button>
-            </>
+            <NavSwitcher
+              label={artistNavTitle}
+              title={artistNavTitle}
+              testId="current-artist-bottom"
+              prevLabel="Previous artist"
+              nextLabel="Next artist"
+              onPrev={goToPrevArtist}
+              onNext={goToNextArtist}
+              disabled={!artists || artists.length <= 1}
+            />
           ) : (
-            <>
-              <button className="nav-arrow" aria-label="Previous campaign" onClick={goToPrevCampaign} disabled={isCampaignLoading}>◀</button>
-              <div className="current-campaign" data-testid="current-campaign-bottom" title={activeCampaign ? `#${activeCampaign.hashtag}` : ''}>
-                {activeCampaign ? `#${activeCampaign.hashtag}` : ''}
-              </div>
-              <button className="nav-arrow" aria-label="Next campaign" onClick={goToNextCampaign} disabled={isCampaignLoading}>▶</button>
-            </>
+            <NavSwitcher
+              label={activeCampaign ? `#${activeCampaign.hashtag}` : ''}
+              title={activeCampaign ? `#${activeCampaign.hashtag}` : ''}
+              testId="current-campaign-bottom"
+              prevLabel="Previous campaign"
+              nextLabel="Next campaign"
+              onPrev={goToPrevCampaign}
+              onNext={goToNextCampaign}
+              disabled={isCampaignLoading}
+            />
           )}
         </div>
       </footer>
