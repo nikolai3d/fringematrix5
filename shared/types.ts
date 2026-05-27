@@ -52,12 +52,23 @@ export interface AuthorWithCount extends Author {
 
 // Sentinel handle for the virtual "Unknown artist" entry.
 //
-// This is NOT a real Twitter handle — it cannot collide with one because real
-// handles cannot contain '__'. The all-artists page surfaces a pinned card
-// using this handle; clicking it navigates to `#authors/__unknown__`, which
-// the server's /api/authors/:handle endpoint recognizes and answers with a
-// synthetic author + the list of every image whose attribution has no
-// resolved handle (i.e. AttributionRecord.handle === null).
+// This is NOT a real Twitter handle. Collision is avoided by an invariant
+// enforced in this codebase: every real author record in `data/authors.yaml`
+// stores its primary `handle` (and every alternate_handles entry) with a
+// leading '@'. The sentinel deliberately does NOT start with '@', so it can
+// never match a real-author lookup via getAuthorByHandle() (which prepends
+// '@' on input). The server additionally short-circuits on the sentinel
+// before dispatching to the authors directory, so an accidental authors.yaml
+// entry that happened to share this exact string would still be ignored on
+// the detail endpoint. (Twitter usernames themselves can contain consecutive
+// underscores; the invariant we rely on is the '@' prefix, not the inner
+// shape of the handle.)
+//
+// The all-artists page surfaces a pinned card using this handle; clicking it
+// navigates to `#authors/__unknown__`, which the server's
+// /api/authors/:handle endpoint recognizes and answers with a synthetic
+// author + the list of every image whose attribution has no resolved handle
+// (i.e. AttributionRecord.handle === null).
 //
 // Dependent beads fringematrix5-0y9l (image → Unknown artist link from the
 // lightbox) and fringematrix5-zh88 (empty-artist disclaimer link) target the

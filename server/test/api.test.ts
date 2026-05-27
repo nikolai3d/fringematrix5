@@ -399,20 +399,20 @@ describe('API contract', () => {
   });
 
   describe('GET /api/authors (unknownCount)', () => {
-    it('includes a positive unknownCount field', async () => {
+    it('includes a numeric unknownCount field', async () => {
       const res = await request(app).get('/api/authors');
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('unknownCount');
-      // The current data file has 966 unattributed entries. We assert > 0
-      // rather than a hard-coded number so the test stays robust to small
-      // attribution data updates.
+      // We don't assert > 0 — a future fully-attributed dataset should still
+      // be a valid response (the client just hides the pinned card). Just
+      // assert the field is a non-negative number per the wire contract.
       expect(typeof res.body.unknownCount).toBe('number');
-      expect(res.body.unknownCount).toBeGreaterThan(0);
+      expect(res.body.unknownCount).toBeGreaterThanOrEqual(0);
     });
   });
 
   describe('GET /api/authors/__unknown__ (sentinel)', () => {
-    it('returns the synthetic Unknown artist with a non-empty images list', async () => {
+    it('returns the synthetic Unknown artist with an images list', async () => {
       const res = await request(app).get('/api/authors/__unknown__');
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('author');
@@ -422,38 +422,38 @@ describe('API contract', () => {
       expect(res.body.author.alternateHandles).toEqual([]);
       expect(res.body.author.roles).toEqual([]);
 
+      // Array shape — but we don't require non-empty. A fully-attributed
+      // dataset returning [] is a valid response (the client surfaces the
+      // dedicated empty-state copy in that case).
       expect(Array.isArray(res.body.images)).toBe(true);
-      expect(res.body.images.length).toBeGreaterThan(0);
 
-      // Each image carries the standard shape: src, fileName, blobPath,
-      // campaignId, confidence. Confidence for unattributed records is
-      // 'unresolved' in the current dataset, but we don't hard-assert that
-      // here — just check the field type to allow future widening.
-      const img = res.body.images[0];
-      expect(typeof img.src).toBe('string');
-      expect(img.src.startsWith('/avatars/')).toBe(true);
-      expect(typeof img.fileName).toBe('string');
-      expect(img.fileName.length).toBeGreaterThan(0);
-      expect(typeof img.blobPath).toBe('string');
-      expect(img.blobPath.startsWith('avatars/')).toBe(true);
-      expect(typeof img.campaignId).toBe('string');
-      expect(img.campaignId.length).toBeGreaterThan(0);
-      expect(['high', 'medium', 'unresolved']).toContain(img.confidence);
+      // Per-image shape, only if there are any to inspect. Hard-asserting on
+      // a non-empty list would encode a transient property of today's data;
+      // the loop below verifies the shape for every entry that exists.
+      for (const img of res.body.images) {
+        expect(typeof img.src).toBe('string');
+        expect(img.src.startsWith('/avatars/')).toBe(true);
+        expect(typeof img.fileName).toBe('string');
+        expect(img.fileName.length).toBeGreaterThan(0);
+        expect(typeof img.blobPath).toBe('string');
+        expect(img.blobPath.startsWith('avatars/')).toBe(true);
+        expect(typeof img.campaignId).toBe('string');
+        expect(img.campaignId.length).toBeGreaterThan(0);
+        expect(['high', 'medium', 'unresolved']).toContain(img.confidence);
+      }
     });
 
-    it('image count matches the unknownCount on /api/authors', async () => {
+    it('image count is consistent with the unknownCount on /api/authors', async () => {
       const listRes = await request(app).get('/api/authors');
       const detailRes = await request(app).get('/api/authors/__unknown__');
       expect(listRes.status).toBe(200);
       expect(detailRes.status).toBe(200);
       // unknownCount counts every record with handle === null. The detail
-      // endpoint skips records whose blobPath doesn't yield a campaignId,
-      // so the detail list can in principle be smaller. In the current
-      // dataset every unattributed record has a valid campaign-shaped path,
-      // so the two should match exactly. The assertion is `<=` so a future
-      // off-shape entry doesn't break the contract gratuitously.
+      // endpoint additionally skips records whose blobPath doesn't yield a
+      // campaignId, so the detail list can be slightly smaller. Both 0 and
+      // a positive count are valid; this assertion checks consistency
+      // without encoding the current dataset size.
       expect(detailRes.body.images.length).toBeLessThanOrEqual(listRes.body.unknownCount);
-      expect(detailRes.body.images.length).toBeGreaterThan(0);
     });
 
     it('is case-insensitive on the sentinel', async () => {

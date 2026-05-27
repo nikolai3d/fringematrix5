@@ -783,8 +783,15 @@ app.get('/api/authors/:handle', (req: Request, res: Response): void => {
 
     // Sentinel branch: "Unknown artist". Compared case-insensitively for
     // symmetry with the real-handle path below (which canonicalizes via
-    // getAuthorByHandle). Real twitter handles cannot contain '__', so this
-    // sentinel cannot collide with one.
+    // getAuthorByHandle).
+    //
+    // Why no collision with a real handle: every real author record in
+    // data/authors.yaml stores its primary `handle` (and every alternate)
+    // with a leading '@'. UNKNOWN_ARTIST_HANDLE deliberately does NOT — and
+    // even if a malformed YAML row ever did share this exact string, this
+    // sentinel check runs BEFORE getAuthorByHandle(), so the lookup is
+    // never reached on the sentinel path. See shared/types.ts for the full
+    // invariant.
     if (handleParam.toLowerCase() === UNKNOWN_ARTIST_HANDLE.toLowerCase()) {
       const attribution = getAllAttributions();
       const unknownImages: Array<{
