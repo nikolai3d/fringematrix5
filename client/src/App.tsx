@@ -548,19 +548,33 @@ export default function App() {
     navigateToAuthorDetail(handle);
   }, [closeLightbox, navigateToAuthorDetail]);
 
-  // Stable handler for the EPISODE NAME affordance in `LightboxDetails`.
-  // Hoisted into useCallback so `LightboxDetails` — which is React.memo'd —
-  // doesn't re-render on every App render just because a fresh inline arrow
-  // would change prop identity. (Spotted in Copilot review of fringematrix5-c320.)
+  // Stable handler for the EPISODE NAME / HASHTAG affordance in
+  // `LightboxDetails`. Hoisted into useCallback so `LightboxDetails` — which is
+  // React.memo'd — doesn't re-render on every App render just because a fresh
+  // inline arrow would change prop identity. (Spotted in Copilot review of
+  // fringematrix5-c320.)
+  //
+  // Routing semantics (fringematrix5-u7gd):
+  // Always force the route back to {type: 'gallery', campaignId} regardless of
+  // whether activeCampaignId already matches. The lightbox can be opened from
+  // artist-browse mode (route = author-detail) on an image whose source
+  // campaign equals the previously-active campaign id; in that case
+  // selectCampaign would early-return because the campaign isn't changing, and
+  // the route would stay stranded on the artist page. Updating the hash
+  // unconditionally guarantees the user lands on the campaign gallery view.
+  // selectCampaign is only invoked when the campaign actually needs to change.
   const handleOpenCampaignGallery = useCallback((campaignId: string) => {
-    // Always close the lightbox; if the gallery is already showing this
-    // campaign the selectCampaign call is a no-op and we just return to
-    // the existing view. When author-browse mode (fringematrix5-ik5)
-    // lands and the lightbox can show images from a non-active
-    // campaign, this same branch will perform a real switch.
     closeLightbox();
     if (campaignId !== activeCampaignId) {
+      // selectCampaign handles both the data fetch and the route update
+      // (it sets the hash and route via its inner callback).
       selectCampaign(campaignId);
+    } else {
+      // Same campaign as the currently-active one; selectCampaign would be a
+      // no-op so we update the hash + route ourselves to leave artist-browse
+      // mode (or any other non-gallery route) and return to the gallery view.
+      window.history.replaceState({}, '', `#${campaignId}`);
+      setRoute({ type: 'gallery', campaignId });
     }
   }, [closeLightbox, activeCampaignId, selectCampaign]);
 
