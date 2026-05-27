@@ -174,6 +174,99 @@ describe('AuthorDetail', () => {
     errSpy.mockRestore();
   });
 
+  // fringematrix5-zh88
+  describe('Regular artist empty state (attribution-lost disclaimer)', () => {
+    const EMPTY_DETAIL = {
+      author: {
+        handle: '@Zort70',
+        name: 'Sarah Proost',
+        twitterUrl: 'https://twitter.com/Zort70',
+        alternateHandles: [],
+        roles: ['artist'],
+      },
+      images: [],
+    };
+
+    it('shows the attribution-lost disclaimer when a regular artist has no images', async () => {
+      globalThis.fetch = mockFetch(EMPTY_DETAIL) as unknown as typeof fetch;
+
+      render(
+        <AuthorDetail
+          handle="@Zort70"
+          onBack={() => {}}
+          onOpenImage={() => {}}
+        />,
+      );
+
+      await screen.findByText('Sarah Proost');
+
+      const disclaimer = await screen.findByTestId('author-empty-disclaimer');
+      expect(disclaimer).toBeTruthy();
+      // Mentions that attribution has been lost — wording check is loose so
+      // copy edits don't force a test update, but the substance must remain.
+      expect(disclaimer.textContent || '').toMatch(/attribution.*lost/i);
+      // Mentions the Unknown artist category by name (UNKNOWN_ARTIST_NAME).
+      expect(disclaimer.textContent || '').toMatch(/unknown artist/i);
+
+      // Link points at the stable Unknown-artist hash route.
+      const link = disclaimer.querySelector('a');
+      expect(link).toBeTruthy();
+      expect(link!.getAttribute('href')).toBe('#authors/__unknown__');
+
+      // The Unknown-artist-specific empty copy must NOT collide with this one.
+      expect(
+        screen.queryByText(/no unattributed images — every image has an artist\./i),
+      ).toBeNull();
+
+      // No gallery grid renders when there are no images.
+      expect(screen.queryByTestId('author-images-grid')).toBeNull();
+    });
+
+    it('does NOT render the attribution-lost disclaimer when the artist has images', async () => {
+      globalThis.fetch = mockFetch(SAMPLE_DETAIL) as unknown as typeof fetch;
+
+      render(
+        <AuthorDetail
+          handle="@Zort70"
+          onBack={() => {}}
+          onOpenImage={() => {}}
+        />,
+      );
+
+      await screen.findByText('Sarah Proost');
+      expect(screen.queryByTestId('author-empty-disclaimer')).toBeNull();
+    });
+
+    it('does NOT render the regular disclaimer on the Unknown-artist empty state', async () => {
+      globalThis.fetch = mockFetch({
+        author: {
+          handle: '__unknown__',
+          name: 'Unknown artist',
+          twitterUrl: null,
+          alternateHandles: [],
+          roles: [],
+        },
+        images: [],
+      }) as unknown as typeof fetch;
+
+      render(
+        <AuthorDetail
+          handle="__unknown__"
+          onBack={() => {}}
+          onOpenImage={() => {}}
+        />,
+      );
+
+      await screen.findByText('Unknown artist');
+      // The two empty states are distinct: the unknown-artist branch keeps
+      // its dedicated copy and does NOT show the regular disclaimer.
+      expect(screen.queryByTestId('author-empty-disclaimer')).toBeNull();
+      expect(
+        screen.getByText(/no unattributed images — every image has an artist\./i),
+      ).toBeTruthy();
+    });
+  });
+
   it('shows an inline error message when the request fails (e.g. 404)', async () => {
     globalThis.fetch = mockFetch({ error: 'not found' }, 404) as unknown as typeof fetch;
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
