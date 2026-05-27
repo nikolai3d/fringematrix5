@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import React from 'react';
 import AuthorsIndex from '../src/components/AuthorsIndex';
 import type { AuthorWithCount } from '../src/types/api';
@@ -147,8 +147,11 @@ describe('AuthorsIndex', () => {
 
       const card = await screen.findByTestId('unknown-artist-card');
       expect(card).toBeTruthy();
-      expect(screen.getByText('Unknown artist')).toBeTruthy();
-      expect(screen.getByText('42 images')).toBeTruthy();
+      // Scope to the card — the disclaimer above the grid also mentions
+      // "Unknown artist" (as a link), so an unscoped getByText would match
+      // multiple nodes.
+      expect(within(card).getByText('Unknown artist')).toBeTruthy();
+      expect(within(card).getByText('42 images')).toBeTruthy();
     });
 
     it('pins the Unknown artist card before all real-artist cards', async () => {
