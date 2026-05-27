@@ -103,6 +103,15 @@ function makeFetchMock() {
     if (url === `/api/authors/${encodeURIComponent(HANDLE)}`) {
       return jsonResponse(SAMPLE_AUTHOR_DETAIL);
     }
+    if (url === '/api/authors') {
+      // App lazily fetches the artists list when landing on an authors route
+      // so the nav-switcher in the top/bottom navbars can render prev/next +
+      // the active artist's name. Tests in this file mount the App directly
+      // onto an author-detail hash, which triggers that fetch — return an
+      // empty list to silence the "failed to load" log without changing
+      // assertions (the switcher just stays disabled with the URL handle).
+      return jsonResponse({ authors: [] });
+    }
 
     return jsonResponse({ error: `Unmocked URL: ${url}` }, 404);
   });
