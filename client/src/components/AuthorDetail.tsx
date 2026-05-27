@@ -3,7 +3,7 @@ import { fetchJSON } from '../utils/fetchJSON';
 import { getInitialsFromName } from '../utils/author';
 import { isSafeUrl } from '../utils/isSafeUrl';
 import type { AuthorDetailResponse, ImageData } from '../types/api';
-import { UNKNOWN_ARTIST_HANDLE } from '../types/api';
+import { UNKNOWN_ARTIST_HANDLE, UNKNOWN_ARTIST_NAME } from '../types/api';
 import GalleryGrid, { type GalleryGridHandle } from './GalleryGrid';
 
 interface Props {
@@ -212,11 +212,41 @@ export default function AuthorDetail({ handle, onBack, onOpenImage, gridRef }: P
           </header>
 
           {data.images.length === 0 ? (
-            <div className="authors-status" role="status" aria-live="polite">
-              {isUnknownArtist
-                ? 'No unattributed images — every image has an artist.'
-                : 'No images attributed to this artist yet.'}
-            </div>
+            isUnknownArtist ? (
+              <div className="authors-status" role="status" aria-live="polite">
+                No unattributed images — every image has an artist.
+              </div>
+            ) : (
+              // Regular-artist empty state. Attribution metadata is hand-curated
+              // and incomplete: some images have lost their attribution and now
+              // live under the synthetic "Unknown artist" category. We surface a
+              // short disclaimer + a link so users have a place to look for
+              // possibly-misfiled work. See fringematrix5-zh88. The Unknown
+              // target is reached via a hash link (`#authors/__unknown__`),
+              // which the App-level hashchange listener picks up; no extra
+              // navigation callback is plumbed through for this branch.
+              <div
+                className="authors-disclaimer"
+                role="status"
+                aria-live="polite"
+                data-testid="author-empty-disclaimer"
+              >
+                <p>
+                  No images are currently attributed to this artist.
+                </p>
+                <p>
+                  Attribution for some images has been lost over time. This
+                  artist&rsquo;s work may still be present in the{' '}
+                  <a
+                    className="authors-disclaimer-link"
+                    href={`#authors/${UNKNOWN_ARTIST_HANDLE}`}
+                  >
+                    {UNKNOWN_ARTIST_NAME}
+                  </a>{' '}
+                  category.
+                </p>
+              </div>
+            )
           ) : (
             <GalleryGrid
               ref={gridRef}

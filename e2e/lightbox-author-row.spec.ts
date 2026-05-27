@@ -116,8 +116,13 @@ test.describe('Lightbox AUTHOR row — resolved (high confidence)', () => {
   });
 });
 
-test.describe('Lightbox AUTHOR row — unresolved with candidates', () => {
-  test('shows "Possibly: …" candidate list for an unresolved ObserveItLive image', async ({ page }) => {
+test.describe('Lightbox AUTHOR row — unresolved (unknown artist)', () => {
+  // fringematrix5-0y9l: the lightbox no longer surfaces the "Possibly: @A,
+  // @B" candidate list for unresolved images. Both unresolved sub-cases
+  // ("no handle + candidates" and "no handle + no candidates") now collapse
+  // into a single "unknown" affordance that links to the synthetic Unknown
+  // artist gallery (`#authors/__unknown__`).
+  test('shows the "unknown artist" link for an unresolved ObserveItLive image', async ({ page }) => {
     await gotoCampaign(page, 'observeitlive');
 
     // Any image inside the fully-unresolved `oil/` folder works; pick the
@@ -139,20 +144,28 @@ test.describe('Lightbox AUTHOR row — unresolved with candidates', () => {
     await expect(authorRow).toBeVisible();
     await expect(authorRow.getByText('ARTIST', { exact: true })).toBeVisible();
 
-    // Unresolved avatar shows a literal '?'.
+    // Unresolved avatar still shows a literal '?'.
     const avatar = authorRow.locator('.lightbox-author-avatar--unresolved');
     await expect(avatar).toBeVisible();
     await expect(avatar).toHaveText('?');
 
-    // "Possibly:" label + each expected candidate handle.
-    const candidates = authorRow.locator('.lightbox-author-candidates');
-    await expect(candidates).toBeVisible();
-    await expect(candidates).toContainText('Possibly:');
-    await expect(candidates).toContainText('@Cheribot');
-    await expect(candidates).toContainText('@SarahProost');
-    await expect(candidates).toContainText('@Zort70');
+    // The "unknown" affordance is rendered as a button (in-app navigation
+    // to the Unknown artist gallery is available in the running app).
+    const unknownBtn = authorRow.getByRole('button', { name: /view all images by unknown artist/i });
+    await expect(unknownBtn).toBeVisible();
+    await expect(unknownBtn).toContainText(/unknown artist/i);
 
-    // Unresolved state must NOT render an attribution link.
-    await expect(authorRow.locator('a')).toHaveCount(0);
+    // Candidate list is gone — no "Possibly:" label, no candidate handles.
+    await expect(authorRow.locator('.lightbox-author-candidates')).toHaveCount(0);
+    await expect(authorRow).not.toContainText('Possibly:');
+    await expect(authorRow).not.toContainText('@Cheribot');
+    await expect(authorRow).not.toContainText('@SarahProost');
+    await expect(authorRow).not.toContainText('@Zort70');
+
+    // Clicking the "unknown" button navigates to the synthetic Unknown
+    // artist detail page.
+    await unknownBtn.click();
+    await page.waitForFunction(() => window.location.hash.includes('authors/__unknown__'));
+    expect(page.url()).toContain('authors/__unknown__');
   });
 });
