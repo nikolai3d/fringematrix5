@@ -266,7 +266,7 @@ describe('App: artist nav-switcher in author-browse mode (fringematrix5-urzh)', 
     // surface during the run, so we restore in afterEach via vi.restoreAllMocks.
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => { /* swallow */ });
 
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString();
       if (url === '/api/authors') {
         // Simulate a server-side failure. fetchJSON throws on non-2xx, which
@@ -277,7 +277,18 @@ describe('App: artist nav-switcher in author-browse mode (fringematrix5-urzh)', 
         return jsonResponse({ images: [] });
       }
       if (url === '/api/campaigns') {
-        return jsonResponse({ campaigns: [] });
+        return jsonResponse({
+          campaigns: [
+            {
+              id: 'crosstheline',
+              episode: 'Cross The Line',
+              episode_id: 'S04E18',
+              hashtag: 'CrossTheLine',
+              date: '2012-04-13',
+              icon_path: 'Season4/CrossTheLine',
+            },
+          ],
+        });
       }
       if (url === '/api/build-info') {
         return jsonResponse({ commitHash: 'dev-local', deployedAt: null });
@@ -289,7 +300,8 @@ describe('App: artist nav-switcher in author-browse mode (fringematrix5-urzh)', 
         return jsonResponse(authorDetailFor(HANDLE_A, 'Alice Artist'));
       }
       return jsonResponse({ error: `Unmocked URL: ${url}` }, 404);
-    }) as unknown as typeof fetch;
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     await act(async () => {
       render(<App />);
@@ -311,6 +323,45 @@ describe('App: artist nav-switcher in author-browse mode (fringematrix5-urzh)', 
     // The App's catch block should have logged the failure exactly once —
     // proves we actually hit the error branch (not, say, a hung fetch).
     expect(errSpy).toHaveBeenCalled();
+
+    // Stronger behavioral guard (per Copilot review on PR #192): leave the
+    // author-detail route and come back. The lazy-fetch effect re-evaluates
+    // when `route.type` changes back to `'author-detail'`. If the catch
+    // block correctly called `setArtists([])`, the effect's early-return
+    // (`if (artists !== null) return;`) fires and NO new /api/authors
+    // request is made — locking in the "stop retrying after failure"
+    // behavior. If a future refactor dropped the `setArtists([])` call,
+    // `artists` would stay `null` and this round-trip would re-fetch,
+    // bumping the call count to >1 and failing the test.
+    const authorsCallsAfterFailure = fetchMock.mock.calls.filter(
+      ([input]) => (typeof input === 'string' ? input : (input as URL).toString()) === '/api/authors',
+    ).length;
+    expect(authorsCallsAfterFailure).toBe(1);
+
+    // Round-trip: author-detail → gallery → author-detail.
+    await act(async () => {
+      window.location.hash = '#crosstheline';
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    });
+    await waitFor(() => {
+      // Wait for gallery mode to render so we know the route transition
+      // settled before we go back.
+      expect(screen.queryByTestId('current-artist-top')).toBeNull();
+    });
+    await act(async () => {
+      window.location.hash = AUTHOR_HASH_A;
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('current-artist-top')).toBeTruthy();
+    });
+
+    // Still exactly one /api/authors request — proves the catch set
+    // artists=[] and the early-return is doing its job.
+    const authorsCallsAfterRoundTrip = fetchMock.mock.calls.filter(
+      ([input]) => (typeof input === 'string' ? input : (input as URL).toString()) === '/api/authors',
+    ).length;
+    expect(authorsCallsAfterRoundTrip).toBe(1);
   });
 
   // Regression coverage (fringematrix5-ok8g): visiting #authors (the
