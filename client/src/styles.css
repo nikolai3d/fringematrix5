@@ -2211,6 +2211,36 @@ html.reduce-effects .thumbnail-size-slider input[type='range']:hover:not(:disabl
 .authors-error {
   color: #ff8b8b;
 }
+/* Empty-state disclaimer on a regular artist's detail page when they have no
+   attributed images. Explains that attribution may have been lost and links
+   to the synthetic "Unknown artist" gallery. See fringematrix5-zh88. */
+.authors-disclaimer {
+  max-width: 640px;
+  margin: 24px auto 80px;
+  padding: 20px 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+  background: var(--bg-elev);
+  border: 1px solid rgba(124,77,255,0.2);
+  border-radius: 12px;
+}
+.authors-disclaimer p {
+  margin: 0 0 8px;
+}
+.authors-disclaimer p:last-child {
+  margin-bottom: 0;
+}
+.authors-disclaimer-link {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.authors-disclaimer-link:hover,
+.authors-disclaimer-link:focus {
+  color: var(--accent);
+  text-decoration: none;
+}
 .authors-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
