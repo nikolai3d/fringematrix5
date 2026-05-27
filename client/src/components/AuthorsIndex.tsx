@@ -69,6 +69,8 @@ export default function AuthorsIndex({ onSelectAuthor, onBack }: Props) {
         <h1>Artists</h1>
       </div>
 
+      <AttributionDisclaimer />
+
       {isLoading && (
         <div className="authors-status" role="status" aria-live="polite">
           Loading artists…
@@ -109,6 +111,36 @@ export default function AuthorsIndex({ onSelectAuthor, onBack }: Props) {
         </section>
       )}
     </main>
+  );
+}
+
+/**
+ * Concise notice explaining that image attribution is incomplete. Lots of
+ * source posts never named the artist, and some attributions were lost when
+ * images were rehosted, so the per-artist counts on this page can undercount
+ * and some artists may appear with zero attributed images. Sits above the
+ * grid so users see it before drawing conclusions from the numbers. The
+ * "Unknown artist" link points at the sentinel handle's detail page (see
+ * fringematrix5-obvh); the route is always valid even when the bucket is
+ * empty (the detail page handles that case).
+ */
+function AttributionDisclaimer() {
+  return (
+    <aside
+      className="authors-disclaimer"
+      role="note"
+      aria-label="Attribution disclaimer"
+      data-testid="authors-disclaimer"
+    >
+      <p>
+        Heads up: artist attribution on these images is incomplete. Many
+        original posts didn't credit an artist, and some credits were lost
+        when images were rehosted — so per-artist counts may undercount and a
+        few artists appear with no attributed images. Unattributed images are
+        collected under{' '}
+        <a href={`#authors/${UNKNOWN_ARTIST_HANDLE}`}>{UNKNOWN_ARTIST_NAME}</a>.
+      </p>
+    </aside>
   );
 }
 
