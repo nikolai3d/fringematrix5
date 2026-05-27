@@ -2347,10 +2347,10 @@ html.reduce-effects .thumbnail-size-slider input[type='range']:hover:not(:disabl
 .authors-page .author-handle:hover {
   border-bottom-style: solid;
 }
-.authors-page .author-count {
-  white-space: nowrap;
-  color: var(--muted);
-}
+/* Note: `.authors-page .author-count` used to live here. fringematrix5-lujv
+   removed the per-artist count from the all-artists UI, so the corresponding
+   span is no longer rendered. The `.author-detail-info .author-count` rule
+   below is still used by the per-artist AuthorDetail header. */
 /* Unknown artist pinned card + detail-page header (fringematrix5-obvh).
    Distinct dashed border + muted avatar gradient so users can tell at a
    glance it's the virtual "Unknown artist" aggregate, not a real artist. */
