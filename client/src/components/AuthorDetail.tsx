@@ -3,6 +3,7 @@ import { fetchJSON } from '../utils/fetchJSON';
 import { getInitialsFromName } from '../utils/author';
 import { isSafeUrl } from '../utils/isSafeUrl';
 import type { AuthorDetailResponse, ImageData } from '../types/api';
+import { UNKNOWN_ARTIST_HANDLE } from '../types/api';
 import GalleryGrid, { type GalleryGridHandle } from './GalleryGrid';
 
 interface Props {
@@ -49,6 +50,12 @@ interface Props {
 export default function AuthorDetail({ handle, onBack, onOpenImage, gridRef }: Props) {
   const [data, setData] = useState<AuthorDetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Whether we're viewing the synthetic "Unknown artist" page. Drives a few
+  // small UI tweaks (avatar glyph, no Twitter link, dedicated empty-state
+  // copy, no `@handle` in the header). Computed from the route handle —
+  // matched case-insensitively to mirror the server's sentinel comparison.
+  const isUnknownArtist = handle.toLowerCase() === UNKNOWN_ARTIST_HANDLE.toLowerCase();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -100,15 +107,24 @@ export default function AuthorDetail({ handle, onBack, onOpenImage, gridRef }: P
       src: image.src,
       blobPath: image.blobPath,
       campaignId: image.campaignId,
-      author: {
-        handle: data.author.handle,
-        displayName: data.author.name,
-        twitterUrl: data.author.twitterUrl,
-        confidence: image.confidence,
-        candidates: [],
-      },
+      // For the synthetic Unknown artist view, the per-image `author` would
+      // otherwise be a synthesized record pointing at the sentinel handle —
+      // which would render as a broken "@__unknown__" pseudo-handle in the
+      // lightbox AUTHOR row. Setting it to null routes LightboxDetails to its
+      // "no data" branch (row omitted). The IMAGE DETAILS / EPISODE NAME
+      // panels are unaffected. Follow-up bead fringematrix5-0y9l will add a
+      // dedicated affordance for unattributed images that links back here.
+      author: isUnknownArtist
+        ? null
+        : {
+            handle: data.author.handle,
+            displayName: data.author.name,
+            twitterUrl: data.author.twitterUrl,
+            confidence: image.confidence,
+            candidates: [],
+          },
     }));
-  }, [data]);
+  }, [data, isUnknownArtist]);
 
   /**
    * Per-thumbnail click handler delegated to the parent. GalleryGrid passes
@@ -152,13 +168,32 @@ export default function AuthorDetail({ handle, onBack, onOpenImage, gridRef }: P
 
       {data && (
         <>
-          <header className="author-detail-header">
-            <div className="author-avatar author-avatar-large" aria-hidden={true}>
-              {getInitialsFromName(data.author.name) || '?'}
+          <header
+            className={
+              isUnknownArtist
+                ? 'author-detail-header author-detail-header--unknown'
+                : 'author-detail-header'
+            }
+          >
+            <div
+              className={
+                isUnknownArtist
+                  ? 'author-avatar author-avatar-large author-avatar--unknown'
+                  : 'author-avatar author-avatar-large'
+              }
+              aria-hidden={true}
+            >
+              {isUnknownArtist ? '?' : getInitialsFromName(data.author.name) || '?'}
             </div>
             <div className="author-detail-info">
               <h1>{data.author.name}</h1>
-              {isSafeUrl(data.author.twitterUrl) && data.author.twitterUrl ? (
+              {isUnknownArtist ? (
+                // No real handle to surface for the synthetic Unknown artist;
+                // show a short explainer instead so the row isn't empty.
+                <span className="author-handle author-handle--unknown">
+                  Images without resolved attribution
+                </span>
+              ) : isSafeUrl(data.author.twitterUrl) && data.author.twitterUrl ? (
                 <a
                   className="author-handle"
                   href={data.author.twitterUrl}
@@ -178,14 +213,18 @@ export default function AuthorDetail({ handle, onBack, onOpenImage, gridRef }: P
 
           {data.images.length === 0 ? (
             <div className="authors-status" role="status" aria-live="polite">
-              No images attributed to this artist yet.
+              {isUnknownArtist
+                ? 'No unattributed images — every image has an artist.'
+                : 'No images attributed to this artist yet.'}
             </div>
           ) : (
             <GalleryGrid
               ref={gridRef}
               images={lightboxImages}
               onImageClick={handleImageClick}
-              ariaLabel={`Images by ${data.author.name}`}
+              ariaLabel={
+                isUnknownArtist ? 'Unattributed images' : `Images by ${data.author.name}`
+              }
               testId="author-images-grid"
             />
           )}
