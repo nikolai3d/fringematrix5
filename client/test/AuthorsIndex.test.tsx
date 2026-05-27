@@ -49,8 +49,44 @@ describe('AuthorsIndex', () => {
 
     expect(screen.getByText('Sarah Proost')).toBeTruthy();
     expect(screen.getByText('Someone Else')).toBeTruthy();
-    expect(screen.getByText('244 images')).toBeTruthy();
-    expect(screen.getByText('1 image')).toBeTruthy();
+  });
+
+  // fringematrix5-lujv: the per-artist count is intentionally hidden from
+  // the all-artists UI. Sort order (driven by imageCount desc, server-side)
+  // is preserved — see the "preserves the sort order" test below.
+  it('does not render per-artist image counts on the index', async () => {
+    globalThis.fetch = mockFetch({ authors: SAMPLE_AUTHORS }) as unknown as typeof fetch;
+    render(<AuthorsIndex onSelectAuthor={() => {}} onBack={() => {}} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('author-card')).toHaveLength(2);
+    });
+
+    // None of the per-artist counts from SAMPLE_AUTHORS should appear in
+    // the DOM, in either plural or singular form.
+    expect(screen.queryByText('244 images')).toBeNull();
+    expect(screen.queryByText('1 image')).toBeNull();
+    // Also no orphaned `.author-count` span should be rendered for real
+    // artists on the index page.
+    expect(document.querySelector('.authors-page .author-count')).toBeNull();
+    // And the button's accessible name must NOT carry the raw number either.
+    const sarahBtn = screen.getByRole('button', { name: /Open Sarah Proost/ });
+    expect(sarahBtn.getAttribute('aria-label')).toBe('Open Sarah Proost');
+  });
+
+  it('preserves the server-supplied sort order (by imageCount desc)', async () => {
+    globalThis.fetch = mockFetch({ authors: SAMPLE_AUTHORS }) as unknown as typeof fetch;
+    render(<AuthorsIndex onSelectAuthor={() => {}} onBack={() => {}} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('author-card')).toHaveLength(2);
+    });
+
+    // SAMPLE_AUTHORS is ordered [244, 1] — the higher-volume artist must
+    // render first even though the count itself is no longer shown.
+    const cards = screen.getAllByTestId('author-card');
+    expect(cards[0].textContent).toContain('Sarah Proost');
+    expect(cards[1].textContent).toContain('Someone Else');
   });
 
   it('linkifies the @handle to the twitterUrl when present', async () => {
@@ -149,9 +185,15 @@ describe('AuthorsIndex', () => {
       expect(card).toBeTruthy();
       // Scope to the card — the disclaimer above the grid also mentions
       // "Unknown artist" (as a link), so an unscoped getByText would match
-      // multiple nodes.
+      // multiple nodes (fringematrix5-z86p).
       expect(within(card).getByText('Unknown artist')).toBeTruthy();
-      expect(within(card).getByText('42 images')).toBeTruthy();
+      // fringematrix5-lujv: the raw unattributed count is intentionally not
+      // rendered on the index. "Unattributed" stays as a textual indicator.
+      expect(within(card).queryByText('42 images')).toBeNull();
+      expect(within(card).getByText('Unattributed')).toBeTruthy();
+      // Likewise, the card's accessible name omits the number.
+      const btn = within(card).getByRole('button', { name: /Open Unknown artist/ });
+      expect(btn.getAttribute('aria-label')).toBe('Open Unknown artist');
     });
 
     it('pins the Unknown artist card before all real-artist cards', async () => {
@@ -181,12 +223,21 @@ describe('AuthorsIndex', () => {
       expect(screen.queryByTestId('unknown-artist-card')).toBeNull();
     });
 
-    it('uses singular "image" copy when unknownCount is exactly 1', async () => {
+    // fringematrix5-lujv: was "uses singular 'image' copy when unknownCount
+    // is exactly 1". The singular/plural copy disappeared along with the
+    // count itself, so the test now asserts that no count text renders even
+    // in the edge case of a single unattributed image. The card still shows.
+    it('still hides the unattributed count when unknownCount is exactly 1', async () => {
       globalThis.fetch = mockFetch({ authors: [], unknownCount: 1 }) as unknown as typeof fetch;
       render(<AuthorsIndex onSelectAuthor={() => {}} onBack={() => {}} />);
 
-      await screen.findByTestId('unknown-artist-card');
-      expect(screen.getByText('1 image')).toBeTruthy();
+      const card = await screen.findByTestId('unknown-artist-card');
+      // Scope to the card so we don't pick up the disclaimer's prose
+      // (fringematrix5-z86p mentions "Unattributed images" above the grid).
+      expect(within(card).queryByText('1 image')).toBeNull();
+      expect(within(card).queryByText('1 images')).toBeNull();
+      // The "Unattributed" textual indicator is still present on the card.
+      expect(within(card).getByText('Unattributed')).toBeTruthy();
     });
 
     it('calls onSelectAuthor with the sentinel handle when the card is clicked', async () => {
