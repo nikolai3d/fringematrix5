@@ -13,9 +13,13 @@ interface Props {
 }
 
 /**
- * Authors index page. Lists all known artists as cards (avatar + name + handle
- * + image count). Sorted by imageCount desc — the order is preserved from the
- * /api/authors response.
+ * Authors index page. Lists all known artists as cards (avatar + name +
+ * handle). Sorted by `imageCount` desc — the order is preserved from the
+ * /api/authors response. The per-artist count itself is NOT rendered in the
+ * UI (fringematrix5-lujv): attribution data has known gaps (see the
+ * disclaimer added by fringematrix5-z86p), so the raw number is misleading
+ * as a "popularity" signal even though sorting by volume is still a useful
+ * default for browsing.
  *
  * If the response includes a non-zero `unknownCount`, an additional pinned
  * "Unknown artist" card renders at the TOP of the grid (fringematrix5-obvh).
@@ -69,6 +73,8 @@ export default function AuthorsIndex({ onSelectAuthor, onBack }: Props) {
         <h1>Artists</h1>
       </div>
 
+      <AttributionDisclaimer />
+
       {isLoading && (
         <div className="authors-status" role="status" aria-live="polite">
           Loading artists…
@@ -95,7 +101,6 @@ export default function AuthorsIndex({ onSelectAuthor, onBack }: Props) {
         >
           {unknownCount > 0 && (
             <UnknownArtistCard
-              imageCount={unknownCount}
               onClick={() => onSelectAuthor(UNKNOWN_ARTIST_HANDLE)}
             />
           )}
@@ -109,6 +114,36 @@ export default function AuthorsIndex({ onSelectAuthor, onBack }: Props) {
         </section>
       )}
     </main>
+  );
+}
+
+/**
+ * Concise notice explaining that image attribution is incomplete. Lots of
+ * source posts never named the artist, and some attributions were lost when
+ * images were rehosted, so the per-artist counts on this page can undercount
+ * and some artists may appear with zero attributed images. Sits above the
+ * grid so users see it before drawing conclusions from the numbers. The
+ * "Unknown artist" link points at the sentinel handle's detail page (see
+ * fringematrix5-obvh); the route is always valid even when the bucket is
+ * empty (the detail page handles that case).
+ */
+function AttributionDisclaimer() {
+  return (
+    <aside
+      className="authors-disclaimer"
+      role="note"
+      aria-label="Attribution disclaimer"
+      data-testid="authors-disclaimer"
+    >
+      <p>
+        Heads up: artist attribution on these images is incomplete. Many
+        original posts didn't credit an artist, and some credits were lost
+        when images were rehosted — so per-artist counts may undercount and a
+        few artists appear with no attributed images. Unattributed images are
+        collected under{' '}
+        <a href={`#authors/${UNKNOWN_ARTIST_HANDLE}`}>{UNKNOWN_ARTIST_NAME}</a>.
+      </p>
+    </aside>
   );
 }
 
@@ -129,7 +164,7 @@ function AuthorCard({ author, onClick }: AuthorCardProps) {
         type="button"
         className="author-card-button"
         onClick={onClick}
-        aria-label={`Open ${author.name} (${author.imageCount} images)`}
+        aria-label={`Open ${author.name}`}
       >
         <div className="author-avatar" aria-hidden={true}>{initials}</div>
         <div className="author-name">{author.name}</div>
@@ -148,16 +183,20 @@ function AuthorCard({ author, onClick }: AuthorCardProps) {
         ) : (
           <span className="author-handle">{author.handle}</span>
         )}
-        <span className="author-count" aria-label={`${author.imageCount} images`}>
-          {author.imageCount} {author.imageCount === 1 ? 'image' : 'images'}
-        </span>
+        {/*
+          Per fringematrix5-lujv, the per-artist image count is intentionally
+          NOT rendered. The data is still used to sort the grid (descending),
+          but attribution gaps mean the raw number is misleading as a
+          standalone signal — see the disclaimer from fringematrix5-z86p.
+          The `imageCount` field stays on the response shape and on `author`
+          for future internal use (e.g. analytics, future surfaces).
+        */}
       </div>
     </article>
   );
 }
 
 interface UnknownArtistCardProps {
-  imageCount: number;
   onClick: () => void;
 }
 
@@ -167,8 +206,13 @@ interface UnknownArtistCardProps {
  * recognize it as a virtual aggregate. Click navigates to the
  * `#authors/__unknown__` detail view, which lists every image without a
  * resolved attribution.
+ *
+ * Per fringematrix5-lujv the unattributed image count is NOT displayed on the
+ * card. The "Unattributed" handle is kept as a textual indicator without
+ * exposing a potentially misleading raw number; the count is still available
+ * on the AuthorDetail page (where the disclaimer also lives).
  */
-function UnknownArtistCard({ imageCount, onClick }: UnknownArtistCardProps) {
+function UnknownArtistCard({ onClick }: UnknownArtistCardProps) {
   return (
     <article
       className="author-card author-card--unknown"
@@ -178,7 +222,7 @@ function UnknownArtistCard({ imageCount, onClick }: UnknownArtistCardProps) {
         type="button"
         className="author-card-button"
         onClick={onClick}
-        aria-label={`Open ${UNKNOWN_ARTIST_NAME} (${imageCount} images)`}
+        aria-label={`Open ${UNKNOWN_ARTIST_NAME}`}
       >
         <div
           className="author-avatar author-avatar--unknown"
@@ -190,9 +234,6 @@ function UnknownArtistCard({ imageCount, onClick }: UnknownArtistCardProps) {
       </button>
       <div className="author-meta">
         <span className="author-handle author-handle--unknown">Unattributed</span>
-        <span className="author-count" aria-label={`${imageCount} images`}>
-          {imageCount} {imageCount === 1 ? 'image' : 'images'}
-        </span>
       </div>
     </article>
   );
