@@ -2208,8 +2208,62 @@ html.reduce-effects .thumbnail-size-slider input[type='range']:hover:not(:disabl
   color: var(--muted);
   font-size: 14px;
 }
+/* Attribution disclaimer (fringematrix5-z86p). Sits above the grid to warn
+   users that per-artist counts can undercount due to lost / missing
+   attribution. Dashed border to echo the Unknown-artist card treatment. */
+.authors-disclaimer {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  background: rgba(var(--theme-accent-rgb), 0.06);
+  border: 1px dashed rgba(var(--theme-accent-rgb), 0.4);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.authors-disclaimer p {
+  margin: 0;
+}
+.authors-disclaimer a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(var(--theme-accent-rgb), 0.5);
+}
+.authors-disclaimer a:hover {
+  border-bottom-style: solid;
+}
 .authors-error {
   color: #ff8b8b;
+}
+/* Empty-state disclaimer on a regular artist's detail page when they have no
+   attributed images. Explains that attribution may have been lost and links
+   to the synthetic "Unknown artist" gallery. See fringematrix5-zh88. */
+.authors-disclaimer {
+  max-width: 640px;
+  margin: 24px auto 80px;
+  padding: 20px 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+  background: var(--bg-elev);
+  border: 1px solid rgba(124,77,255,0.2);
+  border-radius: 12px;
+}
+.authors-disclaimer p {
+  margin: 0 0 8px;
+}
+.authors-disclaimer p:last-child {
+  margin-bottom: 0;
+}
+.authors-disclaimer-link {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.authors-disclaimer-link:hover,
+.authors-disclaimer-link:focus {
+  color: var(--accent);
+  text-decoration: none;
 }
 .authors-grid {
   display: grid;
@@ -2293,10 +2347,10 @@ html.reduce-effects .thumbnail-size-slider input[type='range']:hover:not(:disabl
 .authors-page .author-handle:hover {
   border-bottom-style: solid;
 }
-.authors-page .author-count {
-  white-space: nowrap;
-  color: var(--muted);
-}
+/* Note: `.authors-page .author-count` used to live here. fringematrix5-lujv
+   removed the per-artist count from the all-artists UI, so the corresponding
+   span is no longer rendered. The `.author-detail-info .author-count` rule
+   below is still used by the per-artist AuthorDetail header. */
 /* Unknown artist pinned card + detail-page header (fringematrix5-obvh).
    Distinct dashed border + muted avatar gradient so users can tell at a
    glance it's the virtual "Unknown artist" aggregate, not a real artist. */
