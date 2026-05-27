@@ -574,10 +574,15 @@ footer.navbar {
   text-decoration: none;
 }
 .lightbox-author-twitter:hover { text-decoration: underline; }
-.lightbox-author-candidates {
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 13px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+/* fringematrix5-0y9l: the "unknown" affordance shown in the AUTHOR row for
+   images without a resolved handle. Subtler than a real handle (italicized
+   + muted) so it visually reads as a state rather than a real artist name,
+   while still being clearly clickable when in-app navigation is wired up.
+   Note: the previous `.lightbox-author-candidates` style was removed when
+   the lightbox stopped surfacing the "Possibly: @A, @B" candidate list. */
+.lightbox-author-unknown {
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.75);
 }
 .lightbox-author-badge {
   display: inline-flex;

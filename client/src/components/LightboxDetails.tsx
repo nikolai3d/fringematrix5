@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Campaign, ImageAuthor } from '../types/api';
+import { UNKNOWN_ARTIST_HANDLE, UNKNOWN_ARTIST_NAME } from '../types/api';
 import { parseEpisodeId } from '../utils/parseEpisodeId';
 import { extractImdbId } from '../utils/extractImdbId';
 import { isSafeUrl } from '../utils/isSafeUrl';
@@ -46,12 +47,18 @@ function Row({ label, children }: RowProps) {
 }
 
 /**
- * Renders the AUTHOR row content based on the three states defined in
- * fringematrix5-5s8:
+ * Renders the AUTHOR row content based on the states defined in
+ * fringematrix5-5s8 + fringematrix5-0y9l:
  *   1. Resolved (handle present, confidence 'high' | 'medium')
- *   2. Unresolved (handle null, candidates.length > 0)
- *   3. No data (author null OR handle null AND no candidates) → return null
- *      so the caller can omit the row entirely.
+ *   2. Unresolved (handle is null on the attribution record, regardless of
+ *      whether candidates exist) → render a single "unknown" affordance that
+ *      links to the synthetic Unknown artist gallery (`#authors/__unknown__`).
+ *      The previous "Possibly: @A, @B" candidate list was removed in
+ *      fringematrix5-0y9l; the Unknown artist page collects every
+ *      attribution record whose handle is null, so the lightbox now points
+ *      users there instead of repeating uncertain candidate guesses.
+ *   3. No attribution data at all (author null) → return null so the caller
+ *      can omit the row entirely.
  */
 function AuthorRow({
   author,
@@ -133,28 +140,45 @@ function AuthorRow({
     );
   }
 
-  // Case 2: unresolved with candidates.
-  if (author.candidates && author.candidates.length > 0) {
-    return (
-      <div className="lightbox-details-row lightbox-details-author">
-        <div className="lightbox-details-label">ARTIST</div>
-        <div className="lightbox-details-value lightbox-details-author-value">
-          <span
-            className="lightbox-author-avatar lightbox-author-avatar--unresolved"
-            aria-hidden={true}
+  // Case 2: unresolved (handle is null). Both sub-cases — "no handle +
+  // candidates" and "no handle + no candidates" — collapse into a single
+  // "unknown" affordance that links to the synthetic Unknown artist gallery
+  // (`#authors/__unknown__`). See fringematrix5-0y9l: we no longer surface
+  // the candidate list in the lightbox; users follow the link to browse all
+  // unattributed images instead.
+  //
+  // The unknown link uses the same in-app navigation hook as the resolved
+  // case (`onOpenAuthorGallery`) — the App-level handler closes the lightbox
+  // and pushes the author-detail hash. When no callback is provided
+  // (legacy / test contexts) we fall back to a plain '?' affordance with
+  // the unknown label rendered as static text so the row is still
+  // informative without dangling navigation.
+  const unknownLabel = `${UNKNOWN_ARTIST_NAME.toLowerCase()}`;
+  return (
+    <div className="lightbox-details-row lightbox-details-author">
+      <div className="lightbox-details-label">ARTIST</div>
+      <div className="lightbox-details-value lightbox-details-author-value">
+        <span
+          className="lightbox-author-avatar lightbox-author-avatar--unresolved"
+          aria-hidden={true}
+        >
+          ?
+        </span>
+        {onOpenAuthorGallery ? (
+          <button
+            type="button"
+            className="lightbox-details-link lightbox-author-handle lightbox-author-handle--button lightbox-author-unknown"
+            onClick={() => onOpenAuthorGallery(UNKNOWN_ARTIST_HANDLE)}
+            aria-label={`View all images by ${UNKNOWN_ARTIST_NAME}`}
           >
-            ?
-          </span>
-          <span className="lightbox-author-candidates">
-            Possibly: {author.candidates.join(', ')}
-          </span>
-        </div>
+            {unknownLabel}
+          </button>
+        ) : (
+          <span className="lightbox-author-unknown">{unknownLabel}</span>
+        )}
       </div>
-    );
-  }
-
-  // Case 3: no data → omit (handled by the caller).
-  return null;
+    </div>
+  );
 }
 
 /**
@@ -164,8 +188,9 @@ function AuthorRow({
  *
  * The AUTHOR row is conditionally rendered based on the `author` prop:
  *   - high/medium confidence → handle as link (with avatar + optional badge)
- *   - unresolved with candidates → "Possibly: @A, @B" with a '?' avatar
- *   - null / no candidates → row is omitted entirely
+ *   - unresolved (handle null, with or without candidates) → "unknown" link
+ *     to the synthetic Unknown artist gallery (fringematrix5-0y9l)
+ *   - author === null (no attribution data) → row is omitted entirely
  *
  * If no active campaign is available the component renders a single
  * empty-state line so the sidebar is not a confusing blank panel.
