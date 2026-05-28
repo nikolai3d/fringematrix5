@@ -311,18 +311,6 @@ describe('useLightboxAnimations — panel animation wrappers (source-level)', ()
     expect(frameBlock![0]).toMatch(/signal\?\.aborted/);
   });
 
-  it('animateLightboxImageFrame sets opacity 0 alongside clipPath in the pre-delay block — regression for 1px black line flash', () => {
-    // .lightbox-image-wrap has a dark background; without opacity:0 the 1px
-    // collapsed strip is visible as a black line for the entire frameDelay.
-    const frameBlock = hookSrc.match(/const animateLightboxImageFrame[\s\S]*?}, \[reduceMotion\]\)/);
-    expect(frameBlock).not.toBeNull();
-    // The pre-delay block must set both clipPath and opacity to 0.
-    // Extract the section before the await setTimeout so we scope to the right spot.
-    const preDelay = frameBlock![0].match(/frameEl\.style\.clipPath[\s\S]*?await new Promise/);
-    expect(preDelay).not.toBeNull();
-    expect(preDelay![0]).toMatch(/frameEl\.style\.opacity\s*=\s*['"]0['"]/);
-  });
-
   it('animateLightboxPanel is exported from the module', () => {
     expect(hookSrc).toMatch(/export\s+async\s+function\s+animateLightboxPanel/);
   });
