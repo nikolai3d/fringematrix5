@@ -126,19 +126,21 @@ export async function animateLightboxPanel(
       const expandDuration = Math.max(0, enterDuration - cfg.lineHoldMs);
 
       // Phase 0: paint the line state immediately so the panel is never
-      // shown briefly at full size before the animation starts.
+      // shown briefly at full size before the animation starts. Start at
+      // opacity 0 so the 1px line is invisible during the zoom-in transition;
+      // opacity fades in at the start of the expand phase.
       el.style.clipPath = COLLAPSED_CLIP;
-      el.style.opacity = '1';
+      el.style.opacity = '0';
       if (!options?.skipContentFade) content.forEach(child => { child.style.opacity = '0'; });
 
-      // Phase 1: blink the line. Each blink is one full opacity cycle
-      // (1 -> 0 -> 1) spread over 2 * blinkInterval. If lineBlinkCount is 0
-      // the line is held at opacity 1.
+      // Phase 1: hold/blink the line at opacity 0 (invisible). The blink
+      // choreography is preserved so timing stays consistent, but the user
+      // cannot see the bare 1px line during the concurrent zoom-in animation.
       const blinkFrames: Keyframe[] = [];
       const totalBlinkSteps = Math.max(0, cfg.lineBlinkCount) * 2;
       if (totalBlinkSteps > 0) {
         for (let i = 0; i <= totalBlinkSteps; i++) {
-          blinkFrames.push({ opacity: i % 2 === 0 ? 1 : 0, offset: i / totalBlinkSteps });
+          blinkFrames.push({ opacity: 0, offset: i / totalBlinkSteps });
         }
         const blinkDuration = Math.min(cfg.lineHoldMs, totalBlinkSteps * cfg.lineBlinkIntervalMs);
         const blink = el.animate(blinkFrames, { duration: blinkDuration, fill: 'forwards' });
@@ -147,12 +149,13 @@ export async function animateLightboxPanel(
         await new Promise(resolve => setTimeout(resolve, cfg.lineHoldMs));
       }
 
-      // Phase 2: expand the clip-path from midline to full.
-      el.style.opacity = '1';
+      // Phase 2: expand the clip-path from midline to full, simultaneously
+      // fading opacity from 0 to 1 so the panel emerges rather than flashing.
+      el.style.opacity = '0';
       const expand = el.animate(
         [
-          { clipPath: COLLAPSED_CLIP, offset: 0 },
-          { clipPath: EXPANDED_CLIP, offset: 1 },
+          { clipPath: COLLAPSED_CLIP, opacity: 0, offset: 0 },
+          { clipPath: EXPANDED_CLIP, opacity: 1, offset: 1 },
         ],
         { duration: expandDuration, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'forwards' },
       );
