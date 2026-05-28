@@ -1,7 +1,7 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
 
 /**
- * E2E tests for the ThumbnailSizeSlider placed in the main toolbar.
+ * E2E tests for the ThumbnailSizeSlider placed inside the Settings modal.
  *
  * The slider is a controlled native `<input type="range">` whose value
  * (0..steps-1) drives the `--thumbnail-min-size` CSS variable on
@@ -50,6 +50,19 @@ async function gotoClean(page: Page) {
   await waitForLoader(page);
 }
 
+async function openSettings(page: Page) {
+  const settingsBtn = page.getByRole('button', { name: 'Settings' });
+  await settingsBtn.click();
+  const modal = page.getByRole('dialog', { name: 'Settings' });
+  await expect(modal).toBeVisible();
+  return modal;
+}
+
+async function closeSettings(page: Page) {
+  await page.getByRole('button', { name: /close settings/i }).click();
+  await expect(page.getByRole('dialog', { name: 'Settings' })).not.toBeVisible();
+}
+
 /**
  * Walk the campaign sidebar until we land on a campaign that has at least
  * one rendered `.gallery-grid .card`. Returns true if cards are available.
@@ -85,17 +98,21 @@ async function findCampaignWithCards(page: Page): Promise<boolean> {
   return false;
 }
 
-test.describe('Thumbnail size slider (toolbar)', () => {
+test.describe('Thumbnail size slider (Settings modal)', () => {
   test.beforeEach(async ({ page }) => {
     await gotoClean(page);
   });
 
-  test('slider is visible in the toolbar with the expected label', async ({ page }) => {
+  test('slider is NOT visible in the toolbar', async ({ page }) => {
     const toolbar = page.getByRole('toolbar', { name: 'Primary actions' });
     await expect(toolbar).toBeVisible();
+    const sliderInToolbar = toolbar.getByLabel('THUMBNAIL SIZE');
+    await expect(sliderInToolbar).not.toBeVisible();
+  });
 
-    // The slider lives inside the primary-actions toolbar.
-    const slider = toolbar.getByLabel('THUMBNAIL SIZE');
+  test('slider is visible inside the open Settings modal with the expected label', async ({ page }) => {
+    const modal = await openSettings(page);
+    const slider = modal.getByLabel('THUMBNAIL SIZE');
     await expect(slider).toBeVisible();
     await expect(slider).toHaveAttribute('type', 'range');
   });
@@ -105,20 +122,27 @@ test.describe('Thumbnail size slider (toolbar)', () => {
     if (!hasCards) {
       test.skip(true, 'No gallery cards available to measure');
     }
-    const firstCard = page.locator('.gallery-grid .card').first();
 
+    const modal = await openSettings(page);
+    const slider = modal.getByLabel('THUMBNAIL SIZE');
+    // First set to minimum so we have a reliable baseline.
+    await setSliderValue(slider, '0');
+    await expect(slider).toHaveValue('0');
+    await closeSettings(page);
+
+    const firstCard = page.locator('.gallery-grid .card').first();
     const baseBox = await firstCard.boundingBox();
     expect(baseBox).not.toBeNull();
     const baseW = baseBox!.width;
 
-    const slider = page.getByLabel('THUMBNAIL SIZE');
-    const max = await slider.evaluate((el) => (el as HTMLInputElement).max);
+    const modal2 = await openSettings(page);
+    const slider2 = modal2.getByLabel('THUMBNAIL SIZE');
+    const max = await slider2.evaluate((el) => (el as HTMLInputElement).max);
     expect(Number(max)).toBeGreaterThan(0);
-    await setSliderValue(slider, max);
-    await expect(slider).toHaveValue(max);
+    await setSliderValue(slider2, max);
+    await expect(slider2).toHaveValue(max);
+    await closeSettings(page);
 
-    // Allow the React effect that writes --thumbnail-min-size to apply,
-    // then re-measure. boundingBox() reads layout, so a poll loop suffices.
     await expect.poll(async () => {
       const b = await firstCard.boundingBox();
       return b ? b.width : 0;
@@ -130,15 +154,25 @@ test.describe('Thumbnail size slider (toolbar)', () => {
     if (!hasCards) {
       test.skip(true, 'No gallery cards available to measure');
     }
-    const firstCard = page.locator('.gallery-grid .card').first();
 
+    // Start from max for a clear baseline.
+    const modal = await openSettings(page);
+    const slider = modal.getByLabel('THUMBNAIL SIZE');
+    const max = await slider.evaluate((el) => (el as HTMLInputElement).max);
+    await setSliderValue(slider, max);
+    await expect(slider).toHaveValue(max);
+    await closeSettings(page);
+
+    const firstCard = page.locator('.gallery-grid .card').first();
     const baseBox = await firstCard.boundingBox();
     expect(baseBox).not.toBeNull();
     const baseW = baseBox!.width;
 
-    const slider = page.getByLabel('THUMBNAIL SIZE');
-    await setSliderValue(slider, '0');
-    await expect(slider).toHaveValue('0');
+    const modal2 = await openSettings(page);
+    const slider2 = modal2.getByLabel('THUMBNAIL SIZE');
+    await setSliderValue(slider2, '0');
+    await expect(slider2).toHaveValue('0');
+    await closeSettings(page);
 
     await expect.poll(async () => {
       const b = await firstCard.boundingBox();
@@ -146,12 +180,28 @@ test.describe('Thumbnail size slider (toolbar)', () => {
     }, { timeout: 5000 }).toBeLessThan(baseW * 0.9);
   });
 
-  test('selected size index is restored from localStorage after reload', async ({ page, context }) => {
-    const slider = page.getByLabel('THUMBNAIL SIZE');
+  test('selected size index persists after closing and reopening Settings', async ({ page }) => {
+    const modal = await openSettings(page);
+    const slider = modal.getByLabel('THUMBNAIL SIZE');
     const max = await slider.evaluate((el) => (el as HTMLInputElement).max);
     expect(Number(max)).toBeGreaterThan(0);
 
-    // Move to the largest step and confirm it was persisted.
+    await setSliderValue(slider, max);
+    await expect(slider).toHaveValue(max);
+    await closeSettings(page);
+
+    // Reopen and confirm value was preserved (state lives in App).
+    const modal2 = await openSettings(page);
+    const slider2 = modal2.getByLabel('THUMBNAIL SIZE');
+    await expect(slider2).toHaveValue(max);
+  });
+
+  test('selected size index is restored from localStorage after reload', async ({ page, context }) => {
+    const modal = await openSettings(page);
+    const slider = modal.getByLabel('THUMBNAIL SIZE');
+    const max = await slider.evaluate((el) => (el as HTMLInputElement).max);
+    expect(Number(max)).toBeGreaterThan(0);
+
     await setSliderValue(slider, max);
     await expect(slider).toHaveValue(max);
 
@@ -172,82 +222,67 @@ test.describe('Thumbnail size slider (toolbar)', () => {
     await freshPage.goto('/');
     await waitForLoader(freshPage);
 
-    const freshSlider = freshPage.getByLabel('THUMBNAIL SIZE');
+    const freshModal = await openSettings(freshPage);
+    const freshSlider = freshModal.getByLabel('THUMBNAIL SIZE');
     await expect(freshSlider).toHaveValue(max);
 
     await freshPage.close();
   });
 
   test('slider step count equals GALLERY_THUMBNAIL_SIZES.length from config', async ({ page }) => {
-    const slider = page.getByLabel('THUMBNAIL SIZE');
+    const modal = await openSettings(page);
+    const slider = modal.getByLabel('THUMBNAIL SIZE');
     const max = await slider.evaluate((el) => Number((el as HTMLInputElement).max));
 
-    // The number of steps is rendered as one tick per size in the
-    // adjacent ticks container; reading that gives us the configured length
-    // as observed by the running app.
     const tickCount = await page.locator('.thumbnail-size-slider-tick').count();
 
-    // max = steps - 1, so steps derived from the range input must match
-    // the tick count, which in turn equals GALLERY_THUMBNAIL_SIZES.length.
     expect(tickCount).toBeGreaterThan(1);
     expect(max + 1).toBe(tickCount);
   });
 
-  test('zoom-in button is visible and clicking it increases slider value', async ({ page }) => {
-    const toolbar = page.getByRole('toolbar', { name: 'Primary actions' });
-    await expect(toolbar).toBeVisible();
-
-    const slider = toolbar.getByLabel('THUMBNAIL SIZE');
-    await expect(slider).toBeVisible();
-
-    // Move to the minimum step so there is room to zoom in.
+  test('zoom-in button is visible in Settings modal and clicking it increases slider value', async ({ page }) => {
+    const modal = await openSettings(page);
+    const slider = modal.getByLabel('THUMBNAIL SIZE');
     await setSliderValue(slider, '0');
     await expect(slider).toHaveValue('0');
 
-    const zoomIn = toolbar.getByRole('button', { name: 'Zoom in' });
+    const zoomIn = modal.getByRole('button', { name: 'Zoom in' });
     await expect(zoomIn).toBeVisible();
     await expect(zoomIn).toBeEnabled();
 
     await zoomIn.click();
-
-    // After one click the slider value should have advanced by 1.
     await expect(slider).toHaveValue('1');
   });
 
-  test('zoom-out button is visible and clicking it decreases slider value', async ({ page }) => {
-    const toolbar = page.getByRole('toolbar', { name: 'Primary actions' });
-    const slider = toolbar.getByLabel('THUMBNAIL SIZE');
-
-    // Move to a non-zero step so there is room to zoom out.
+  test('zoom-out button is visible in Settings modal and clicking it decreases slider value', async ({ page }) => {
+    const modal = await openSettings(page);
+    const slider = modal.getByLabel('THUMBNAIL SIZE');
     const max = await slider.evaluate((el) => (el as HTMLInputElement).max);
     await setSliderValue(slider, max);
     await expect(slider).toHaveValue(max);
 
-    const zoomOut = toolbar.getByRole('button', { name: 'Zoom out' });
+    const zoomOut = modal.getByRole('button', { name: 'Zoom out' });
     await expect(zoomOut).toBeVisible();
     await expect(zoomOut).toBeEnabled();
 
     await zoomOut.click();
-
     await expect(slider).toHaveValue(String(Number(max) - 1));
   });
 
   test('zoom-in button is disabled at max and zoom-out is disabled at min', async ({ page }) => {
-    const toolbar = page.getByRole('toolbar', { name: 'Primary actions' });
-    const slider = toolbar.getByLabel('THUMBNAIL SIZE');
+    const modal = await openSettings(page);
+    const slider = modal.getByLabel('THUMBNAIL SIZE');
 
-    // At minimum: zoom-out should be disabled.
     await setSliderValue(slider, '0');
     await expect(slider).toHaveValue('0');
-    await expect(toolbar.getByRole('button', { name: 'Zoom out' })).toBeDisabled();
-    await expect(toolbar.getByRole('button', { name: 'Zoom in' })).toBeEnabled();
+    await expect(modal.getByRole('button', { name: 'Zoom out' })).toBeDisabled();
+    await expect(modal.getByRole('button', { name: 'Zoom in' })).toBeEnabled();
 
-    // At maximum: zoom-in should be disabled.
     const max = await slider.evaluate((el) => (el as HTMLInputElement).max);
     await setSliderValue(slider, max);
     await expect(slider).toHaveValue(max);
-    await expect(toolbar.getByRole('button', { name: 'Zoom in' })).toBeDisabled();
-    await expect(toolbar.getByRole('button', { name: 'Zoom out' })).toBeEnabled();
+    await expect(modal.getByRole('button', { name: 'Zoom in' })).toBeDisabled();
+    await expect(modal.getByRole('button', { name: 'Zoom out' })).toBeEnabled();
   });
 
   test('clicking zoom-in button measurably increases card width', async ({ page }) => {
@@ -256,22 +291,22 @@ test.describe('Thumbnail size slider (toolbar)', () => {
       test.skip(true, 'No gallery cards available to measure');
     }
 
-    const toolbar = page.getByRole('toolbar', { name: 'Primary actions' });
-    const slider = toolbar.getByLabel('THUMBNAIL SIZE');
-
-    // Start at minimum step for a clear baseline.
+    const modal = await openSettings(page);
+    const slider = modal.getByLabel('THUMBNAIL SIZE');
     await setSliderValue(slider, '0');
     await expect(slider).toHaveValue('0');
+    await closeSettings(page);
 
     const firstCard = page.locator('.gallery-grid .card').first();
     const baseBox = await firstCard.boundingBox();
     expect(baseBox).not.toBeNull();
     const baseW = baseBox!.width;
 
-    const zoomIn = toolbar.getByRole('button', { name: 'Zoom in' });
+    const modal2 = await openSettings(page);
+    const zoomIn = modal2.getByRole('button', { name: 'Zoom in' });
     await zoomIn.click();
+    await closeSettings(page);
 
-    // Card width should increase after zooming in.
     await expect.poll(async () => {
       const b = await firstCard.boundingBox();
       return b ? b.width : 0;

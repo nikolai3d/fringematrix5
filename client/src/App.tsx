@@ -20,7 +20,6 @@ import BuildInfoPopover from './components/BuildInfoPopover';
 import SharePopover from './components/SharePopover';
 import ContentModal from './components/ContentModal';
 import SettingsModal from './components/SettingsModal';
-import ThumbnailSizeSlider from './components/ThumbnailSizeSlider';
 import LightboxContainer from './components/LightboxContainer';
 import GalleryGrid, { type GalleryGridHandle } from './components/GalleryGrid';
 import AuthorsIndex from './components/AuthorsIndex';
@@ -776,11 +775,6 @@ export default function App() {
           >
             Legal
           </button>
-          <ThumbnailSizeSlider
-            value={thumbnailSizeIndex}
-            steps={GALLERY_THUMBNAIL_SIZES.length}
-            onChange={setThumbnailSizeIndex}
-          />
           <button
             className="toolbar-button"
             aria-pressed={isSettingsOpen}

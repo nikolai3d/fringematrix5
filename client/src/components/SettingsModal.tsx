@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import ThumbnailSizeSlider from './ThumbnailSizeSlider';
+import { GALLERY_THUMBNAIL_SIZES } from '../config/gallery';
 
 // =============================================================================
 // Focus Management Contract (SettingsModal):
@@ -21,11 +23,6 @@ interface Props {
   isReduceEffects: boolean;
   onToggleReduceMotion: () => void;
   onToggleReduceEffects: () => void;
-  /**
-   * Current index into GALLERY_THUMBNAIL_SIZES (guaranteed in range by App).
-   * Wired in fringematrix5-xjh ahead of the slider UI widget — the slider
-   * itself will be added in a follow-up bead that consumes these props.
-   */
   thumbnailSizeIndex: number;
   onChangeThumbnailSizeIndex: (index: number) => void;
 }
@@ -37,10 +34,8 @@ export default function SettingsModal({
   isReduceEffects,
   onToggleReduceMotion,
   onToggleReduceEffects,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  thumbnailSizeIndex: _thumbnailSizeIndex,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onChangeThumbnailSizeIndex: _onChangeThumbnailSizeIndex,
+  thumbnailSizeIndex,
+  onChangeThumbnailSizeIndex,
 }: Props) {
   const modalRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -115,6 +110,12 @@ export default function SettingsModal({
               <span className="settings-toggle-knob"></span>
             </button>
           </div>
+          <h3>Display</h3>
+          <ThumbnailSizeSlider
+            value={thumbnailSizeIndex}
+            steps={GALLERY_THUMBNAIL_SIZES.length}
+            onChange={onChangeThumbnailSizeIndex}
+          />
         </div>
       </div>
     </div>
