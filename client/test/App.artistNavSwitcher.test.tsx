@@ -409,8 +409,8 @@ describe('App: artist nav-switcher in author-browse mode (fringematrix5-urzh)', 
 
   // fringematrix5-k1fm: on the authors-index page the campaign nav switcher
   // must be invisible (visibility:hidden) but the navbar DOM node must still
-  // occupy space (non-zero offsetWidth/offsetHeight) so there is no layout
-  // shift when navigating between gallery and authors-index.
+  // occupy space so there is no layout shift when navigating between gallery
+  // and authors-index.
   it('hides the campaign nav switcher on #authors but preserves navbar geometry', async () => {
     window.location.hash = '#authors';
     globalThis.fetch = makeFetchMock() as unknown as typeof fetch;
@@ -429,20 +429,23 @@ describe('App: artist nav-switcher in author-browse mode (fringematrix5-urzh)', 
     expect(campaignTop).toBeTruthy();
     expect(campaignBottom).toBeTruthy();
 
-    // No visible text: the label must be empty or hidden via visibility style.
+    // Label text is hidden via visibility style.
     expect(campaignTop.style.visibility).toBe('hidden');
     expect(campaignBottom.style.visibility).toBe('hidden');
 
-    // Prev/next arrows must also be hidden (not clickable).
-    const prevButtons = screen.getAllByRole('button', { name: /previous campaign/i });
-    const nextButtons = screen.getAllByRole('button', { name: /next campaign/i });
-    prevButtons.forEach(btn => expect((btn as HTMLElement).style.visibility).toBe('hidden'));
-    nextButtons.forEach(btn => expect((btn as HTMLElement).style.visibility).toBe('hidden'));
-
-    // The navbar element itself must be in the document (geometry preserved).
-    const topNavbar = document.getElementById('top-navbar');
-    const bottomNavbar = document.getElementById('bottom-navbar');
+    // Prev/next arrow buttons are in the DOM but also visibility:hidden.
+    // Query by aria-label rather than role so we find them regardless of
+    // whether the a11y tree prunes hidden nodes.
+    const topNavbar = document.getElementById('top-navbar')!;
+    const bottomNavbar = document.getElementById('bottom-navbar')!;
     expect(topNavbar).toBeTruthy();
     expect(bottomNavbar).toBeTruthy();
+
+    const prevTop = topNavbar.querySelector('button[aria-label="Previous campaign"]') as HTMLElement | null;
+    const nextTop = topNavbar.querySelector('button[aria-label="Next campaign"]') as HTMLElement | null;
+    expect(prevTop).toBeTruthy();
+    expect(nextTop).toBeTruthy();
+    expect(prevTop!.style.visibility).toBe('hidden');
+    expect(nextTop!.style.visibility).toBe('hidden');
   });
 });
