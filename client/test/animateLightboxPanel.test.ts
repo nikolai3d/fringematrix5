@@ -198,6 +198,47 @@ describe('animateLightboxPanel — phase 0 collapsed clip style', () => {
 
     expect(capturedClipPath).toBe(COLLAPSED_CLIP);
   });
+
+  it('sets opacity to "0" (not "1") at phase 0 on direction=in — regression for 1px line flash', async () => {
+    const el = makeEl();
+
+    let capturedOpacity: string | null = null;
+    const originalAnimate = el.animate;
+    (el as unknown as { animate: typeof el.animate }).animate = vi.fn(function (
+      this: HTMLElement,
+      ...args: Parameters<typeof el.animate>
+    ) {
+      if (capturedOpacity === null) {
+        capturedOpacity = this.style.opacity;
+      }
+      return originalAnimate.call(this, ...args);
+    }) as unknown as typeof el.animate;
+
+    const cfg = { ...DUMMY_CFG, lineBlinkCount: 0, lineHoldMs: 0, enterDurationMs: 50 };
+    await animateLightboxPanel(el, 'in', cfg, { reduceMotion: false });
+
+    expect(capturedOpacity).toBe('0');
+  });
+
+  it('expand animation keyframes include opacity 0→1 — regression for 1px line flash', async () => {
+    const el = makeEl();
+    const animateSpy = el.animate as ReturnType<typeof vi.fn>;
+
+    const cfg = { ...DUMMY_CFG, lineBlinkCount: 0, lineHoldMs: 0, enterDurationMs: 50 };
+    await animateLightboxPanel(el, 'in', cfg, { reduceMotion: false });
+
+    // Find the expand call — it animates clipPath and should also animate opacity
+    const calls = animateSpy.mock.calls as [Keyframe[], KeyframeAnimationOptions][];
+    const expandCall = calls.find(([frames]) =>
+      Array.isArray(frames) && frames.some(f => 'clipPath' in f),
+    );
+    expect(expandCall).toBeDefined();
+    const frames = expandCall![0];
+    const firstFrame = frames[0];
+    const lastFrame = frames[frames.length - 1];
+    expect(firstFrame.opacity).toBe(0);
+    expect(lastFrame.opacity).toBe(1);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

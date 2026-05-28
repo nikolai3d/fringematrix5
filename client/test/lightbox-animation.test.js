@@ -678,7 +678,9 @@ describe('No-Blink Handoff: Wireframe to Lightbox Image', () => {
   it('wireframe animation keyframes should not animate opacity', () => {
     // Opacity in keyframes causes the image to fade during zoom, producing a blink
     // at the handoff point. The wireframe must stay fully opaque throughout.
-    const animateCall = hookContent.match(/el\.animate\(\s*\[([\s\S]*?)\]\s*,\s*\{/);
+    // Match specifically the wireframe animation (const animation = el.animate) which
+    // animates left/top/width/height — NOT the panel expand animation.
+    const animateCall = hookContent.match(/const animation = el\.animate\(\s*\[([\s\S]*?)\]\s*,/);
     expect(animateCall).not.toBeNull();
     const keyframesStr = animateCall[1];
     expect(keyframesStr).not.toMatch(/opacity/);
