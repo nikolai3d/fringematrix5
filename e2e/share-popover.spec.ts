@@ -38,3 +38,36 @@ test('Share on Bluesky button has target="_blank" and safe rel', async ({ page }
   await expect(blueskyLink).toHaveAttribute('target', '_blank');
   await expect(blueskyLink).toHaveAttribute('rel', 'noreferrer noopener');
 });
+
+test('Share popover shows "Share on Reddit" button', async ({ page }) => {
+  await page.getByRole('button', { name: 'Share' }).click();
+  const shareDialog = page.getByRole('dialog').filter({ hasText: 'Share' });
+  await expect(shareDialog).toBeVisible();
+  await expect(shareDialog.getByRole('link', { name: 'Share on Reddit' })).toBeVisible();
+});
+
+test('Share on Reddit button href points to reddit.com/submit with SITE_URL and SITE_SHARE_TEXT params', async ({ page }) => {
+  await page.getByRole('button', { name: 'Share' }).click();
+  const shareDialog = page.getByRole('dialog').filter({ hasText: 'Share' });
+  await expect(shareDialog).toBeVisible();
+
+  const redditLink = shareDialog.getByRole('link', { name: 'Share on Reddit' });
+  await expect(redditLink).toBeVisible();
+
+  const href = await redditLink.getAttribute('href');
+  expect(href).toBeTruthy();
+  expect(href!).toMatch(/^https:\/\/www\.reddit\.com\/submit\?/);
+
+  const url = new URL(href!);
+  expect(url.searchParams.get('url')).toBe('https://fringematrix.art');
+  expect(url.searchParams.get('title')).toBe('Check out Fringe Matrix');
+});
+
+test('Share on Reddit button has target="_blank" and safe rel', async ({ page }) => {
+  await page.getByRole('button', { name: 'Share' }).click();
+  const shareDialog = page.getByRole('dialog').filter({ hasText: 'Share' });
+  const redditLink = shareDialog.getByRole('link', { name: 'Share on Reddit' });
+
+  await expect(redditLink).toHaveAttribute('target', '_blank');
+  await expect(redditLink).toHaveAttribute('rel', 'noreferrer noopener');
+});
