@@ -13,7 +13,7 @@ test('Share popover shows "Share on Bluesky" button', async ({ page }) => {
   await expect(shareDialog.getByRole('link', { name: 'Share on Bluesky' })).toBeVisible();
 });
 
-test('Share on Bluesky button navigates to bsky.app with correct URL', async ({ page, context }) => {
+test('Share on Bluesky button href points to bsky.app compose with SITE_URL in text', async ({ page }) => {
   await page.getByRole('button', { name: 'Share' }).click();
   const shareDialog = page.getByRole('dialog').filter({ hasText: 'Share' });
   await expect(shareDialog).toBeVisible();
