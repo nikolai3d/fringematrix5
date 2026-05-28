@@ -124,4 +124,32 @@ describe('SettingsModal', () => {
       expect(screen.getByRole('switch', { name: /reduce effects/i }).getAttribute('aria-checked')).toBe('true');
     });
   });
+
+  describe('thumbnail size slider', () => {
+    it('renders the slider inside the modal', () => {
+      renderModal({ thumbnailSizeIndex: 1 });
+      const slider = screen.getByLabelText(/thumbnail size/i);
+      expect(slider).toBeDefined();
+      expect((slider as HTMLInputElement).type).toBe('range');
+    });
+
+    it('slider reflects the thumbnailSizeIndex prop', () => {
+      renderModal({ thumbnailSizeIndex: 2 });
+      const slider = screen.getByLabelText(/thumbnail size/i) as HTMLInputElement;
+      expect(Number(slider.value)).toBe(2);
+    });
+
+    it('calls onChangeThumbnailSizeIndex when slider changes', () => {
+      const { props } = renderModal({ thumbnailSizeIndex: 0 });
+      const slider = screen.getByLabelText(/thumbnail size/i);
+      fireEvent.change(slider, { target: { value: '1' } });
+      expect(props.onChangeThumbnailSizeIndex).toHaveBeenCalledTimes(1);
+      expect(props.onChangeThumbnailSizeIndex).toHaveBeenCalledWith(1);
+    });
+
+    it('does not render the slider when modal is closed', () => {
+      renderModal({ isOpen: false });
+      expect(screen.queryByLabelText(/thumbnail size/i)).toBeNull();
+    });
+  });
 });
