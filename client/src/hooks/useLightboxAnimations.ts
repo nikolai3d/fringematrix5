@@ -470,14 +470,23 @@ export function useLightboxAnimations({
       // sits at its CSS default (fully visible) for the entire pre-delay
       // window, then snaps to the midline when animateLightboxPanel's phase-0
       // runs — producing a visible blink.
-      if (frameEl) frameEl.style.clipPath = 'inset(calc(50% - 1px) 0 calc(50% - 1px) 0)';
+      if (frameEl) {
+        frameEl.style.clipPath = 'inset(calc(50% - 1px) 0 calc(50% - 1px) 0)';
+        // Also hide the element — .lightbox-image-wrap has a dark background
+        // (see styles.css), so the 1px strip would be a visible black line for
+        // the entire pre-delay window without this.
+        frameEl.style.opacity = '0';
+      }
       // Delay the frame reveal until the wireframe zoom is past its 0.35
       // fit-switch point so the two animations do not visually compete.
       const frameDelay = Math.round(LIGHTBOX_ANIM_MS * 0.35);
       await new Promise<void>(resolve => setTimeout(resolve, frameDelay));
       // Bail out if the effect was cleaned up while we were waiting.
       if (signal?.aborted) {
-        if (frameEl) frameEl.style.clipPath = '';
+        if (frameEl) {
+          frameEl.style.clipPath = '';
+          frameEl.style.opacity = '';
+        }
         return;
       }
     }
