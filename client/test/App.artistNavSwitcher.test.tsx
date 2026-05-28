@@ -406,4 +406,46 @@ describe('App: artist nav-switcher in author-browse mode (fringematrix5-urzh)', 
     expect(screen.queryByTestId('current-artist-top')).toBeNull();
     expect(screen.queryByTestId('current-artist-bottom')).toBeNull();
   });
+
+  // fringematrix5-k1fm: on the authors-index page the campaign nav switcher
+  // must be invisible (visibility:hidden) but the navbar DOM node must still
+  // occupy space so there is no layout shift when navigating between gallery
+  // and authors-index.
+  it('hides the campaign nav switcher on #authors but preserves navbar geometry', async () => {
+    window.location.hash = '#authors';
+    globalThis.fetch = makeFetchMock() as unknown as typeof fetch;
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /artists/i })).toBeTruthy();
+    });
+
+    // The campaign switcher nodes are in the DOM (for geometry) but hidden.
+    const campaignTop = screen.getByTestId('current-campaign-top');
+    const campaignBottom = screen.getByTestId('current-campaign-bottom');
+    expect(campaignTop).toBeTruthy();
+    expect(campaignBottom).toBeTruthy();
+
+    // Label text is hidden via visibility style.
+    expect(campaignTop.style.visibility).toBe('hidden');
+    expect(campaignBottom.style.visibility).toBe('hidden');
+
+    // Prev/next arrow buttons are in the DOM but also visibility:hidden.
+    // Query by aria-label rather than role so we find them regardless of
+    // whether the a11y tree prunes hidden nodes.
+    const topNavbar = document.getElementById('top-navbar')!;
+    const bottomNavbar = document.getElementById('bottom-navbar')!;
+    expect(topNavbar).toBeTruthy();
+    expect(bottomNavbar).toBeTruthy();
+
+    const prevTop = topNavbar.querySelector('button[aria-label="Previous campaign"]') as HTMLElement | null;
+    const nextTop = topNavbar.querySelector('button[aria-label="Next campaign"]') as HTMLElement | null;
+    expect(prevTop).toBeTruthy();
+    expect(nextTop).toBeTruthy();
+    expect(prevTop!.style.visibility).toBe('hidden');
+    expect(nextTop!.style.visibility).toBe('hidden');
+  });
 });

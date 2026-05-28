@@ -814,6 +814,7 @@ export default function App() {
               onPrev={goToPrevCampaign}
               onNext={goToNextCampaign}
               disabled={isCampaignLoading}
+              hidden={route.type === 'authors-index'}
             />
           )}
         </div>
@@ -962,6 +963,7 @@ export default function App() {
               onPrev={goToPrevCampaign}
               onNext={goToNextCampaign}
               disabled={isCampaignLoading}
+              hidden={route.type === 'authors-index'}
             />
           )}
         </div>
