@@ -4,10 +4,11 @@ interface SharePopoverProps {
   style: React.CSSProperties;
   threadsShareUrl: string;
   blueskyShareUrl: string;
+  redditShareUrl: string;
   onClose: () => void;
 }
 
-export default function SharePopover({ style, threadsShareUrl, blueskyShareUrl, onClose }: SharePopoverProps) {
+export default function SharePopover({ style, threadsShareUrl, blueskyShareUrl, redditShareUrl, onClose }: SharePopoverProps) {
   return (
     <div className="share-popover" role="dialog" aria-label="Share" aria-modal={false} style={style}>
       <div className="share-header">
@@ -36,6 +37,14 @@ export default function SharePopover({ style, threadsShareUrl, blueskyShareUrl, 
           rel="noreferrer noopener"
         >
           Share on Bluesky
+        </a>
+        <a
+          className="action-btn"
+          href={redditShareUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          Share on Reddit
         </a>
       </div>
     </div>

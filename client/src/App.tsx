@@ -483,6 +483,14 @@ export default function App() {
     return `https://bsky.app/intent/compose?text=${encodeURIComponent(text)}`;
   }, []);
 
+  const redditShareUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      title: SITE_SHARE_TEXT,
+      url: SITE_URL,
+    });
+    return `https://www.reddit.com/submit?${params.toString()}`;
+  }, []);
+
   // Handler for when user dismisses the loading screen
   const handleLoadingComplete = useCallback(() => {
     setShowLoadingScreen(false);
@@ -946,6 +954,7 @@ export default function App() {
           style={shareStyle}
           threadsShareUrl={threadsShareUrl}
           blueskyShareUrl={blueskyShareUrl}
+          redditShareUrl={redditShareUrl}
           onClose={() => setIsShareOpen(false)}
         />
       )}
