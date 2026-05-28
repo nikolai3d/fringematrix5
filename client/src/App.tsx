@@ -478,6 +478,11 @@ export default function App() {
     return `https://www.threads.net/intent/post?text=${encodeURIComponent(SITE_SHARE_TEXT)}&url=${encodeURIComponent(SITE_URL)}`;
   }, []);
 
+  const blueskyShareUrl = useMemo(() => {
+    const text = `${SITE_SHARE_TEXT} ${SITE_URL}`;
+    return `https://bsky.app/intent/compose?text=${encodeURIComponent(text)}`;
+  }, []);
+
   // Handler for when user dismisses the loading screen
   const handleLoadingComplete = useCallback(() => {
     setShowLoadingScreen(false);
@@ -940,6 +945,7 @@ export default function App() {
         <SharePopover
           style={shareStyle}
           threadsShareUrl={threadsShareUrl}
+          blueskyShareUrl={blueskyShareUrl}
           onClose={() => setIsShareOpen(false)}
         />
       )}

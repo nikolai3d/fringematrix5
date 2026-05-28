@@ -3,10 +3,11 @@ import React from 'react';
 interface SharePopoverProps {
   style: React.CSSProperties;
   threadsShareUrl: string;
+  blueskyShareUrl: string;
   onClose: () => void;
 }
 
-export default function SharePopover({ style, threadsShareUrl, onClose }: SharePopoverProps) {
+export default function SharePopover({ style, threadsShareUrl, blueskyShareUrl, onClose }: SharePopoverProps) {
   return (
     <div className="share-popover" role="dialog" aria-label="Share" aria-modal={false} style={style}>
       <div className="share-header">
@@ -27,6 +28,14 @@ export default function SharePopover({ style, threadsShareUrl, onClose }: ShareP
           rel="noreferrer noopener"
         >
           Share on Threads
+        </a>
+        <a
+          className="action-btn"
+          href={blueskyShareUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          Share on Bluesky
         </a>
       </div>
     </div>
