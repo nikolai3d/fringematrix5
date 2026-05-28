@@ -13,21 +13,24 @@ export interface AuthorDetailState {
   error: string | null;
 }
 
+interface FetchState {
+  handle: string;
+  data: AuthorDetailResponse | null;
+  error: string | null;
+}
+
 export function useAuthorDetail(handle: string): AuthorDetailState {
-  const [data, setData] = useState<AuthorDetailResponse | null>(() => cache.get(handle) ?? null);
-  const [error, setError] = useState<string | null>(null);
+  const [state, setState] = useState<FetchState>({ handle, data: cache.get(handle) ?? null, error: null });
 
   useEffect(() => {
     if (cache.has(handle)) {
-      setData(cache.get(handle)!);
-      setError(null);
+      setState({ handle, data: cache.get(handle)!, error: null });
       return;
     }
 
     const controller = new AbortController();
     let cancelled = false;
-    setData(null);
-    setError(null);
+    setState({ handle, data: null, error: null });
 
     (async () => {
       try {
@@ -37,14 +40,12 @@ export function useAuthorDetail(handle: string): AuthorDetailState {
         });
         if (cancelled) return;
         cache.set(handle, res);
-        setData(res);
-        setError(null);
+        setState({ handle, data: res, error: null });
       } catch (e) {
         if (cancelled) return;
         if (e instanceof DOMException && e.name === 'AbortError') return;
         console.error('Failed to load author detail:', e);
-        setData(null);
-        setError('Failed to load artist');
+        setState({ handle, data: null, error: 'Failed to load artist' });
       }
     })();
 
@@ -54,5 +55,14 @@ export function useAuthorDetail(handle: string): AuthorDetailState {
     };
   }, [handle]);
 
-  return { data, error };
+  // Read cache synchronously during render so handle changes to a cached value
+  // take effect in the same render commit, not after an effect flush.
+  const cached = cache.get(handle) ?? null;
+  if (cached) return { data: cached, error: null };
+
+  // When the async state is for a different handle (handle just changed),
+  // return the "loading" state — no stale data or stale error shown.
+  if (state.handle !== handle) return { data: null, error: null };
+
+  return { data: state.data, error: state.error };
 }
