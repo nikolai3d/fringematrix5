@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState, type RefObject } from 'react';
-import { fetchJSON } from '../utils/fetchJSON';
+import { useCallback, useMemo, type RefObject } from 'react';
+import { useAuthorDetail } from '../hooks/useAuthorDetail';
 import { getInitialsFromName } from '../utils/author';
 import { isSafeUrl } from '../utils/isSafeUrl';
-import type { AuthorDetailResponse, ImageData } from '../types/api';
+import type { ImageData } from '../types/api';
 import { UNKNOWN_ARTIST_HANDLE, UNKNOWN_ARTIST_NAME } from '../types/api';
 import GalleryGrid, { type GalleryGridHandle } from './GalleryGrid';
 
@@ -48,47 +48,13 @@ interface Props {
  * missing handle surface as "Failed to load author".
  */
 export default function AuthorDetail({ handle, onBack, onOpenImage, gridRef }: Props) {
-  const [data, setData] = useState<AuthorDetailResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { data, error } = useAuthorDetail(handle);
 
   // Whether we're viewing the synthetic "Unknown artist" page. Drives a few
   // small UI tweaks (avatar glyph, no Twitter link, dedicated empty-state
   // copy, no `@handle` in the header). Computed from the route handle —
   // matched case-insensitively to mirror the server's sentinel comparison.
   const isUnknownArtist = handle.toLowerCase() === UNKNOWN_ARTIST_HANDLE.toLowerCase();
-
-  useEffect(() => {
-    const controller = new AbortController();
-    let cancelled = false;
-    // Reset state when the handle changes so we don't briefly show stale
-    // data (or a stale error alert) from the previous request before the
-    // new one resolves.
-    setData(null);
-    setError(null);
-    (async () => {
-      try {
-        // Server :handle param accepts the raw "@..." string; we URL-encode so
-        // the leading "@" is transmitted safely as %40.
-        const encoded = encodeURIComponent(handle);
-        const res = await fetchJSON<AuthorDetailResponse>(`/api/authors/${encoded}`, {
-          signal: controller.signal,
-        });
-        if (cancelled) return;
-        setData(res);
-        setError(null);
-      } catch (e) {
-        if (cancelled) return;
-        if (e instanceof DOMException && e.name === 'AbortError') return;
-        console.error('Failed to load author detail:', e);
-        setData(null);
-        setError('Failed to load artist');
-      }
-    })();
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [handle]);
 
   const isLoading = data === null && error === null;
 
