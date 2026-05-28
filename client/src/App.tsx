@@ -38,6 +38,7 @@ import type {
   AuthorWithCount,
   AuthorsResponse,
 } from './types/api';
+import { UNKNOWN_ARTIST_HANDLE, UNKNOWN_ARTIST_NAME } from './types/api';
 
 export default function App() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -290,9 +291,12 @@ export default function App() {
   // Title shown in the top/bottom navbars when on the author-detail route.
   // Prefers the resolved display name from the artists list; falls back to
   // the URL handle so the bar is never empty while the list is still loading
-  // or if the handle isn't found.
+  // or if the handle isn't found. The sentinel handle (__unknown__) is never
+  // in the /api/authors list (it returns a separate unknownCount field), so
+  // we special-case it here to avoid showing the raw handle to users.
   const artistNavTitle = useMemo<string>(() => {
     if (route.type !== 'author-detail') return '';
+    if (route.handle === UNKNOWN_ARTIST_HANDLE) return UNKNOWN_ARTIST_NAME;
     if (activeArtist) return activeArtist.name || activeArtist.handle;
     return route.handle;
   }, [route, activeArtist]);

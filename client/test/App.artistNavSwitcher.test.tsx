@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import React from 'react';
 import App from '../src/App';
+import { UNKNOWN_ARTIST_HANDLE, UNKNOWN_ARTIST_NAME } from '../src/types/api';
 
 /**
  * App-level test for the artist nav-switcher added in fringematrix5-urzh:
@@ -362,6 +363,55 @@ describe('App: artist nav-switcher in author-browse mode (fringematrix5-urzh)', 
       ([input]) => (typeof input === 'string' ? input : (input as URL).toString()) === '/api/authors',
     ).length;
     expect(authorsCallsAfterRoundTrip).toBe(1);
+  });
+
+  // Regression: title bar must show "Unknown artist" (not "__unknown__") when
+  // navigating to #authors/__unknown__. The sentinel handle is never included
+  // in the /api/authors list (the server returns a separate unknownCount field
+  // instead), so without the special-case the lookup misses and the raw handle
+  // leaks into the UI. (fringematrix5-5kta)
+  it('shows "Unknown artist" (not the raw sentinel handle) in the title bar when on #authors/__unknown__', async () => {
+    window.location.hash = `#authors/${UNKNOWN_ARTIST_HANDLE}`;
+
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === '/api/authors') {
+        return new Response(JSON.stringify({ authors: SAMPLE_AUTHORS }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (url === `/api/authors/${UNKNOWN_ARTIST_HANDLE}`) {
+        return new Response(
+          JSON.stringify({ author: { handle: UNKNOWN_ARTIST_HANDLE, name: UNKNOWN_ARTIST_NAME, twitterUrl: null, alternateHandles: [], roles: [] }, images: [] }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }
+      if (url.startsWith('/api/campaigns/') && url.endsWith('/images')) {
+        return new Response(JSON.stringify({ images: [] }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      if (url === '/api/campaigns') {
+        return new Response(JSON.stringify({ campaigns: [] }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      if (url === '/api/build-info') {
+        return new Response(JSON.stringify({ commitHash: 'dev-local', deployedAt: null }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      if (url === '/api/glyphs') {
+        return new Response(JSON.stringify({ glyphs: [] }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({ error: `Unmocked URL: ${url}` }), { status: 404, headers: { 'content-type': 'application/json' } });
+    }) as unknown as typeof fetch;
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    const top = await screen.findByTestId('current-artist-top');
+    expect(top.textContent).toBe(UNKNOWN_ARTIST_NAME);
+    expect(top.textContent).not.toBe(UNKNOWN_ARTIST_HANDLE);
+
+    const bottom = screen.getByTestId('current-artist-bottom');
+    expect(bottom.textContent).toBe(UNKNOWN_ARTIST_NAME);
   });
 
   // Regression coverage (fringematrix5-ok8g): visiting #authors (the
