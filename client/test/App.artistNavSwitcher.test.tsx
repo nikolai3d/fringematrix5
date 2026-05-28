@@ -406,4 +406,43 @@ describe('App: artist nav-switcher in author-browse mode (fringematrix5-urzh)', 
     expect(screen.queryByTestId('current-artist-top')).toBeNull();
     expect(screen.queryByTestId('current-artist-bottom')).toBeNull();
   });
+
+  // fringematrix5-k1fm: on the authors-index page the campaign nav switcher
+  // must be invisible (visibility:hidden) but the navbar DOM node must still
+  // occupy space (non-zero offsetWidth/offsetHeight) so there is no layout
+  // shift when navigating between gallery and authors-index.
+  it('hides the campaign nav switcher on #authors but preserves navbar geometry', async () => {
+    window.location.hash = '#authors';
+    globalThis.fetch = makeFetchMock() as unknown as typeof fetch;
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /artists/i })).toBeTruthy();
+    });
+
+    // The campaign switcher nodes are in the DOM (for geometry) but hidden.
+    const campaignTop = screen.getByTestId('current-campaign-top');
+    const campaignBottom = screen.getByTestId('current-campaign-bottom');
+    expect(campaignTop).toBeTruthy();
+    expect(campaignBottom).toBeTruthy();
+
+    // No visible text: the label must be empty or hidden via visibility style.
+    expect(campaignTop.style.visibility).toBe('hidden');
+    expect(campaignBottom.style.visibility).toBe('hidden');
+
+    // Prev/next arrows must also be hidden (not clickable).
+    const prevButtons = screen.getAllByRole('button', { name: /previous campaign/i });
+    const nextButtons = screen.getAllByRole('button', { name: /next campaign/i });
+    prevButtons.forEach(btn => expect((btn as HTMLElement).style.visibility).toBe('hidden'));
+    nextButtons.forEach(btn => expect((btn as HTMLElement).style.visibility).toBe('hidden'));
+
+    // The navbar element itself must be in the document (geometry preserved).
+    const topNavbar = document.getElementById('top-navbar');
+    const bottomNavbar = document.getElementById('bottom-navbar');
+    expect(topNavbar).toBeTruthy();
+    expect(bottomNavbar).toBeTruthy();
+  });
 });

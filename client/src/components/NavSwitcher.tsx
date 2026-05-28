@@ -26,6 +26,7 @@ interface NavSwitcherProps {
   onPrev: () => void;
   onNext: () => void;
   disabled?: boolean;
+  hidden?: boolean;
 }
 
 function NavSwitcher({
@@ -37,7 +38,9 @@ function NavSwitcher({
   onPrev,
   onNext,
   disabled = false,
+  hidden = false,
 }: NavSwitcherProps) {
+  const style = hidden ? { visibility: 'hidden' as const } : undefined;
   return (
     <>
       <button
@@ -45,11 +48,13 @@ function NavSwitcher({
         aria-label={prevLabel}
         onClick={onPrev}
         disabled={disabled}
+        style={style}
       >◀</button>
       <div
         className="current-campaign"
         data-testid={testId}
         title={title}
+        style={style}
       >
         {label}
       </div>
@@ -58,6 +63,7 @@ function NavSwitcher({
         aria-label={nextLabel}
         onClick={onNext}
         disabled={disabled}
+        style={style}
       >▶</button>
     </>
   );
