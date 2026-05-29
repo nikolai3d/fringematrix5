@@ -7,6 +7,12 @@ interface ImageCardProps {
   onClick: (e: React.MouseEvent<HTMLImageElement>) => void;
   /** Ref callback for the <img> element (used by GalleryGrid to populate thumbMapRef) */
   imgRef?: (el: HTMLImageElement | null) => void;
+  /**
+   * When true, the image loads eagerly with high fetch priority. GalleryGrid
+   * sets this for the first couple of rows so the above-the-fold thumbnails
+   * start downloading immediately; everything else stays native-lazy.
+   */
+  eager?: boolean;
 }
 
 /**
@@ -16,7 +22,7 @@ interface ImageCardProps {
  * callback reference are the same between renders, React skips re-diffing this
  * card entirely — eliminating per-card VDOM work during App-level re-renders.
  */
-const ImageCard = React.memo(function ImageCard({ image, onClick, imgRef }: ImageCardProps) {
+const ImageCard = React.memo(function ImageCard({ image, onClick, imgRef, eager }: ImageCardProps) {
   return (
     <div className="card">
       {image.isLoading ? (
@@ -31,7 +37,13 @@ const ImageCard = React.memo(function ImageCard({ image, onClick, imgRef }: Imag
           ref={imgRef}
           src={image.loadedSrc || image.src || ''}
           alt={image.fileName}
-          loading="lazy"
+          loading={eager ? 'eager' : 'lazy'}
+          // Spread the lowercase DOM attribute directly: react-dom 18 doesn't
+          // recognize the camelCase `fetchPriority` prop (a React 19 feature)
+          // and would warn, while @types/react 19 only types the camelCase
+          // form — so a typed spread sets the real `fetchpriority` attribute
+          // without a TS error or a runtime warning.
+          {...{ fetchpriority: eager ? 'high' : 'auto' }}
           onClick={onClick}
           role="button"
           tabIndex={0}

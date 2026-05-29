@@ -559,6 +559,11 @@ app.get('/api/campaigns/:id/images', async (req: Request, res: Response): Promis
         author: buildImageAuthor(blob.pathname),
       }));
 
+    // Same caching policy as the other API routes (see /api/build-info): lets
+    // the browser/CDN serve a revisited campaign's list without re-running the
+    // paginated blob listing on every navigation.
+    res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+    res.set('Vary', 'Accept-Encoding');
     res.json({ images });
   } catch (err: unknown) {
     if (err instanceof BlobUnavailableError) {

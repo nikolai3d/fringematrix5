@@ -45,8 +45,6 @@ export default function App() {
   const {
     currentImages,
     isCampaignLoading,
-    campaignLoadProgress,
-    campaignLoadTotal,
     campaignLoadError,
     campaignLoadAbortRef,
     loadCampaignImages,
@@ -836,17 +834,6 @@ export default function App() {
           <div className="campaign-loading-content">
             <div className="campaign-loading-text">
               Loading Images<span className="dots">{'.'.repeat(loadingDots)}</span>
-            </div>
-            <div className="campaign-progress-container">
-              <div className="campaign-progress-bar">
-                <div
-                  className="campaign-progress-fill"
-                  style={{ width: campaignLoadTotal > 0 ? `${(campaignLoadProgress / campaignLoadTotal) * 100}%` : '0%' }}
-                ></div>
-              </div>
-              <div className="campaign-progress-text">
-                {campaignLoadTotal > 0 ? `${campaignLoadProgress} / ${campaignLoadTotal} loaded` : 'Preparing...'}
-              </div>
             </div>
             {campaignLoadError && (
               <div className="campaign-error-text">

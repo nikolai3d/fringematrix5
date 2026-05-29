@@ -427,3 +427,28 @@ describe('GalleryGrid — loading placeholder', () => {
     expect(screen.getByText('Loading...')).toBeTruthy();
   });
 });
+
+// =============================================================================
+// 9. Eager loading — first N cards load eagerly/high-priority, rest lazy
+// =============================================================================
+
+describe('GalleryGrid — eager above-the-fold loading', () => {
+  it('renders the first 12 cards eager/high-priority and the rest lazy/auto', () => {
+    // 14 images so we straddle the EAGER_IMAGE_COUNT=12 boundary.
+    const images = Array.from({ length: 14 }, (_, i) => makeImage(`img${i}.png`));
+    const { container } = render(<GalleryGrid images={images} onImageClick={noop} />);
+
+    const imgs = Array.from(container.querySelectorAll('img'));
+    expect(imgs).toHaveLength(14);
+
+    imgs.forEach((img, i) => {
+      if (i < 12) {
+        expect(img.getAttribute('loading')).toBe('eager');
+        expect(img.getAttribute('fetchpriority')).toBe('high');
+      } else {
+        expect(img.getAttribute('loading')).toBe('lazy');
+        expect(img.getAttribute('fetchpriority')).toBe('auto');
+      }
+    });
+  });
+});

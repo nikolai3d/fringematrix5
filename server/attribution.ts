@@ -181,3 +181,15 @@ export function resetAttributionCache(): void {
   authorIndexCache = null;
   attributionCache = null;
 }
+
+// Warm both caches at module-eval time so the ~816 KB attribution.json parse
+// overlaps Vercel cold-start initialization instead of blocking the first
+// request that needs it. Wrapped in try/catch so a missing/unreadable data
+// file degrades gracefully — the lazy ensure*Loaded() guards above remain the
+// fallback (and the path used by tests after resetAttributionCache()).
+try {
+  ensureAuthorsLoaded();
+  ensureAttributionLoaded();
+} catch {
+  // Ignore — the data will be (re)loaded lazily on first use.
+}
