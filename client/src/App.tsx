@@ -590,6 +590,18 @@ export default function App() {
   // setting a source first.
   const lightboxImages = lightboxImageSource?.images ?? currentImages;
 
+  // Index whose card the windowed GalleryGrid must keep mounted regardless of
+  // scroll position, so the lightbox close/zoom animation can always read the
+  // source thumbnail's rect even when the user has paged (next/prev) to an
+  // image scrolled out of the window. Routed by the active lightbox source:
+  // author-browse mode pins the AuthorDetail grid; everything else (campaign +
+  // fallback) pins the campaign grid. -1 disables pinning when the lightbox is
+  // closed.
+  const campaignForceMountIndex =
+    isLightboxOpen && lightboxImageSource?.kind !== 'author' ? lightboxIndex : -1;
+  const authorForceMountIndex =
+    isLightboxOpen && lightboxImageSource?.kind === 'author' ? lightboxIndex : -1;
+
   // Lightbox animations are provided by the useLightboxAnimations hook
   const { openLightbox, closeLightbox, isAnimatingRef } = useLightboxAnimations({
     images: lightboxImages,
@@ -866,6 +878,8 @@ export default function App() {
           onBack={navigateToAuthorsIndex}
           onOpenImage={openLightboxForAuthor}
           gridRef={authorGridRef}
+          forceMountIndex={authorForceMountIndex}
+          thumbnailSizeKey={thumbnailSizeIndex}
         />
       )}
 
@@ -915,6 +929,8 @@ export default function App() {
               ref={galleryGridRef}
               images={currentImages}
               onImageClick={openLightboxForCampaign}
+              forceMountIndex={campaignForceMountIndex}
+              thumbnailSizeKey={thumbnailSizeIndex}
             />
           )}
         </main>
