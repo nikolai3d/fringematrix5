@@ -296,6 +296,37 @@ describe('useCampaignLoader — abort before fetch resolves', () => {
 
     expect(result.current.currentImages).toEqual([]);
   });
+
+  // Covers the abort-after-fetch-resolves branch: the fetch succeeds with a
+  // non-empty list, but the signal is aborted right as the response is read
+  // (we abort inside json(), before the post-await `if (signal.aborted) return`
+  // guard runs). Images must NOT be committed and no error must be set.
+  it('does not commit images when aborted exactly after fetch resolves', async () => {
+    const controller = new AbortController();
+    const images = [{ fileName: 'a.jpg', src: 'https://cdn.example.com/a.jpg' }];
+
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      headers: { get: (_: string) => 'application/json' },
+      // Abort right as the body is parsed — fetchJSON awaits json(), so by the
+      // time loadCampaignImages reaches its post-await abort guard the signal
+      // is already aborted.
+      json: async () => {
+        controller.abort();
+        return { images };
+      },
+      text: async () => JSON.stringify({ images }),
+    } as unknown as Response);
+
+    const { result } = renderHook(() => useCampaignLoader());
+
+    await act(async () => {
+      await result.current.loadCampaignImages('ep-abort-after', controller.signal);
+    });
+
+    expect(result.current.currentImages).toEqual([]);
+    expect(result.current.campaignLoadError).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -471,5 +502,54 @@ describe('useCampaignLoader — Blob CDN preconnect', () => {
     );
     expect(link).not.toBeNull();
     expect(link?.getAttribute('crossorigin')).toBe('anonymous');
+  });
+
+  // NOTE: preconnectedOrigins is a module-scoped Set persisting across tests,
+  // so these use origins distinct from each other and from the test above to
+  // avoid cross-test interference.
+  it('injects exactly one preconnect link for two campaigns sharing an origin', async () => {
+    const origin = 'https://dedup-store.public.blob.vercel-storage.com';
+    fetchSpy.mockResolvedValueOnce(makeImagesResponse([
+      { fileName: 'a.jpg', src: `${origin}/a.jpg` },
+    ]));
+    fetchSpy.mockResolvedValueOnce(makeImagesResponse([
+      { fileName: 'b.jpg', src: `${origin}/b.jpg` },
+    ]));
+
+    const { result } = renderHook(() => useCampaignLoader());
+
+    await act(async () => {
+      await result.current.loadCampaignImages('ep-dedup-1', new AbortController().signal);
+    });
+    await act(async () => {
+      await result.current.loadCampaignImages('ep-dedup-2', new AbortController().signal);
+    });
+
+    const links = document.head.querySelectorAll(
+      `link[rel="preconnect"][href="${origin}"]`,
+    );
+    expect(links).toHaveLength(1);
+  });
+
+  it('injects no preconnect link and does not throw for a malformed first image URL', async () => {
+    fetchSpy.mockResolvedValueOnce(makeImagesResponse([
+      { fileName: 'a.jpg', src: 'not-a-valid-url' },
+    ]));
+
+    const before = document.head.querySelectorAll('link[rel="preconnect"]').length;
+
+    const { result } = renderHook(() => useCampaignLoader());
+    const controller = new AbortController();
+
+    await act(async () => {
+      await result.current.loadCampaignImages('ep-malformed', controller.signal);
+    });
+
+    // The malformed URL is swallowed: no error, images still committed.
+    expect(result.current.campaignLoadError).toBe(false);
+    expect(result.current.currentImages).toHaveLength(1);
+
+    const after = document.head.querySelectorAll('link[rel="preconnect"]').length;
+    expect(after).toBe(before);
   });
 });

@@ -3,7 +3,7 @@ import type { ImageData } from '../types/api';
 import ImageCard from './ImageCard';
 
 /** Number of leading cards rendered with eager/high-priority loading. */
-const EAGER_IMAGE_COUNT = 12;
+export const EAGER_IMAGE_COUNT = 12;
 
 /** Public API exposed to callers via a ref (useImperativeHandle). */
 export interface GalleryGridHandle {

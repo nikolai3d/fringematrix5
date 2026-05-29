@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import React, { createRef } from 'react';
-import GalleryGrid from '../src/components/GalleryGrid';
+import GalleryGrid, { EAGER_IMAGE_COUNT } from '../src/components/GalleryGrid';
 import type { GalleryGridHandle } from '../src/components/GalleryGrid';
 import type { ImageData } from '../src/types/api';
 
@@ -433,16 +433,17 @@ describe('GalleryGrid — loading placeholder', () => {
 // =============================================================================
 
 describe('GalleryGrid — eager above-the-fold loading', () => {
-  it('renders the first 12 cards eager/high-priority and the rest lazy/auto', () => {
-    // 14 images so we straddle the EAGER_IMAGE_COUNT=12 boundary.
-    const images = Array.from({ length: 14 }, (_, i) => makeImage(`img${i}.png`));
+  it('renders the first EAGER_IMAGE_COUNT cards eager/high-priority and the rest lazy/auto', () => {
+    // Straddle the EAGER_IMAGE_COUNT boundary by rendering a couple extra cards.
+    const total = EAGER_IMAGE_COUNT + 2;
+    const images = Array.from({ length: total }, (_, i) => makeImage(`img${i}.png`));
     const { container } = render(<GalleryGrid images={images} onImageClick={noop} />);
 
     const imgs = Array.from(container.querySelectorAll('img'));
-    expect(imgs).toHaveLength(14);
+    expect(imgs).toHaveLength(total);
 
     imgs.forEach((img, i) => {
-      if (i < 12) {
+      if (i < EAGER_IMAGE_COUNT) {
         expect(img.getAttribute('loading')).toBe('eager');
         expect(img.getAttribute('fetchpriority')).toBe('high');
       } else {
