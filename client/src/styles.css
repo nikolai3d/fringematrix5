@@ -361,6 +361,15 @@ footer.navbar {
   grid-template-columns: 1fr;
 }
 
+/* Virtual-scroll spacers: reserve the vertical space of the windowed-out rows
+   above/below the rendered slice so the scrollbar and scroll position match a
+   fully rendered grid. They span the full row (set inline via grid-column) and
+   carry no card styling (no background, no entrance animation). */
+.gallery-grid-spacer {
+  width: 100%;
+  pointer-events: none;
+}
+
 .empty-state {
   display: grid;
   justify-items: center;

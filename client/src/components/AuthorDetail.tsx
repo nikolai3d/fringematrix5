@@ -37,6 +37,19 @@ interface Props {
    * the lightbox is in author-browse mode (lightboxImageSource.kind === 'author').
    */
   gridRef?: RefObject<GalleryGridHandle | null>;
+  /**
+   * Index whose card the windowed GalleryGrid must keep mounted regardless of
+   * scroll position, forwarded straight through to GalleryGrid. App sets this
+   * to the lightbox's current index while author-browse mode is open (else -1)
+   * so paging to a windowed-out image keeps its thumbnail measurable for the
+   * close/zoom animation. See useGridWindow / GalleryGrid.
+   */
+  forceMountIndex?: number;
+  /**
+   * Token that changes when the thumbnail-size setting changes; forwarded to
+   * GalleryGrid so the windowing hook re-measures column geometry.
+   */
+  thumbnailSizeKey?: unknown;
 }
 
 /**
@@ -47,7 +60,7 @@ interface Props {
  * Errors render an inline message rather than crashing the app — 404s from a
  * missing handle surface as "Failed to load author".
  */
-export default function AuthorDetail({ handle, onBack, onOpenImage, gridRef }: Props) {
+export default function AuthorDetail({ handle, onBack, onOpenImage, gridRef, forceMountIndex = -1, thumbnailSizeKey }: Props) {
   const { data, error } = useAuthorDetail(handle);
 
   // Whether we're viewing the synthetic "Unknown artist" page. Drives a few
@@ -222,6 +235,8 @@ export default function AuthorDetail({ handle, onBack, onOpenImage, gridRef }: P
                 isUnknownArtist ? 'Unattributed images' : `Images by ${data.author.name}`
               }
               testId="author-images-grid"
+              forceMountIndex={forceMountIndex}
+              thumbnailSizeKey={thumbnailSizeKey}
             />
           )}
         </>
