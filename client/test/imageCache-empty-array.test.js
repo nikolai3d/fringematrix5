@@ -51,8 +51,6 @@ function makeState(overrides = {}) {
   return {
     activeCampaignId: null,
     currentImages: null,   // null = "not yet set" so we can distinguish from []
-    campaignLoadProgress: 0,
-    campaignLoadTotal: 0,
     campaignLoadError: false,
     isCampaignLoading: false,
     imageCache: {},
@@ -69,10 +67,8 @@ function simulateSelectCampaign(state, id) {
   state.activeCampaignId = id;
 
   if (id in state.imageCache) {
-    // Cache-hit branch — mirrors App.tsx lines 229-235
+    // Cache-hit branch — mirrors the cache-hit block in useCampaignLoader.ts
     state.currentImages = state.imageCache[id];
-    state.campaignLoadProgress = 0;
-    state.campaignLoadTotal = 0;
     state.campaignLoadError = false;
     state.isCampaignLoading = false;
     return { fromCache: true };
@@ -131,14 +127,12 @@ describe('imageCache empty-array — state-machine simulation', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('resets error and progress state even for a zero-image campaign cache hit', () => {
-    // A prior failed load may leave campaignLoadError=true / progress counters
-    // non-zero. Navigating to a zero-image cached campaign must clean that up.
+  it('resets error state even for a zero-image campaign cache hit', () => {
+    // A prior failed load may leave campaignLoadError=true. Navigating to a
+    // zero-image cached campaign must clean that up.
     const state = makeState({
       activeCampaignId: 'campaign-x',
       campaignLoadError: true,
-      campaignLoadProgress: 3,
-      campaignLoadTotal: 5,
       isCampaignLoading: false,
       imageCache: { 'campaign-empty': [] },
     });
@@ -146,8 +140,6 @@ describe('imageCache empty-array — state-machine simulation', () => {
     simulateSelectCampaign(state, 'campaign-empty');
 
     expect(state.campaignLoadError).toBe(false);
-    expect(state.campaignLoadProgress).toBe(0);
-    expect(state.campaignLoadTotal).toBe(0);
     expect(state.isCampaignLoading).toBe(false);
     expect(state.currentImages).toEqual([]);
   });

@@ -1,26 +1,23 @@
 /**
- * Unit tests for useCampaignLoader hook (fringematrix5-g0q).
+ * Unit tests for useCampaignLoader hook.
  *
- * Covers async paths not exercised by the existing source-guard and state-machine
- * tests in selectCampaign-cache-hit.test.js and imageCache-empty-array.test.js:
+ * The hook no longer preloads images before rendering — it builds the final
+ * ImageData[] in a single pass as soon as the image *list* arrives, and the
+ * browser streams thumbnails in natively via <img loading="lazy">. These tests
+ * cover the list-fetch async paths:
  *
- *   1. Normal load — fetch returns images → progress advances → currentImages set.
- *   2. Empty response — fetch returns [] → currentImages = [] → no error.
+ *   1. Normal load — fetch returns images → currentImages set to ready entries.
+ *   2. Empty response — fetch returns [] → currentImages = [] → not cached.
  *   3. Network error — fetch rejects → campaignLoadError = true.
- *   4. Abort mid-load — abort before fetch resolves → no error, no state update.
- *   5. Abort during preload — abort after fetch resolves → no error, loading stays.
- *   6. Per-image timeout — source-level guard verifying IMAGE_PRELOAD_TIMEOUT_MS
- *      and settle(true) logic (fake timers interact poorly with act(); behavioral
- *      coverage is deferred to a future integration test).
- *   7. Progress sequencing — campaignLoadProgress / campaignLoadTotal track correctly.
- *   8. onImageCountKnown callback — fires once with the correct count.
- *   9. selectCampaign cache-hit — no extra fetch on re-navigation.
+ *   4. Abort before fetch resolves → no error, no state update, no count callback.
+ *   5. onImageCountKnown callback — fires once with the correct count.
+ *   6. selectCampaign cache-hit — no extra fetch on re-navigation.
+ *   7. campaignId stamping — every entry carries the active campaign id.
+ *   8. Blob CDN preconnect — a <link rel="preconnect"> is injected for the
+ *      first image's origin.
  *
- * Strategy:
- *   - Mock `fetch` via vi.spyOn(global, 'fetch').
- *   - Mock Image constructor to auto-fire onload/onerror in the next microtask
- *     when src is set — this mirrors real browser behavior and lets act(async)
- *     resolve without timing out.
+ * Strategy: mock `fetch` via vi.spyOn(global, 'fetch'). No Image mock is needed
+ * anymore since the hook does not construct Image objects.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -41,77 +38,18 @@ function makeImagesResponse(images: Array<{ fileName: string; src: string }>) {
 }
 
 // ---------------------------------------------------------------------------
-// Image mock — auto-fires on src assignment
-// ---------------------------------------------------------------------------
-
-type ImageFireType = 'load' | 'error' | 'timeout';
-
-/**
- * Per-URL decision about what event to fire.
- * Tests set entries in this map before running.  Default is 'load'.
- */
-let imageFireMap: Map<string, ImageFireType> = new Map();
-
-/**
- * Install a mock Image constructor that fires onload/onerror asynchronously
- * (one microtask after src is assigned) according to imageFireMap.
- * Returns a restore function.
- */
-function installMockImage(
-  defaultFire: ImageFireType = 'load',
-): () => void {
-  const OriginalImage = global.Image;
-
-  function FakeImage(this: {
-    onload: (() => void) | null;
-    onerror: (() => void) | null;
-  }) {
-    let _src = '';
-    this.onload = null;
-    this.onerror = null;
-    const self = this;
-    Object.defineProperty(this, 'src', {
-      configurable: true,
-      get: () => _src,
-      set: (val: string) => {
-        _src = val;
-        if (!val) return;
-        const fireType = imageFireMap.get(val) ?? defaultFire;
-        if (fireType === 'timeout') return; // simulate hung image — never fires
-        Promise.resolve().then(() => {
-          if (fireType === 'load') self.onload?.();
-          else self.onerror?.();
-        });
-      },
-    });
-  }
-
-  global.Image = FakeImage as unknown as typeof Image;
-
-  return () => {
-    global.Image = OriginalImage;
-    imageFireMap = new Map();
-  };
-}
-
-// ---------------------------------------------------------------------------
 // Setup / teardown
 // ---------------------------------------------------------------------------
 
 let fetchSpy: ReturnType<typeof vi.spyOn>;
-let restoreImage: (() => void) | null = null;
 
 beforeEach(() => {
-  imageFireMap = new Map();
   fetchSpy = vi.spyOn(global, 'fetch');
-  restoreImage = installMockImage('load'); // default: all images load successfully
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
 afterEach(() => {
   fetchSpy.mockRestore();
-  restoreImage?.();
-  restoreImage = null;
   vi.restoreAllMocks();
 });
 
@@ -120,7 +58,7 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('useCampaignLoader — normal load', () => {
-  it('sets isCampaignLoading=false after all images preload', async () => {
+  it('sets isCampaignLoading=false after the list arrives', async () => {
     fetchSpy.mockResolvedValueOnce(makeImagesResponse([
       { fileName: 'a.jpg', src: 'https://cdn.example.com/a.jpg' },
       { fileName: 'b.jpg', src: 'https://cdn.example.com/b.jpg' },
@@ -136,7 +74,7 @@ describe('useCampaignLoader — normal load', () => {
     expect(result.current.isCampaignLoading).toBe(false);
   });
 
-  it('sets currentImages to fully-loaded entries', async () => {
+  it('sets currentImages to ready entries (src populated, isLoading false)', async () => {
     fetchSpy.mockResolvedValueOnce(makeImagesResponse([
       { fileName: 'a.jpg', src: 'https://cdn.example.com/a.jpg' },
       { fileName: 'b.jpg', src: 'https://cdn.example.com/b.jpg' },
@@ -151,12 +89,14 @@ describe('useCampaignLoader — normal load', () => {
 
     expect(result.current.currentImages).toHaveLength(2);
     expect(result.current.currentImages[0].isLoading).toBe(false);
+    expect(result.current.currentImages[0].src).toBe('https://cdn.example.com/a.jpg');
     expect(result.current.currentImages[0].loadedSrc).toBe('https://cdn.example.com/a.jpg');
     expect(result.current.currentImages[1].isLoading).toBe(false);
+    expect(result.current.currentImages[1].src).toBe('https://cdn.example.com/b.jpg');
     expect(result.current.currentImages[1].loadedSrc).toBe('https://cdn.example.com/b.jpg');
   });
 
-  it('caches the fully-loaded images under the campaign id', async () => {
+  it('caches the images under the campaign id', async () => {
     fetchSpy.mockResolvedValueOnce(makeImagesResponse([
       { fileName: 'a.jpg', src: 'https://cdn.example.com/a.jpg' },
     ]));
@@ -179,7 +119,7 @@ describe('useCampaignLoader — normal load', () => {
     expect(result.current.currentImages).toHaveLength(1);
   });
 
-  it('does not set campaignLoadError when all images load successfully', async () => {
+  it('does not set campaignLoadError on a successful load', async () => {
     fetchSpy.mockResolvedValueOnce(makeImagesResponse([
       { fileName: 'a.jpg', src: 'https://cdn.example.com/a.jpg' },
     ]));
@@ -211,19 +151,6 @@ describe('useCampaignLoader — empty image response', () => {
     });
 
     expect(result.current.currentImages).toEqual([]);
-  });
-
-  it('sets campaignLoadTotal=0 for an empty response', async () => {
-    fetchSpy.mockResolvedValueOnce(makeImagesResponse([]));
-
-    const { result } = renderHook(() => useCampaignLoader());
-    const controller = new AbortController();
-
-    await act(async () => {
-      await result.current.loadCampaignImages('ep-empty', controller.signal);
-    });
-
-    expect(result.current.campaignLoadTotal).toBe(0);
   });
 
   it('does not set campaignLoadError for an empty response', async () => {
@@ -369,173 +296,41 @@ describe('useCampaignLoader — abort before fetch resolves', () => {
 
     expect(result.current.currentImages).toEqual([]);
   });
-});
 
-// ---------------------------------------------------------------------------
-// 5. Abort during preload (after fetch resolves)
-// ---------------------------------------------------------------------------
+  // Covers the abort-after-fetch-resolves branch: the fetch succeeds with a
+  // non-empty list, but the signal is aborted right as the response is read
+  // (we abort inside json(), before the post-await `if (signal.aborted) return`
+  // guard runs). Images must NOT be committed and no error must be set.
+  it('does not commit images when aborted exactly after fetch resolves', async () => {
+    const controller = new AbortController();
+    const images = [{ fileName: 'a.jpg', src: 'https://cdn.example.com/a.jpg' }];
 
-describe('useCampaignLoader — abort during image preload', () => {
-  it('does not set campaignLoadError when aborted during preload', async () => {
-    // Use 'timeout' fire type so images never resolve on their own — we abort.
-    imageFireMap.set('https://cdn.example.com/a.jpg', 'timeout');
-    imageFireMap.set('https://cdn.example.com/b.jpg', 'timeout');
-
-    fetchSpy.mockResolvedValueOnce(makeImagesResponse([
-      { fileName: 'a.jpg', src: 'https://cdn.example.com/a.jpg' },
-      { fileName: 'b.jpg', src: 'https://cdn.example.com/b.jpg' },
-    ]));
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      headers: { get: (_: string) => 'application/json' },
+      // Abort right as the body is parsed — fetchJSON awaits json(), so by the
+      // time loadCampaignImages reaches its post-await abort guard the signal
+      // is already aborted.
+      json: async () => {
+        controller.abort();
+        return { images };
+      },
+      text: async () => JSON.stringify({ images }),
+    } as unknown as Response);
 
     const { result } = renderHook(() => useCampaignLoader());
-    const controller = new AbortController();
 
     await act(async () => {
-      const p = result.current.loadCampaignImages('ep-abort', controller.signal);
-      // Abort after fetch resolves (next microtask)
-      await Promise.resolve();
-      await Promise.resolve();
-      controller.abort();
-      await p;
+      await result.current.loadCampaignImages('ep-abort-after', controller.signal);
     });
 
-    // Abort is not an error — campaignLoadError must remain false.
+    expect(result.current.currentImages).toEqual([]);
     expect(result.current.campaignLoadError).toBe(false);
-    // The hook's finally block: `if (!signal.aborted) setIsCampaignLoading(false)`.
-    // Because the signal is aborted, isCampaignLoading stays true — the caller
-    // (selectCampaign) is responsible for resetting it when it starts a new load.
-    expect(result.current.isCampaignLoading).toBe(true);
   });
 });
 
 // ---------------------------------------------------------------------------
-// 6. Per-image timeout — source-level guard
-// ---------------------------------------------------------------------------
-
-describe('useCampaignLoader — per-image timeout (source guard)', () => {
-  it('has a positive IMAGE_PRELOAD_TIMEOUT_MS constant in the source', () => {
-    // The preloadCampaignImages function must have a setTimeout that
-    // limits hung images.  We verify the constant exists and is reasonable
-    // without running fake timers (which interact poorly with act()).
-    const fs = require('fs');
-    const path = require('path');
-    const src: string = fs.readFileSync(
-      path.resolve(__dirname, '../src/hooks/useCampaignLoader.ts'),
-      'utf-8',
-    );
-    const match = src.match(/IMAGE_PRELOAD_TIMEOUT_MS\s*=\s*(\d+)/);
-    expect(match).not.toBeNull();
-    const timeoutMs = parseInt(match![1], 10);
-    expect(timeoutMs).toBeGreaterThan(0);
-  });
-
-  it('preloadCampaignImages uses setTimeout with IMAGE_PRELOAD_TIMEOUT_MS', () => {
-    const fs = require('fs');
-    const path = require('path');
-    const src: string = fs.readFileSync(
-      path.resolve(__dirname, '../src/hooks/useCampaignLoader.ts'),
-      'utf-8',
-    );
-    // The timeout must call settle(true) to mark the image as errored.
-    expect(src).toMatch(/setTimeout\(.*?settle\(true\).*?IMAGE_PRELOAD_TIMEOUT_MS/s);
-  });
-
-  it('settle(true) sets hasError=true in preloadCampaignImages', () => {
-    const fs = require('fs');
-    const path = require('path');
-    const src: string = fs.readFileSync(
-      path.resolve(__dirname, '../src/hooks/useCampaignLoader.ts'),
-      'utf-8',
-    );
-    // The settle function must set hasError when errored=true.
-    expect(src).toMatch(/if \(errored\) hasError = true/);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 7. Progress tracking
-// ---------------------------------------------------------------------------
-
-describe('useCampaignLoader — progress tracking', () => {
-  it('sets campaignLoadTotal to the image count after the API responds', async () => {
-    fetchSpy.mockResolvedValueOnce(makeImagesResponse([
-      { fileName: 'a.jpg', src: 'https://cdn.example.com/a.jpg' },
-      { fileName: 'b.jpg', src: 'https://cdn.example.com/b.jpg' },
-      { fileName: 'c.jpg', src: 'https://cdn.example.com/c.jpg' },
-    ]));
-
-    const { result } = renderHook(() => useCampaignLoader());
-    const controller = new AbortController();
-
-    await act(async () => {
-      await result.current.loadCampaignImages('ep-progress', controller.signal);
-    });
-
-    expect(result.current.campaignLoadTotal).toBe(3);
-  });
-
-  it('campaignLoadProgress equals total after all images load', async () => {
-    fetchSpy.mockResolvedValueOnce(makeImagesResponse([
-      { fileName: 'a.jpg', src: 'https://cdn.example.com/a.jpg' },
-      { fileName: 'b.jpg', src: 'https://cdn.example.com/b.jpg' },
-    ]));
-
-    const { result } = renderHook(() => useCampaignLoader());
-    const controller = new AbortController();
-
-    await act(async () => {
-      await result.current.loadCampaignImages('ep-progress', controller.signal);
-    });
-
-    expect(result.current.campaignLoadProgress).toBe(2);
-    expect(result.current.campaignLoadTotal).toBe(2);
-  });
-
-  it('sets campaignLoadError=true when one image errors during preload', async () => {
-    imageFireMap.set('https://cdn.example.com/bad.jpg', 'error');
-
-    fetchSpy.mockResolvedValueOnce(makeImagesResponse([
-      { fileName: 'ok.jpg', src: 'https://cdn.example.com/ok.jpg' },
-      { fileName: 'bad.jpg', src: 'https://cdn.example.com/bad.jpg' },
-    ]));
-
-    const { result } = renderHook(() => useCampaignLoader());
-    const controller = new AbortController();
-
-    await act(async () => {
-      await result.current.loadCampaignImages('ep-err-img', controller.signal);
-    });
-
-    expect(result.current.campaignLoadError).toBe(true);
-    expect(result.current.isCampaignLoading).toBe(false);
-  });
-
-  it('counts errored images toward progress (partial error scenario)', async () => {
-    imageFireMap.set('https://cdn.example.com/bad.jpg', 'error');
-
-    fetchSpy.mockResolvedValueOnce(makeImagesResponse([
-      { fileName: 'ok.jpg', src: 'https://cdn.example.com/ok.jpg' },
-      { fileName: 'bad.jpg', src: 'https://cdn.example.com/bad.jpg' },
-      { fileName: 'ok2.jpg', src: 'https://cdn.example.com/ok2.jpg' },
-    ]));
-
-    const { result } = renderHook(() => useCampaignLoader());
-    const controller = new AbortController();
-
-    await act(async () => {
-      await result.current.loadCampaignImages('ep-partial', controller.signal);
-    });
-
-    // All 3 counted (error is still "processed")
-    expect(result.current.campaignLoadProgress).toBe(3);
-    expect(result.current.campaignLoadTotal).toBe(3);
-    // currentImages still populated — the hook sets them after preload
-    expect(result.current.currentImages).toHaveLength(3);
-    expect(result.current.campaignLoadError).toBe(true);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 8. onImageCountKnown callback
+// 5. onImageCountKnown callback
 // ---------------------------------------------------------------------------
 
 describe('useCampaignLoader — onImageCountKnown callback', () => {
@@ -602,7 +397,7 @@ describe('useCampaignLoader — onImageCountKnown callback', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 9. selectCampaign cache-hit integration
+// 6. selectCampaign cache-hit integration
 // ---------------------------------------------------------------------------
 
 describe('useCampaignLoader — selectCampaign cache-hit (renderHook)', () => {
@@ -662,11 +457,11 @@ describe('useCampaignLoader — selectCampaign cache-hit (renderHook)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 10. campaignId stamping (fringematrix5-uyp)
+// 7. campaignId stamping
 // ---------------------------------------------------------------------------
 
 describe('useCampaignLoader — campaignId stamping', () => {
-  it('stamps the loading campaign id onto every fully-loaded ImageData', async () => {
+  it('stamps the loading campaign id onto every ImageData', async () => {
     fetchSpy.mockResolvedValueOnce(makeImagesResponse([
       { fileName: 'a.jpg', src: 'https://cdn.example.com/a.jpg' },
       { fileName: 'b.jpg', src: 'https://cdn.example.com/b.jpg' },
@@ -683,25 +478,78 @@ describe('useCampaignLoader — campaignId stamping', () => {
     expect(result.current.currentImages[0].campaignId).toBe('S04E11');
     expect(result.current.currentImages[1].campaignId).toBe('S04E11');
   });
+});
 
-  it('stamps the campaign id even when an image errors during preload', async () => {
-    // Source mapping must be independent of preload outcomes — the fully-
-    // loaded mapping runs even when hasError=true.
-    imageFireMap.set('https://cdn.example.com/bad.jpg', 'error');
+// ---------------------------------------------------------------------------
+// 8. Blob CDN preconnect injection
+// ---------------------------------------------------------------------------
 
+describe('useCampaignLoader — Blob CDN preconnect', () => {
+  it('injects a <link rel="preconnect"> for the first image origin', async () => {
     fetchSpy.mockResolvedValueOnce(makeImagesResponse([
-      { fileName: 'bad.jpg', src: 'https://cdn.example.com/bad.jpg' },
+      { fileName: 'a.jpg', src: 'https://store123.public.blob.vercel-storage.com/a.jpg' },
     ]));
 
     const { result } = renderHook(() => useCampaignLoader());
     const controller = new AbortController();
 
     await act(async () => {
-      await result.current.loadCampaignImages('S05E01', controller.signal);
+      await result.current.loadCampaignImages('ep-preconnect', controller.signal);
     });
 
-    expect(result.current.campaignLoadError).toBe(true);
+    const link = document.head.querySelector(
+      'link[rel="preconnect"][href="https://store123.public.blob.vercel-storage.com"]',
+    );
+    expect(link).not.toBeNull();
+    expect(link?.getAttribute('crossorigin')).toBe('anonymous');
+  });
+
+  // NOTE: preconnectedOrigins is a module-scoped Set persisting across tests,
+  // so these use origins distinct from each other and from the test above to
+  // avoid cross-test interference.
+  it('injects exactly one preconnect link for two campaigns sharing an origin', async () => {
+    const origin = 'https://dedup-store.public.blob.vercel-storage.com';
+    fetchSpy.mockResolvedValueOnce(makeImagesResponse([
+      { fileName: 'a.jpg', src: `${origin}/a.jpg` },
+    ]));
+    fetchSpy.mockResolvedValueOnce(makeImagesResponse([
+      { fileName: 'b.jpg', src: `${origin}/b.jpg` },
+    ]));
+
+    const { result } = renderHook(() => useCampaignLoader());
+
+    await act(async () => {
+      await result.current.loadCampaignImages('ep-dedup-1', new AbortController().signal);
+    });
+    await act(async () => {
+      await result.current.loadCampaignImages('ep-dedup-2', new AbortController().signal);
+    });
+
+    const links = document.head.querySelectorAll(
+      `link[rel="preconnect"][href="${origin}"]`,
+    );
+    expect(links).toHaveLength(1);
+  });
+
+  it('injects no preconnect link and does not throw for a malformed first image URL', async () => {
+    fetchSpy.mockResolvedValueOnce(makeImagesResponse([
+      { fileName: 'a.jpg', src: 'not-a-valid-url' },
+    ]));
+
+    const before = document.head.querySelectorAll('link[rel="preconnect"]').length;
+
+    const { result } = renderHook(() => useCampaignLoader());
+    const controller = new AbortController();
+
+    await act(async () => {
+      await result.current.loadCampaignImages('ep-malformed', controller.signal);
+    });
+
+    // The malformed URL is swallowed: no error, images still committed.
+    expect(result.current.campaignLoadError).toBe(false);
     expect(result.current.currentImages).toHaveLength(1);
-    expect(result.current.currentImages[0].campaignId).toBe('S05E01');
+
+    const after = document.head.querySelectorAll('link[rel="preconnect"]').length;
+    expect(after).toBe(before);
   });
 });

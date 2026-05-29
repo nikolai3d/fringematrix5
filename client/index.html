@@ -4,9 +4,23 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Fringe Matrix Gallery</title>
+    <!-- Resolve the Blob CDN parent zone early. The exact image origin is a
+         per-store wildcard subdomain (*.public.blob.vercel-storage.com) only
+         known at runtime, so an exact-origin preconnect is injected in JS once
+         the first image URL arrives (see useCampaignLoader). -->
+    <link rel="dns-prefetch" href="https://blob.vercel-storage.com">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- Load fonts off the critical render path: preload as a stylesheet, then
+         promote rel to "stylesheet" from bundled app JS (see main.tsx). The
+         rel-swap is done in JS rather than an inline onload handler because our
+         production CSP (script-src 'self') blocks inline event-handler
+         attributes. Falls back to a normal stylesheet when JS is disabled. -->
+    <link rel="preload" as="style" id="font-css"
+          href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&family=Inter:wght@300;400;600;800&display=swap">
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&family=Inter:wght@300;400;600;800&display=swap">
+    </noscript>
   </head>
   <body>
     <div id="root"></div>

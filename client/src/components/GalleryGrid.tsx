@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useImperativeHandle, useRef } from 'reac
 import type { ImageData } from '../types/api';
 import ImageCard from './ImageCard';
 
+/** Number of leading cards rendered with eager/high-priority loading. */
+export const EAGER_IMAGE_COUNT = 12;
+
 /** Public API exposed to callers via a ref (useImperativeHandle). */
 export interface GalleryGridHandle {
   /**
@@ -143,6 +146,9 @@ const GalleryGrid = React.memo(React.forwardRef<GalleryGridHandle, GalleryGridPr
             image={img}
             imgRef={setThumbRef(i)}
             onClick={getClickCallback(i)}
+            // Eagerly load the first ~2-3 rows (above the fold) so they start
+            // downloading immediately; the rest stay native-lazy.
+            eager={i < EAGER_IMAGE_COUNT}
           />
         ))}
       </section>

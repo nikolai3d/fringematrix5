@@ -6,54 +6,34 @@ import type {
   CampaignImagesResponse,
 } from '../types/api';
 
-// A single hung image shouldn't freeze the whole gallery. After this much
-// time we treat the image as errored and let the rest of the batch finish.
-const IMAGE_PRELOAD_TIMEOUT_MS = 15_000;
+// Origins we've already injected a <link rel="preconnect"> for, so we only do
+// it once per CDN host for the lifetime of the page.
+const preconnectedOrigins = new Set<string>();
 
-async function preloadCampaignImages(
-  campaignImages: ApiImageData[],
-  signal: AbortSignal,
-  onProgress: (loaded: number) => void,
-): Promise<{ hasError: boolean }> {
-  let loaded = 0;
-  let hasError = false;
-  await Promise.all(
-    campaignImages.map((img) =>
-      new Promise<void>((resolve) => {
-        if (signal.aborted) return resolve();
-        const image = new Image();
-        let settled = false;
-        // Abort short-circuits the wait so rapid campaign switching doesn't
-        // leave dozens of pending Image loads holding the Promise.all open
-        // for the full 15s timeout each.
-        const settle = (errored: boolean) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          signal.removeEventListener('abort', onAbort);
-          if (signal.aborted) return resolve();
-          if (errored) hasError = true;
-          loaded += 1;
-          onProgress(loaded);
-          resolve();
-        };
-        const onAbort = () => settle(false);
-        signal.addEventListener('abort', onAbort);
-        const timer = setTimeout(() => settle(true), IMAGE_PRELOAD_TIMEOUT_MS);
-        image.onload = () => settle(false);
-        image.onerror = () => settle(true);
-        image.src = img.src;
-      }),
-    ),
-  );
-  return { hasError };
+// Warm the TLS connection to the Blob CDN before the gallery's <img> tags
+// begin fetching. The real image origin is a per-store wildcard subdomain
+// (https://<store>.public.blob.vercel-storage.com) that isn't known until the
+// first image URL arrives, so we derive it at runtime and inject a one-time
+// preconnect <link>. Malformed URLs are ignored.
+function preconnectToOrigin(sampleUrl: string): void {
+  if (typeof document === 'undefined') return;
+  try {
+    const { origin } = new URL(sampleUrl);
+    if (preconnectedOrigins.has(origin)) return;
+    preconnectedOrigins.add(origin);
+    const link = document.createElement('link');
+    link.rel = 'preconnect';
+    link.href = origin;
+    link.crossOrigin = 'anonymous';
+    document.head.appendChild(link);
+  } catch {
+    // Ignore malformed image URLs — preconnect is a best-effort optimization.
+  }
 }
 
 export interface CampaignLoaderState {
   currentImages: ImageData[];
   isCampaignLoading: boolean;
-  campaignLoadProgress: number;
-  campaignLoadTotal: number;
   campaignLoadError: boolean;
   campaignLoadAbortRef: MutableRefObject<AbortController | null>;
   loadCampaignImages: (
@@ -68,22 +48,20 @@ export function useCampaignLoader(): CampaignLoaderState {
   const [currentImages, setCurrentImages] = useState<ImageData[]>([]);
   const [imageCache, setImageCache] = useState<Record<string, ImageData[]>>({});
   const [isCampaignLoading, setIsCampaignLoading] = useState<boolean>(false);
-  const [campaignLoadProgress, setCampaignLoadProgress] = useState<number>(0);
-  const [campaignLoadTotal, setCampaignLoadTotal] = useState<number>(0);
   const [campaignLoadError, setCampaignLoadError] = useState<boolean>(false);
   const campaignLoadAbortRef = useRef<AbortController | null>(null);
 
-  // Fetches a campaign's images and preloads them, writing progress/error
-  // state along the way. Shared by selectCampaign and the initial mount-load
-  // effect — keep both call sites in sync by editing here.
+  // Fetches a campaign's image list and shows the grid immediately — the
+  // browser streams thumbnails in natively via <img loading="lazy">, so we no
+  // longer block on downloading every image first. Shared by selectCampaign
+  // and the initial mount-load effect; keep both call sites in sync by editing
+  // here.
   const loadCampaignImages = useCallback(async (
     id: string,
     signal: AbortSignal,
     onImageCountKnown?: (count: number) => void,
   ): Promise<void> => {
     setIsCampaignLoading(true);
-    setCampaignLoadProgress(0);
-    setCampaignLoadTotal(0);
     setCampaignLoadError(false);
 
     try {
@@ -91,7 +69,6 @@ export function useCampaignLoader(): CampaignLoaderState {
       if (signal.aborted) return;
       const campaignImages = res.images || [];
 
-      setCampaignLoadTotal(campaignImages.length);
       onImageCountKnown?.(campaignImages.length);
 
       if (campaignImages.length === 0) {
@@ -99,41 +76,26 @@ export function useCampaignLoader(): CampaignLoaderState {
         return;
       }
 
-      // loadedSrc stays null until preload completes; gallery renders loadedSrc||src so placeholders show nothing while the browser fetches each image.
-      // blobPath is carried even on placeholders so the App-level effect that
-      // opens the lightbox at a specific image (after navigating from the
-      // authors page) can match while images are still preloading and avoid a
-      // race where it sees the placeholder array first and clears the pending
-      // request prematurely.
-      // campaignId is populated here from the active load's `id` so the
-      // lightbox can resolve the source campaign per-image without an extra
-      // lookup. The API does not echo the campaign id in CampaignImagesResponse
-      // (it's already in the request path), so we stamp it on the client.
-      const placeholderImages = campaignImages.map((img: ApiImageData) => ({
-        fileName: img.fileName,
-        originalSrc: img.src,
-        src: null,
-        isLoading: true,
-        loadedSrc: null,
-        blobPath: img.blobPath,
-        campaignId: id,
-      }));
-      setCurrentImages(placeholderImages);
+      // Warm the CDN TLS connection now (during the loading-screen fade) so the
+      // first thumbnails fetch over an already-open connection.
+      preconnectToOrigin(campaignImages[0].src);
 
-      const { hasError } = await preloadCampaignImages(campaignImages, signal, setCampaignLoadProgress);
-      if (signal.aborted) return;
-
-      if (hasError) setCampaignLoadError(true);
-
-      const fullyLoadedImages = campaignImages.map((img: ApiImageData) => ({
+      // Build the final ImageData in a single pass — no placeholder → loaded
+      // swap. src/loadedSrc carry the real CDN URL so the grid renders right
+      // away. blobPath/author come from the API response; campaignId is stamped
+      // from the active load's `id` (the API doesn't echo it in the response
+      // body — it's already in the request path) so the lightbox can resolve
+      // the source campaign per-image without an extra lookup.
+      const images: ImageData[] = campaignImages.map((img: ApiImageData) => ({
         ...img,
-        isLoading: false,
+        originalSrc: img.src,
         loadedSrc: img.src,
+        isLoading: false,
         campaignId: id,
       }));
 
-      setCurrentImages(fullyLoadedImages);
-      setImageCache(prev => ({ ...prev, [id]: fullyLoadedImages }));
+      setCurrentImages(images);
+      setImageCache(prev => ({ ...prev, [id]: images }));
     } catch (error) {
       if (signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) return;
       console.error('Failed to load campaign images:', error);
@@ -166,8 +128,6 @@ export function useCampaignLoader(): CampaignLoaderState {
 
     if (id in imageCache) {
       setCurrentImages(imageCache[id]);
-      setCampaignLoadProgress(0);
-      setCampaignLoadTotal(0);
       setCampaignLoadError(false);
       setIsCampaignLoading(false);
       return;
@@ -179,8 +139,6 @@ export function useCampaignLoader(): CampaignLoaderState {
   return {
     currentImages,
     isCampaignLoading,
-    campaignLoadProgress,
-    campaignLoadTotal,
     campaignLoadError,
     campaignLoadAbortRef,
     loadCampaignImages,

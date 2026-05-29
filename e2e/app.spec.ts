@@ -83,10 +83,12 @@ test('Sidebar campaign switch updates hash and gallery heading with loading', as
     const progressArea = page.getByRole('status', { name: 'Campaign loading status' });
     await expect(progressArea).toBeVisible(); // Progress area should always be visible
     
+    // The image list now renders as soon as it arrives (no blocking preload),
+    // so the loading indicator may flash by quickly. When present it shows an
+    // indeterminate "Loading Images…" message rather than a progress bar.
     const loadingContent = progressArea.locator('.campaign-loading-content');
     if (await loadingContent.isVisible().catch(() => false)) {
       await expect(loadingContent.getByText(/Loading Images/)).toBeVisible();
-      await expect(loadingContent.locator('.campaign-progress-bar')).toBeVisible();
       await loadingContent.waitFor({ state: 'detached' });
     }
 
@@ -230,7 +232,7 @@ test('Campaign loading disables UI interactions', async ({ page }) => {
   }
 });
 
-test('Campaign loading shows all placeholders until ALL images load (all-or-nothing)', async ({ page }) => {
+test('Campaign images render progressively with real src (no blocking placeholders)', async ({ page }) => {
   // Wait for initial loading to complete
   const loader = page.getByRole('dialog', { name: 'Loading' });
   if (await loader.isVisible().catch(() => false)) {
@@ -244,60 +246,32 @@ test('Campaign loading shows all placeholders until ALL images load (all-or-noth
 
   const sidebarButtons = sidebar.getByRole('button');
   const buttonCount = await sidebarButtons.count();
-  
+
   if (buttonCount > 1) {
-    // Click a different campaign to trigger loading
+    // Click a different campaign to trigger a load
     const second = sidebarButtons.nth(1);
     await second.click();
-    
-    // Check for loading state
+
+    // The gallery now shows the grid as soon as the image *list* arrives — no
+    // all-or-nothing placeholder phase for campaigns. Once the indeterminate
+    // loading indicator clears, every card should be a real <img> with a
+    // genuine CDN src and there should be no loading placeholders left.
     const progressArea = page.getByRole('status', { name: 'Campaign loading status' });
     const loadingContent = progressArea.locator('.campaign-loading-content');
-    
     if (await loadingContent.isVisible().catch(() => false)) {
-      // During loading, should see ALL placeholders and NO actual images
-      const placeholders = page.locator('.image-placeholder');
-      const placeholderCount = await placeholders.count();
-      
-      if (placeholderCount > 0) {
-        // Verify all cards show placeholders
-        await expect(placeholders.first().getByText('Loading...')).toBeVisible();
-        
-        // Critical: ALL images should be placeholders during loading (all-or-nothing)
-        const cards = page.locator('.gallery-grid .card');
-        const cardCount = await cards.count();
-        
-        if (cardCount > 0) {
-          // Every card should contain a placeholder, no actual images
-          for (let i = 0; i < cardCount; i++) {
-            const card = cards.nth(i);
-            const hasPlaceholder = await card.locator('.image-placeholder').isVisible();
-            const hasActualImage = await card.locator('img[src]:not([src=""])').isVisible();
-            
-            // During all-or-nothing loading: all should be placeholders
-            expect(hasPlaceholder).toBe(true);
-            expect(hasActualImage).toBe(false);
-          }
-        }
-      }
-      
-      // Wait for loading to complete
       await loadingContent.waitFor({ state: 'detached' });
-      
-      // After loading completes, ALL should be actual images, NO placeholders
-      await page.waitForTimeout(100); // Brief wait for DOM update
-      
+    }
+
+    const actualImages = page.locator('.gallery-grid img[src]:not([src=""])');
+    const actualImageCount = await actualImages.count();
+    if (actualImageCount > 0) {
+      // Campaign cards never use the loading placeholder anymore.
       const remainingPlaceholders = await page.locator('.image-placeholder').count();
       expect(remainingPlaceholders).toBe(0);
-      
-      // Now all should be actual images
-      const actualImages = page.locator('.gallery-grid img[src]:not([src=""])');
-      const actualImageCount = await actualImages.count();
-      if (actualImageCount > 0) {
-        // Verify they have real src URLs
-        const firstImageSrc = await actualImages.first().getAttribute('src');
-        expect(firstImageSrc).toMatch(/^https?:\/\//);
-      }
+
+      // Verify the first image has a real http(s) src URL.
+      const firstImageSrc = await actualImages.first().getAttribute('src');
+      expect(firstImageSrc).toMatch(/^https?:\/\//);
     }
   }
 });

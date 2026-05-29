@@ -89,6 +89,17 @@ describe('GET /api/campaigns/:id/images — full mode (mocked blob)', () => {
     consoleSpy.mockRestore();
   });
 
+  it('sets caching headers so the browser/CDN can reuse the list on revisit', async () => {
+    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    const res = await request(app).get(`/api/campaigns/${firstCampaignId}/images`);
+    expect(res.status).toBe(200);
+    expect(res.headers['cache-control']).toBe('public, max-age=3600, stale-while-revalidate=86400');
+    expect(res.headers['vary']).toContain('Accept-Encoding');
+
+    consoleSpy.mockRestore();
+  });
+
   it('calls the Vercel Blob list() function exactly once per cache miss', async () => {
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 

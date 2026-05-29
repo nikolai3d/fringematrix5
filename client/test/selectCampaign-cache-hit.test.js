@@ -2,10 +2,10 @@
  * Regression tests for fringematrix5-ojl (closes coverage gap from fringematrix5-luy):
  *
  * When navigating back to a campaign that has a cached image list, the
- * cache-hit branch of selectCampaign must reset the error/progress state
- * left behind by a previous failed load. Without the fix these three
- * setCampaignLoad* calls were missing, leaving campaignLoadError=true and
- * the "Some images failed to load" banner permanently visible.
+ * cache-hit branch of selectCampaign must reset the error state left behind
+ * by a previous failed load. Without the fix this setCampaignLoadError call
+ * was missing, leaving campaignLoadError=true and the "Some images failed to
+ * load" banner permanently visible.
  *
  * Strategy: two test groups.
  *   1. Source-level — verify the App.tsx cache-hit branch contains every
@@ -49,14 +49,6 @@ describe('selectCampaign cache-hit branch — source guards', () => {
     expect(cacheHitBlock).toMatch(/setCampaignLoadError\(\s*false\s*\)/);
   });
 
-  it('cache-hit branch resets campaignLoadProgress to 0', () => {
-    expect(cacheHitBlock).toMatch(/setCampaignLoadProgress\(\s*0\s*\)/);
-  });
-
-  it('cache-hit branch resets campaignLoadTotal to 0', () => {
-    expect(cacheHitBlock).toMatch(/setCampaignLoadTotal\(\s*0\s*\)/);
-  });
-
   it('cache-hit branch sets isCampaignLoading to false', () => {
     expect(cacheHitBlock).toMatch(/setIsCampaignLoading\(\s*false\s*\)/);
   });
@@ -82,8 +74,6 @@ function makeState(overrides = {}) {
   return {
     activeCampaignId: null,
     currentImages: [],
-    campaignLoadProgress: 0,
-    campaignLoadTotal: 0,
     campaignLoadError: false,
     isCampaignLoading: false,
     imageCache: {},
@@ -96,10 +86,8 @@ function simulateSelectCampaign(state, id) {
   state.activeCampaignId = id;
 
   if (id in state.imageCache) {
-    // Cache-hit branch — mirrors lines 231-236 of App.tsx
+    // Cache-hit branch — mirrors the cache-hit block in useCampaignLoader.ts
     state.currentImages = state.imageCache[id];
-    state.campaignLoadProgress = 0;
-    state.campaignLoadTotal = 0;
     state.campaignLoadError = false;
     state.isCampaignLoading = false;
     return { fromCache: true };
@@ -116,8 +104,6 @@ describe('selectCampaign cache-hit — state machine', () => {
     const state = makeState({
       activeCampaignId: 'campaign-a',
       campaignLoadError: true,       // error left by campaign A
-      campaignLoadProgress: 5,
-      campaignLoadTotal: 10,
       isCampaignLoading: false,
       imageCache: { 'campaign-b': cachedImages },
     });
@@ -129,9 +115,6 @@ describe('selectCampaign cache-hit — state machine', () => {
     expect(result.fromCache).toBe(true);
     // Error state must be cleared
     expect(state.campaignLoadError).toBe(false);
-    // Progress counters must be reset
-    expect(state.campaignLoadProgress).toBe(0);
-    expect(state.campaignLoadTotal).toBe(0);
     // Images must be populated from cache
     expect(state.currentImages).toEqual(cachedImages);
     // Not in loading state
@@ -184,19 +167,15 @@ describe('selectCampaign cache-hit — state machine', () => {
     expect(state.campaignLoadError).toBe(false);
   });
 
-  it('resets progress counters even when they were non-zero from the prior load', () => {
+  it('clears the error flag even when it was set from the prior load', () => {
     const cachedImages = [{ src: 'https://example.com/img.jpg', fileName: 'img.jpg' }];
     const state = makeState({
-      campaignLoadProgress: 7,
-      campaignLoadTotal: 12,
       campaignLoadError: true,
       imageCache: { 'fresh': cachedImages },
     });
 
     simulateSelectCampaign(state, 'fresh');
 
-    expect(state.campaignLoadProgress).toBe(0);
-    expect(state.campaignLoadTotal).toBe(0);
     expect(state.campaignLoadError).toBe(false);
   });
 });

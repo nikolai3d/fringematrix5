@@ -6,9 +6,12 @@ import { fileURLToPath } from 'url';
 // ---------------------------------------------------------------------------
 // Attribution data-access module
 //
-// Loads two on-disk data sources once at first use and caches them at module
-// level for the rest of the process lifetime. Mirrors the same lazy-cache
-// pattern used by campaignsCache / buildInfoCache in server.ts.
+// Loads two on-disk data sources and caches them at module level for the rest
+// of the process lifetime. A warm-up at module-eval time (see bottom of file)
+// populates the caches eagerly, with the lazy ensure*Loaded() guards as a
+// fallback if that warm-up is skipped or fails (e.g. after a test cache reset).
+// Mirrors the same lazy-cache pattern used by campaignsCache / buildInfoCache
+// in server.ts.
 //
 //   data/authors.yaml      — list of AuthorRecord (one per known artist)
 //   data/attribution.json  — map of blob-path → AttributionRecord
@@ -180,4 +183,17 @@ export function resetAttributionCache(): void {
   authorsCache = null;
   authorIndexCache = null;
   attributionCache = null;
+}
+
+// Warm both caches at module-eval time. fs.readFileSync is synchronous, so this
+// doesn't overlap anything — it simply shifts the ~816 KB attribution.json
+// parse cost to module-eval (import) time so the first request that needs it
+// isn't penalized. Wrapped in try/catch so a missing/unreadable data file
+// degrades gracefully — the lazy ensure*Loaded() guards above remain the
+// fallback (and the path used by tests after resetAttributionCache()).
+try {
+  ensureAuthorsLoaded();
+  ensureAttributionLoaded();
+} catch {
+  // Ignore — the data will be (re)loaded lazily on first use.
 }

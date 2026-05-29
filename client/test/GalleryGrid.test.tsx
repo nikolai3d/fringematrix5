@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import React, { createRef } from 'react';
-import GalleryGrid from '../src/components/GalleryGrid';
+import GalleryGrid, { EAGER_IMAGE_COUNT } from '../src/components/GalleryGrid';
 import type { GalleryGridHandle } from '../src/components/GalleryGrid';
 import type { ImageData } from '../src/types/api';
 
@@ -425,5 +425,31 @@ describe('GalleryGrid — loading placeholder', () => {
     render(<GalleryGrid images={images} onImageClick={noop} />);
     expect(screen.getAllByRole('button')).toHaveLength(1);
     expect(screen.getByText('Loading...')).toBeTruthy();
+  });
+});
+
+// =============================================================================
+// 9. Eager loading — first N cards load eagerly/high-priority, rest lazy
+// =============================================================================
+
+describe('GalleryGrid — eager above-the-fold loading', () => {
+  it('renders the first EAGER_IMAGE_COUNT cards eager/high-priority and the rest lazy/auto', () => {
+    // Straddle the EAGER_IMAGE_COUNT boundary by rendering a couple extra cards.
+    const total = EAGER_IMAGE_COUNT + 2;
+    const images = Array.from({ length: total }, (_, i) => makeImage(`img${i}.png`));
+    const { container } = render(<GalleryGrid images={images} onImageClick={noop} />);
+
+    const imgs = Array.from(container.querySelectorAll('img'));
+    expect(imgs).toHaveLength(total);
+
+    imgs.forEach((img, i) => {
+      if (i < EAGER_IMAGE_COUNT) {
+        expect(img.getAttribute('loading')).toBe('eager');
+        expect(img.getAttribute('fetchpriority')).toBe('high');
+      } else {
+        expect(img.getAttribute('loading')).toBe('lazy');
+        expect(img.getAttribute('fetchpriority')).toBe('auto');
+      }
+    });
   });
 });
