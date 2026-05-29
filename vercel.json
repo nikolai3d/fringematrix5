@@ -2,6 +2,19 @@
   "version": 2,
   "buildCommand": "npm ci && npm run build",
   "outputDirectory": "client/dist",
+  "images": {
+    "sizes": [160, 320, 480, 640, 960],
+    "qualities": [75],
+    "formats": ["image/avif", "image/webp"],
+    "minimumCacheTTL": 86400,
+    "remotePatterns": [
+      {
+        "protocol": "https",
+        "hostname": "^[a-z0-9]+\\.public\\.blob\\.vercel-storage\\.com$",
+        "pathname": "^/avatars/.*$"
+      }
+    ]
+  },
   "headers": [
     {
       "source": "/(.*)",

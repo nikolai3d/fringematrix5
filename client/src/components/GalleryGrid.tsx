@@ -53,6 +53,14 @@ interface GalleryGridProps {
    * constant so non-campaign callers don't need to thread it.
    */
   thumbnailSizeKey?: unknown;
+  /**
+   * The current thumbnail rendered width in CSS pixels (the value App writes to
+   * the `--thumbnail-min-size` grid variable). Forwarded to each ImageCard as
+   * the `sizes` basis so the responsive `srcset` can request an appropriately
+   * sized variant. Optional; when omitted, thumbnails fall back to the smallest
+   * srcset candidate's width.
+   */
+  thumbnailCssPx?: number;
 }
 
 /**
@@ -79,7 +87,7 @@ interface GalleryGridProps {
  */
 const GalleryGrid = React.memo(React.forwardRef<GalleryGridHandle, GalleryGridProps>(
   function GalleryGrid(
-    { images, onImageClick, ariaLabel, testId, forceMountIndex = -1, thumbnailSizeKey },
+    { images, onImageClick, ariaLabel, testId, forceMountIndex = -1, thumbnailSizeKey, thumbnailCssPx },
     ref,
   ) {
     /** Tracks the <img> DOM element for each image index. */
@@ -216,6 +224,7 @@ const GalleryGrid = React.memo(React.forwardRef<GalleryGridHandle, GalleryGridPr
           // Eagerly load the first ~2-3 rows (above the fold) so they start
           // downloading immediately; the rest stay native-lazy.
           eager={i < EAGER_IMAGE_COUNT}
+          thumbnailCssPx={thumbnailCssPx}
         />,
       );
     }

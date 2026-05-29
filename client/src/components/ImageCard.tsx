@@ -1,5 +1,6 @@
 import React from 'react';
 import type { ImageData } from '../types/api';
+import { buildResponsiveThumbnail } from '../utils/responsiveImage';
 
 interface ImageCardProps {
   image: ImageData;
@@ -13,6 +14,13 @@ interface ImageCardProps {
    * start downloading immediately; everything else stays native-lazy.
    */
   eager?: boolean;
+  /**
+   * The thumbnail's rendered width in CSS pixels (the current
+   * `--thumbnail-min-size` grid track minimum). Used to build the `sizes`
+   * attribute so the browser requests an appropriately-sized variant from the
+   * responsive `srcset`. Omitted/zero falls back to the smallest candidate.
+   */
+  thumbnailCssPx?: number;
 }
 
 /**
@@ -22,7 +30,16 @@ interface ImageCardProps {
  * callback reference are the same between renders, React skips re-diffing this
  * card entirely — eliminating per-card VDOM work during App-level re-renders.
  */
-const ImageCard = React.memo(function ImageCard({ image, onClick, imgRef, eager }: ImageCardProps) {
+const ImageCard = React.memo(function ImageCard({ image, onClick, imgRef, eager, thumbnailCssPx }: ImageCardProps) {
+  // Build responsive thumbnail attributes. In production on Vercel this swaps
+  // the original full-resolution Blob URL for a width-negotiated `srcset` of
+  // optimized AVIF/WebP variants served from `/_vercel/image`; everywhere else
+  // it returns just the original `src` so behavior is unchanged. The lightbox
+  // is unaffected — it loads the original full-resolution image directly.
+  const responsive = buildResponsiveThumbnail(
+    image.loadedSrc || image.src || '',
+    thumbnailCssPx ?? 0,
+  );
   return (
     <div className="card">
       {image.isLoading ? (
@@ -35,7 +52,9 @@ const ImageCard = React.memo(function ImageCard({ image, onClick, imgRef, eager 
       ) : (
         <img
           ref={imgRef}
-          src={image.loadedSrc || image.src || ''}
+          src={responsive.src}
+          srcSet={responsive.srcSet}
+          sizes={responsive.sizes}
           alt={image.fileName}
           loading={eager ? 'eager' : 'lazy'}
           // Spread the lowercase DOM attribute directly: react-dom 18 doesn't
