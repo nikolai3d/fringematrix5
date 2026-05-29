@@ -48,6 +48,25 @@ async function openLightboxForFile(page: Page, fileName: string): Promise<OpenRe
   if ((await cards.count()) === 0) return { status: 'empty' };
 
   const target = page.locator(`.gallery-grid .card img[alt="${fileName}"]`);
+  // The gallery grid is virtualized — only the cards in/near the viewport are
+  // mounted, so a target lower in the list may not be in the DOM yet. Scroll
+  // the page down in viewport-sized steps until the target card mounts or we
+  // reach the bottom, then proceed with the usual missing/opened logic.
+  if ((await target.count()) === 0) {
+    let lastScrollY = -1;
+    for (let i = 0; i < 60; i++) {
+      if ((await target.count()) > 0) break;
+      const atBottom = await page.evaluate(() => {
+        const prev = window.scrollY;
+        window.scrollBy(0, Math.round(window.innerHeight * 0.8));
+        return { prev, next: window.scrollY };
+      });
+      // Give the windowing recompute (rAF) a frame to mount the new rows.
+      await page.waitForTimeout(120);
+      if (atBottom.next === lastScrollY) break; // scroll didn't move — bottom reached
+      lastScrollY = atBottom.next;
+    }
+  }
   if ((await target.count()) === 0) {
     // Capture a sample of available alt values so the failure message points
     // straight at the likely culprit (file renamed, moved, removed).

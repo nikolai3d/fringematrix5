@@ -19,8 +19,12 @@ export const ZORT_HASH = `#authors/${encodeURIComponent(ZORT_HANDLE)}`;
  * Navigate to the @Zort70 author detail page and wait for it to populate.
  *
  * Resolution rules:
- *   - If the gallery grid renders, returns the thumbnail count (== the
- *     count the lightbox counter should reflect).
+ *   - If the gallery grid renders, returns the author's full image count read
+ *     from the `.author-count` header (== the count the lightbox counter
+ *     should reflect). The header total is used rather than counting rendered
+ *     `.card img` thumbnails because the grid is virtualized — only the cards
+ *     in/near the viewport are mounted, so a DOM card count would undercount a
+ *     large author list.
  *   - If the page renders the explicit empty-state status instead (i.e. the
  *     backend returned 0 attributed images for @Zort70, which in practice
  *     happens when `BLOB_READ_WRITE_TOKEN` is absent and the live blob
@@ -64,5 +68,12 @@ export async function gotoZortAuthorDetail(page: Page): Promise<number> {
     );
   }
 
-  return grid.locator('.card img').count();
+  // Read the author's full image count from the header. The grid is
+  // virtualized so the number of mounted `.card img` nodes reflects only the
+  // current scroll window, not the author's total — which is what the lightbox
+  // HUD counter reports. The `.author-count` element renders "<N> image(s)".
+  const countText = (await page.locator('.author-count').first().textContent()) ?? '';
+  const m = countText.match(/(\d+)/);
+  expect(m, `author-count text "${countText}" did not contain a number`).not.toBeNull();
+  return Number(m![1]);
 }
