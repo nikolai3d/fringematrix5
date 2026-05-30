@@ -11,11 +11,12 @@ import { timeoutMiddleware } from './middleware/timeout.js';
 import {
   getAuthors as getAttributionAuthors,
   getAuthorByHandle,
-  getAttributionForPath,
+  getAttributionForId,
   getAllAttributions,
   type AuthorRecord,
   type AttributionRecord,
 } from './attribution.js';
+import { getImageById, getImageByBlobPath } from './images.js';
 
 interface Campaign {
   id: string;
@@ -29,6 +30,10 @@ interface ImageData {
   fileName: string;
   blobPath: string;
   size: number;
+  // Permanent image id from the registry (data/images.json), or null if the
+  // blob has no registry entry yet. Decoupled from blobPath so attribution
+  // survives moves/renames.
+  id: string | null;
   author: ImageAuthor | null;
 }
 
@@ -370,9 +375,9 @@ function slugify(str: string): string {
  * Note: internal-only attribution fields (`method`, `evidence`) are
  * deliberately excluded from the wire shape.
  */
-function buildImageAuthor(blobPath: string): ImageAuthor | null {
+function buildImageAuthor(imageId: string): ImageAuthor | null {
   try {
-    const attribution = getAttributionForPath(blobPath);
+    const attribution = getAttributionForId(imageId);
     if (attribution === null) {
       return null;
     }
@@ -397,7 +402,7 @@ function buildImageAuthor(blobPath: string): ImageAuthor | null {
       candidates,
     };
   } catch (err: unknown) {
-    console.error('Attribution lookup failed for', blobPath, '-', toErrorMessage(err));
+    console.error('Attribution lookup failed for', imageId, '-', toErrorMessage(err));
     return null;
   }
 }
@@ -550,14 +555,21 @@ app.get('/api/campaigns/:id/images', async (req: Request, res: Response): Promis
     // applies to the blob listing itself.
     const images: ImageData[] = blobs
       .filter(blob => isImageFile(blob.pathname))
-      .map(blob => ({
-        src: blob.url, // Direct CDN URL
-        fileName: blob.pathname.split('/').pop() || '', // Extract filename from path
-        // Optional: keep backward compatibility info
-        blobPath: blob.pathname,
-        size: blob.size,
-        author: buildImageAuthor(blob.pathname),
-      }));
+      .map(blob => {
+        // Resolve the permanent image id from the registry, then join
+        // attribution by id. Both are in-memory lookups (no per-request I/O).
+        const entry = getImageByBlobPath(blob.pathname);
+        const id = entry?.id ?? null;
+        return {
+          src: blob.url, // Direct CDN URL
+          fileName: blob.pathname.split('/').pop() || '', // Extract filename from path
+          // Optional: keep backward compatibility info
+          blobPath: blob.pathname,
+          size: blob.size,
+          id,
+          author: id ? buildImageAuthor(id) : null,
+        };
+      });
 
     // Same caching policy as the other API routes (see /api/build-info): lets
     // the browser/CDN serve a revisited campaign's list without re-running the
@@ -807,12 +819,18 @@ app.get('/api/authors/:handle', (req: Request, res: Response): void => {
         confidence: AttributionRecord['confidence'];
       }> = [];
 
-      for (const [blobPath, record] of Object.entries(attribution)) {
+      for (const [imageId, record] of Object.entries(attribution)) {
         // Include every record without a resolved handle. See the comment on
         // /api/authors above for the broader-than-strict rationale.
         if (typeof record.handle === 'string' && record.handle.length > 0) continue;
 
-        const campaignId = deriveCampaignIdFromBlobPath(blobPath);
+        // Attribution is keyed by image id; resolve the current blob path from
+        // the registry. Skip records whose image is gone or soft-deleted.
+        const image = getImageById(imageId);
+        if (!image || image.status !== 'active') continue;
+        const blobPath = image.blobPath;
+
+        const campaignId = image.campaignId ?? deriveCampaignIdFromBlobPath(blobPath);
         if (!campaignId) continue;
 
         const fileName = blobPath.split('/').pop() || '';
@@ -848,14 +866,20 @@ app.get('/api/authors/:handle', (req: Request, res: Response): void => {
       confidence: AttributionRecord['confidence'];
     }> = [];
 
-    for (const [blobPath, record] of Object.entries(attribution)) {
+    for (const [imageId, record] of Object.entries(attribution)) {
       if (typeof record.handle !== 'string' || record.handle.length === 0) continue;
       // Resolve attribution.handle to its canonical handle before comparing,
       // so alternate-handle entries unify under the primary handle.
       const recordAuthor = getAuthorByHandle(record.handle);
       if (!recordAuthor || recordAuthor.handle.toLowerCase() !== canonicalHandleLower) continue;
 
-      const campaignId = deriveCampaignIdFromBlobPath(blobPath);
+      // Attribution is keyed by image id; resolve the current blob path from
+      // the registry. Skip records whose image is gone or soft-deleted.
+      const image = getImageById(imageId);
+      if (!image || image.status !== 'active') continue;
+      const blobPath = image.blobPath;
+
+      const campaignId = image.campaignId ?? deriveCampaignIdFromBlobPath(blobPath);
       if (!campaignId) continue;
 
       const fileName = blobPath.split('/').pop() || '';

@@ -95,6 +95,27 @@ data/
 **Environment Variables:**
 - `BLOB_READ_WRITE_TOKEN` - Required for production, optional for development
 
+**Image Database & Maintenance Tooling:**
+- Every image has a permanent UUID stored in `data/images.json` (the image
+  registry: `id → { blobPath, contentHash, size, campaignId, status, addedAt, updatedAt }`).
+  The id is decoupled from the Blob location, so moving/renaming/reattributing
+  a file never breaks its attribution.
+- `data/attribution.json` is keyed by **image id** (not blobPath). The server
+  joins blobPath → id (`server/images.ts`) → attribution (`server/attribution.ts`,
+  `getAttributionForId`) at request time; the campaign-images endpoint exposes
+  the `id` on each image.
+- Shared script helpers live in `scripts/lib/image-db.mjs`. CLI tools (require
+  `BLOB_READ_WRITE_TOKEN` for Blob writes; all support `--dry-run`):
+  - `npm run images:init` — bootstrap/sync the registry from Blob + data files,
+    and perform the one-time attribution re-key (writes `attribution.json.bak`).
+    `--hash` also downloads each blob to populate `contentHash`.
+  - `npm run images:add -- --file=<local> --campaign=<id|icon_path> [--artist-folder=<f>] [--name=<file>] [--handle=@artist]`
+  - `npm run images:delete -- (--id=<id> | --path=<blobPath>) [--keep-blob]`
+  - `npm run images:reattribute -- (--id=<id> | --path=<blobPath>)` with author
+    flags (`--handle`/`--confidence`/`--unresolved`/`--not-art`) and/or location
+    flags (`--to-campaign`/`--to-folder`/`--rename`); id and attribution survive moves.
+  - `npm run images:validate [-- --check-blob]` — integrity check (CI-gateable).
+
 **Client Configuration:**
 - Centralized configuration in `client/config.yaml`
 - Edit this file to customize app behavior without modifying code
