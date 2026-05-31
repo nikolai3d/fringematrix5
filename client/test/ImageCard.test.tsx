@@ -1,8 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import React from 'react';
 import ImageCard from '../src/components/ImageCard';
 import type { ImageData } from '../src/types/api';
+
+const BLOB_SRC =
+  'https://abc123.public.blob.vercel-storage.com/avatars/Season4/Ep/a.jpg';
 
 /** Build a minimal loaded ImageData entry. */
 function makeImage(name: string, src = `/${name}`): ImageData {
@@ -52,6 +55,49 @@ describe('ImageCard — rendering', () => {
     const image: ImageData = { fileName: 'raw.png', src: '/raw.png', isLoading: false };
     render(<ImageCard image={image} onClick={vi.fn()} />);
     expect(screen.getByRole('button').getAttribute('src')).toBe('/raw.png');
+  });
+});
+
+// =============================================================================
+// 1b. Responsive thumbnails — srcset/sizes for optimized variants
+// =============================================================================
+
+describe('ImageCard — responsive srcset/sizes', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('does NOT emit srcset/sizes when optimization is unavailable (dev/test)', () => {
+    // Vitest default: import.meta.env.PROD is false → original src only.
+    const image = makeImage('a.jpg', BLOB_SRC);
+    render(<ImageCard image={image} onClick={vi.fn()} thumbnailCssPx={220} />);
+    const img = screen.getByRole('button');
+    expect(img.getAttribute('src')).toBe(BLOB_SRC);
+    expect(img.getAttribute('srcset')).toBeNull();
+    expect(img.getAttribute('sizes')).toBeNull();
+  });
+
+  it('emits a /_vercel/image srcset + sizes for a Blob URL in production', () => {
+    vi.stubEnv('PROD', true);
+    const image = makeImage('a.jpg', BLOB_SRC);
+    render(<ImageCard image={image} onClick={vi.fn()} thumbnailCssPx={220} />);
+    const img = screen.getByRole('button');
+    // Fallback src stays the original full URL.
+    expect(img.getAttribute('src')).toBe(BLOB_SRC);
+    expect(img.getAttribute('sizes')).toBe('220px');
+    const srcset = img.getAttribute('srcset') || '';
+    expect(srcset).toContain('/_vercel/image?url=');
+    expect(srcset).toContain('160w');
+    expect(srcset).toContain('960w');
+  });
+
+  it('leaves non-Blob URLs untouched even in production', () => {
+    vi.stubEnv('PROD', true);
+    const image = makeImage('local.png', '/local.png');
+    render(<ImageCard image={image} onClick={vi.fn()} thumbnailCssPx={220} />);
+    const img = screen.getByRole('button');
+    expect(img.getAttribute('src')).toBe('/local.png');
+    expect(img.getAttribute('srcset')).toBeNull();
   });
 });
 
