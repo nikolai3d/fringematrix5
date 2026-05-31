@@ -22,7 +22,9 @@ import { fileURLToPath } from 'url';
 // parallel rollout of the attribution epic.
 // ---------------------------------------------------------------------------
 
-export type AttributionConfidence = 'high' | 'medium' | 'unresolved';
+// Mirrors shared/types.ts AttributionConfidence. 'not-art' marks a non-artwork
+// image (handle null); produced by the attribution CLIs and stored on disk.
+export type AttributionConfidence = 'high' | 'medium' | 'unresolved' | 'not-art';
 
 export interface AuthorRecord {
   handle: string;            // primary, including the @ prefix
@@ -146,8 +148,8 @@ export function getAuthorByHandle(handle: string): AuthorRecord | null {
  * Returns the full attribution table (blob-path → AttributionRecord), loading
  * from data/attribution.json on first call and serving from the module-level
  * cache thereafter. Used by aggregation endpoints (e.g. /api/authors) that
- * need to scan all entries; single-path callers should prefer
- * getAttributionForPath() which avoids exposing the full map.
+ * need to scan all entries; single-id callers should prefer
+ * getAttributionForId() which avoids exposing the full map.
  *
  * The returned object is the cached instance; the Readonly<> return type
  * blocks accidental writes at compile time. Callers must not bypass it via
@@ -159,18 +161,20 @@ export function getAllAttributions(): Readonly<Record<string, AttributionRecord>
 }
 
 /**
- * Returns the attribution record for an exact blob path (e.g.
- * "avatars/Season4/AcrossTheUniverse/ATU-Cheribot/AtU_amber.jpg"), or null
- * if the path is not present in data/attribution.json. Lookup is exact —
- * callers must pass the full blob key, not just a filename.
+ * Returns the attribution record for an image id (the permanent UUID assigned
+ * by scripts/images-init.mjs and stored in data/images.json), or null if the
+ * id is not present in data/attribution.json. Attribution is keyed by image id
+ * rather than blob path so that moving/renaming a file never breaks its
+ * attribution — callers resolve the id from the image registry (server/images.ts)
+ * first, then look up attribution here.
  */
-export function getAttributionForPath(blobPath: string): AttributionRecord | null {
-  if (typeof blobPath !== 'string' || blobPath.trim().length === 0) {
+export function getAttributionForId(id: string): AttributionRecord | null {
+  if (typeof id !== 'string' || id.trim().length === 0) {
     return null;
   }
   const table = ensureAttributionLoaded();
-  return Object.prototype.hasOwnProperty.call(table, blobPath)
-    ? (table[blobPath] ?? null)
+  return Object.prototype.hasOwnProperty.call(table, id)
+    ? (table[id] ?? null)
     : null;
 }
 

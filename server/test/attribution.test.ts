@@ -4,9 +4,16 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import {
   getAuthors,
   getAuthorByHandle,
-  getAttributionForPath,
+  getAttributionForId,
   resetAttributionCache,
 } from '../attribution.ts';
+import { getImageByBlobPath, resetImagesCache } from '../images.ts';
+
+// A blob path whose attribution resolves to @Cheribot in the real data files.
+// Attribution is keyed by image id, so tests resolve the id from the registry
+// (data/images.json) first, then look up attribution by that id.
+const CHERIBOT_BLOB_PATH =
+  'avatars/Season4/AcrossTheUniverse/ATU-Cheribot/AtU_amber.jpg';
 
 // ---------------------------------------------------------------------------
 // Tests for server/attribution.ts — the data-access module for authors.yaml
@@ -22,6 +29,7 @@ beforeEach(() => {
   // (No console spies here — attribution.ts does not log, so suppressing
   // console output would only hide unexpected logs from other code.)
   resetAttributionCache();
+  resetImagesCache();
 });
 
 afterEach(() => {
@@ -138,11 +146,12 @@ describe('getAuthorByHandle()', () => {
   });
 });
 
-describe('getAttributionForPath()', () => {
-  it('returns an attribution record for a known blob path', () => {
-    const record = getAttributionForPath(
-      'avatars/Season4/AcrossTheUniverse/ATU-Cheribot/AtU_amber.jpg'
-    );
+describe('getAttributionForId()', () => {
+  it('returns an attribution record for the image id of a known blob path', () => {
+    const entry = getImageByBlobPath(CHERIBOT_BLOB_PATH);
+    expect(entry).not.toBeNull();
+
+    const record = getAttributionForId(entry!.id);
     expect(record).not.toBeNull();
     expect(record!.handle).toBe('@Cheribot');
     expect(record!.confidence).toBe('high');
@@ -152,33 +161,27 @@ describe('getAttributionForPath()', () => {
     expect(typeof record!.evidence).toBe('string');
   });
 
-  it('returns null for unknown blob paths', () => {
-    expect(
-      getAttributionForPath('avatars/Season99/NotARealFolder/not-a-real-file.jpg')
-    ).toBeNull();
+  it('returns null for unknown ids', () => {
+    expect(getAttributionForId('not-a-real-image-id')).toBeNull();
   });
 
   it('returns null for empty or whitespace-only inputs', () => {
-    expect(getAttributionForPath('')).toBeNull();
-    expect(getAttributionForPath('   ')).toBeNull();
+    expect(getAttributionForId('')).toBeNull();
+    expect(getAttributionForId('   ')).toBeNull();
   });
 
-  it('does NOT match by filename alone — full blob path is required', () => {
-    // Exact-key lookup: just the filename should never resolve to a record.
-    expect(getAttributionForPath('AtU_amber.jpg')).toBeNull();
+  it('does NOT match by blob path — attribution is keyed by id', () => {
+    // Passing the blob path (the pre-migration key) should never resolve now.
+    expect(getAttributionForId(CHERIBOT_BLOB_PATH)).toBeNull();
   });
 
   it('caches the attribution map so attribution.json is read only once across calls', () => {
     resetAttributionCache();
     const fsSpy = jest.spyOn(fs, 'readFileSync');
 
-    getAttributionForPath(
-      'avatars/Season4/AcrossTheUniverse/ATU-Cheribot/AtU_amber.jpg'
-    );
-    getAttributionForPath('avatars/missing/path.jpg');
-    getAttributionForPath(
-      'avatars/Season4/AcrossTheUniverse/ATU-Cheribot/AtU_birdie_amber.jpg'
-    );
+    getAttributionForId('some-id');
+    getAttributionForId('another-id');
+    getAttributionForId('third-id');
 
     const callsForJson = fsSpy.mock.calls.filter(
       ([p]) => typeof p === 'string' && p.toString().endsWith('attribution.json')
@@ -190,18 +193,14 @@ describe('getAttributionForPath()', () => {
     resetAttributionCache();
     const fsSpy = jest.spyOn(fs, 'readFileSync');
 
-    getAttributionForPath(
-      'avatars/Season4/AcrossTheUniverse/ATU-Cheribot/AtU_amber.jpg'
-    );
+    getAttributionForId('some-id');
     const callsAfterFirst = fsSpy.mock.calls.filter(
       ([p]) => typeof p === 'string' && p.toString().endsWith('attribution.json')
     ).length;
     expect(callsAfterFirst).toBe(1);
 
     resetAttributionCache();
-    getAttributionForPath(
-      'avatars/Season4/AcrossTheUniverse/ATU-Cheribot/AtU_amber.jpg'
-    );
+    getAttributionForId('some-id');
 
     const callsAfterReset = fsSpy.mock.calls.filter(
       ([p]) => typeof p === 'string' && p.toString().endsWith('attribution.json')

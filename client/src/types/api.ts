@@ -16,6 +16,10 @@ export interface Campaign {
 export interface ApiImageData {
   fileName: string;
   src: string;
+  // Permanent image id from the registry (data/images.json), decoupled from
+  // blobPath so attribution survives moves/renames. Optional + nullable for
+  // defensive compatibility with older responses and blobs not yet registered.
+  id?: string | null;
   // Stable on-disk identifier (e.g. "avatars/Season4/CrossTheLine/abc.jpg").
   // Optional for defensive compatibility with older responses; the campaign
   // images endpoint always populates it.
