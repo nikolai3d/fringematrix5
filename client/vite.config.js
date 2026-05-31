@@ -1,10 +1,16 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import yaml from '@modyfi/vite-plugin-yaml';
+import { VitePWA } from 'vite-plugin-pwa';
 import { resolve } from 'path';
+import { pwaOptions } from './pwa-config.js';
 
 export default defineConfig({
-  plugins: [react(), yaml()],
+  plugins: [
+    react(),
+    yaml(),
+    VitePWA(pwaOptions),
+  ],
   server: {
     port: 5173,
     proxy: {
@@ -29,5 +35,3 @@ export default defineConfig({
     setupFiles: ['./test/setup.js'],
   },
 });
-
-
