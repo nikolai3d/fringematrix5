@@ -13,18 +13,24 @@ import app, { setStaticCacheHeaders, CLIENT_DIST_DIR } from '../server.ts';
 
 describe('compression middleware', () => {
   it('gzip-compresses a sizeable JSON API response when the client accepts it', async () => {
-    // /api/authors returns the full author directory with per-author counts,
-    // which is comfortably above the compression default 1 KB threshold.
+    // /api/authors returns the full author directory with per-author counts.
     const res = await request(app)
       .get('/api/authors')
       .set('Accept-Encoding', 'gzip');
 
     expect(res.status).toBe(200);
+    // Guard the fixture assumption explicitly: compression only kicks in above
+    // its default 1 KB threshold, so the test is only meaningful while this
+    // payload stays comfortably above it. If authors.yaml were ever trimmed
+    // below 1 KB this assertion fails loudly with an obvious cause, rather
+    // than the content-encoding check failing mysteriously.
+    expect(JSON.stringify(res.body).length).toBeGreaterThan(1024);
     // superagent transparently decodes the body, but the response headers
-    // still record that the wire payload was gzip-encoded.
+    // still record that the wire payload was gzip-encoded — this is the
+    // meaningful proof that the compression middleware ran. (We deliberately
+    // do NOT assert Vary here: /api/authors sets Vary: Accept-Encoding itself,
+    // so such an assertion would pass even with compression disabled.)
     expect(res.headers['content-encoding']).toBe('gzip');
-    // compression sets Vary: Accept-Encoding so shared caches key on it.
-    expect((res.headers['vary'] || '').toLowerCase()).toContain('accept-encoding');
   });
 
   it('does not compress when the client sends Accept-Encoding: identity', async () => {
