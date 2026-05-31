@@ -36,7 +36,7 @@
 export const THUMBNAIL_SRCSET_WIDTHS: readonly number[] = [160, 320, 480, 640, 960];
 
 /** Quality requested from the optimizer. MUST be one of `images.qualities` in vercel.json. */
-const THUMBNAIL_QUALITY = 75;
+export const THUMBNAIL_QUALITY = 75;
 
 /**
  * Host suffix for Vercel Blob CDN URLs. We only rewrite URLs on this host:
@@ -58,11 +58,24 @@ function optimizationAvailable(): boolean {
   return typeof import.meta !== 'undefined' && import.meta.env?.PROD === true;
 }
 
-/** True when `url` is an absolute Vercel Blob CDN URL we can hand to the optimizer. */
+/**
+ * True when `url` is an absolute Vercel Blob CDN URL we can hand to the optimizer.
+ *
+ * Requires both the Blob host AND a `/avatars/` path: the optimizer's
+ * `remotePatterns` in vercel.json only whitelists `pathname: "^/avatars/.*$"`,
+ * so a Blob URL outside `/avatars/` would 404 in the optimizer (and the browser
+ * won't fall back to `src` once it picks a srcset candidate). Mirroring that
+ * path constraint here lets any non-`/avatars/` URL gracefully fall back to the
+ * plain `src`.
+ */
 function isBlobUrl(url: string): boolean {
   try {
-    const { hostname, protocol } = new URL(url);
-    return protocol === 'https:' && hostname.endsWith(BLOB_HOST_SUFFIX);
+    const { hostname, protocol, pathname } = new URL(url);
+    return (
+      protocol === 'https:' &&
+      hostname.endsWith(BLOB_HOST_SUFFIX) &&
+      pathname.startsWith('/avatars/')
+    );
   } catch {
     return false;
   }

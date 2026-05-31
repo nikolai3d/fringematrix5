@@ -2,7 +2,11 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import {
   buildResponsiveThumbnail,
   THUMBNAIL_SRCSET_WIDTHS,
+  THUMBNAIL_QUALITY,
 } from '../src/utils/responsiveImage';
+// Import the real deployment config so the allow-list guards below catch any
+// drift between the optimizer params we request and what vercel.json permits.
+import vercelConfig from '../../vercel.json';
 
 const BLOB_URL =
   'https://abc123.public.blob.vercel-storage.com/avatars/Season4/Ep/cool-avatar.jpg';
@@ -66,13 +70,28 @@ describe('buildResponsiveThumbnail — optimization available (production)', () 
     expect(buildResponsiveThumbnail('', 220)).toEqual({ src: '' });
   });
 
-  it('uses only widths that are declared in the vercel.json images.sizes allow-list', () => {
-    // Guards against asking the optimizer for a width it will 404 on. The
-    // canonical list lives in vercel.json; this mirrors it so the two stay in
-    // sync (update both together).
-    const allowedSizes = [160, 320, 480, 640, 960];
+  it('only requests widths declared in the real vercel.json images.sizes allow-list', () => {
+    // Reads the actual vercel.json (not a hardcoded copy) so the optimizer
+    // never gets asked for a width it will 404 on. Catches drift if either the
+    // constant or vercel.json changes without the other.
+    const allowedSizes = vercelConfig.images.sizes;
     for (const w of THUMBNAIL_SRCSET_WIDTHS) {
       expect(allowedSizes).toContain(w);
     }
+  });
+
+  it('only requests a quality declared in the real vercel.json images.qualities allow-list', () => {
+    // Same drift guard for the quality param: the optimizer 404s a quality not
+    // listed in images.qualities.
+    expect(vercelConfig.images.qualities).toContain(THUMBNAIL_QUALITY);
+  });
+
+  it('does NOT rewrite a Blob-host URL whose path is outside /avatars/', () => {
+    vi.stubEnv('PROD', true);
+    // vercel.json remotePatterns only whitelists pathname ^/avatars/.*$, so a
+    // Blob URL outside /avatars/ must fall back to the plain src (no srcset)
+    // rather than emit an optimizer URL that would 404.
+    const outside = 'https://abc123.public.blob.vercel-storage.com/other/x.jpg';
+    expect(buildResponsiveThumbnail(outside, 220)).toEqual({ src: outside });
   });
 });
