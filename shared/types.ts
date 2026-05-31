@@ -23,7 +23,12 @@ export type ContentPage = (typeof VALID_CONTENT_PAGES)[number];
 // deliberately trimmed view of that data — the server joins the two sources
 // and exposes only the fields the client needs.
 
-export type AttributionConfidence = 'high' | 'medium' | 'unresolved';
+// 'not-art' marks an image that is not fan artwork (handle stays null). It is
+// produced by the attribution CLIs (scripts/attribute-cli.js and
+// scripts/images-reattribute.mjs) and stored in data/attribution.json, so it
+// is part of the wire contract even though the client renders it the same as
+// any non-'medium' confidence (no "uncertain" badge).
+export type AttributionConfidence = 'high' | 'medium' | 'unresolved' | 'not-art';
 
 // Wire-format shape attached to each image returned by
 // GET /api/campaigns/:id/images once the enrichment (bead fringematrix5-hzm)

@@ -25,12 +25,18 @@ import {
 
 const VALID_STATUS = new Set(['active', 'deleted']);
 
-async function main() {
-  const checkBlob = process.argv.slice(2).includes('--check-blob');
-  loadEnvLocal();
-
-  const images = loadImages();
-  const attribution = loadAttribution();
+/**
+ * Pure integrity check over an in-memory registry + attribution table.
+ * Returns an array of human-readable problem strings (empty = valid). Kept
+ * free of I/O so it is directly unit-testable; main() handles loading, the
+ * optional live-Blob cross-check, logging, and the exit code.
+ *
+ * @param {object} images       registry object (id -> record)
+ * @param {object} attribution  attribution table (id -> record)
+ * @param {Set<string>|null} presentBlobPaths  when provided, every active
+ *        registry blobPath must be in this set (the live-Blob cross-check)
+ */
+function findProblems(images, attribution, presentBlobPaths = null) {
   const problems = [];
 
   // Registry shape + uniqueness.
@@ -66,19 +72,35 @@ async function main() {
   }
 
   // Optional cross-check against live Blob.
-  if (checkBlob) {
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      problems.push('--check-blob requires BLOB_READ_WRITE_TOKEN');
-    } else {
-      const blobs = await listAllBlobs('avatars/');
-      const present = new Set(blobs.map((b) => b.pathname));
-      for (const [id, rec] of Object.entries(images)) {
-        if (rec.status === 'active' && !present.has(rec.blobPath)) {
-          problems.push(`image ${id}: blob missing in storage (${rec.blobPath})`);
-        }
+  if (presentBlobPaths) {
+    for (const [id, rec] of Object.entries(images)) {
+      if (rec && rec.status === 'active' && !presentBlobPaths.has(rec.blobPath)) {
+        problems.push(`image ${id}: blob missing in storage (${rec.blobPath})`);
       }
     }
   }
+
+  return problems;
+}
+
+async function main() {
+  const checkBlob = process.argv.slice(2).includes('--check-blob');
+  loadEnvLocal();
+
+  const images = loadImages();
+  const attribution = loadAttribution();
+
+  let presentBlobPaths = null;
+  if (checkBlob) {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      console.error('💥 images-validate failed: --check-blob requires BLOB_READ_WRITE_TOKEN');
+      process.exit(1);
+    }
+    const blobs = await listAllBlobs('avatars/');
+    presentBlobPaths = new Set(blobs.map((b) => b.pathname));
+  }
+
+  const problems = findProblems(images, attribution, presentBlobPaths);
 
   console.log(`Registry: ${Object.keys(images).length} images`);
   console.log(`Attribution: ${Object.keys(attribution).length} records`);
@@ -99,4 +121,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   });
 }
 
-export { main };
+export { main, findProblems };

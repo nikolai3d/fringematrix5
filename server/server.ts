@@ -712,6 +712,15 @@ function toWireAuthor(record: AuthorRecord): Author {
  * where <campaignFolder> is the slugify() input the campaigns.yaml hashtag
  * field also produces. Returns null when the path doesn't match the expected
  * shape (defensive — shouldn't happen for valid attribution entries).
+ *
+ * NOTE: This is a BEST-EFFORT FALLBACK used only when an image's registry
+ * record has no campaignId (`image.campaignId ?? deriveCampaignIdFromBlobPath`
+ * in the authors endpoints). The authoritative campaignId is written into
+ * data/images.json by scripts/lib/image-db.mjs deriveCampaignId(), which
+ * matches the longest campaigns.yaml icon_path prefix. This folder-slug
+ * heuristic can disagree with that for non-standard layouts, so it exists only
+ * to keep unregistered/legacy blobs renderable — registered images always use
+ * the registry value.
  */
 function deriveCampaignIdFromBlobPath(blobPath: string): string | null {
   const parts = blobPath.split('/');

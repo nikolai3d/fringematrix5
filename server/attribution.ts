@@ -22,7 +22,9 @@ import { fileURLToPath } from 'url';
 // parallel rollout of the attribution epic.
 // ---------------------------------------------------------------------------
 
-export type AttributionConfidence = 'high' | 'medium' | 'unresolved';
+// Mirrors shared/types.ts AttributionConfidence. 'not-art' marks a non-artwork
+// image (handle null); produced by the attribution CLIs and stored on disk.
+export type AttributionConfidence = 'high' | 'medium' | 'unresolved' | 'not-art';
 
 export interface AuthorRecord {
   handle: string;            // primary, including the @ prefix
