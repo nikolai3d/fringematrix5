@@ -2,13 +2,26 @@
   "version": 2,
   "buildCommand": "npm ci && npm run build",
   "outputDirectory": "client/dist",
+  "images": {
+    "sizes": [160, 320, 480, 640, 960],
+    "qualities": [75],
+    "formats": ["image/avif", "image/webp"],
+    "minimumCacheTTL": 86400,
+    "remotePatterns": [
+      {
+        "protocol": "https",
+        "hostname": "^[a-z0-9]+\\.public\\.blob\\.vercel-storage\\.com$",
+        "pathname": "^/avatars/.*$"
+      }
+    ]
+  },
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https://*.public.blob.vercel-storage.com data:; connect-src 'self' https://*.public.blob.vercel-storage.com; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'none'"
+          "value": "default-src 'self'; script-src 'self'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https://*.public.blob.vercel-storage.com data:; connect-src 'self' https://*.public.blob.vercel-storage.com; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'none'"
         },
         {
           "key": "X-Content-Type-Options",

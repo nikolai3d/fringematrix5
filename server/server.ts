@@ -1,4 +1,5 @@
 import express, { Request, Response, Application } from 'express';
+import compression from 'compression';
 import path from 'path';
 import fs from 'fs';
 import yaml from 'js-yaml';
@@ -95,6 +96,14 @@ app.disable('x-powered-by');
 const PORT = process.env['PORT'] || 3000;
 
 app.use(timeoutMiddleware);
+
+// gzip/deflate-compress API JSON and static responses. This only matters for
+// self-host / local `npm start` behind a plain Node server: on Vercel the edge
+// CDN already negotiates Brotli/gzip, so this middleware is effectively a
+// no-op there (it respects upstream Content-Encoding and the Accept-Encoding
+// request header). The `compression` package emits `Vary: Accept-Encoding`
+// automatically on compressed responses.
+app.use(compression());
 
 // Project root is one level up from this file (which lives in server/)
 const PROJECT_ROOT = path.join(__dirname, '..');
@@ -911,9 +920,30 @@ app.all('/api/*path', (_req: Request, res: Response): void => {
   res.status(404).json({ error: 'Not found' });
 });
 
+// Sets Cache-Control on statically served files. Vite emits content-hashed
+// filenames under assets/ (e.g. main-B9ftD8Ow.js), so those are safe to cache
+// for a year as `immutable` — a new deploy produces new filenames. Non-hashed
+// entry files (index.html, and anything outside assets/) must NOT be cached
+// long-term, or a deploy would leave clients pinned to a stale shell that
+// references already-deleted hashed assets.
+//
+// This only affects the self-host / local `npm start` path; on Vercel these
+// assets are served by the edge CDN, which sets its own caching headers.
+function setStaticCacheHeaders(res: Response, filePath: string): void {
+  const rel = path.relative(CLIENT_DIST_DIR, filePath);
+  const isHashedAsset = rel.split(path.sep)[0] === 'assets';
+  if (isHashedAsset) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  } else {
+    // index.html and other unhashed entry files: revalidate every time so
+    // deploys are picked up immediately.
+    res.setHeader('Cache-Control', 'no-cache');
+  }
+}
+
 // Serve SPA assets AFTER API routes so /api/* never falls through to HTML
 if (HAS_CLIENT_BUILD) {
-  app.use(express.static(CLIENT_DIST_DIR, { maxAge: '1d' }));
+  app.use(express.static(CLIENT_DIST_DIR, { setHeaders: setStaticCacheHeaders }));
 } else {
   app.use(express.static(PUBLIC_DIR, { maxAge: '1d' }));
 }
@@ -938,7 +968,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 export default app;
 
 // Exported for tests only – do not use in application code
-export { blobCache, CACHE_TTL, BLOB_CACHE_MAX, MAX_BLOB_ITEMS };
+export { blobCache, CACHE_TTL, BLOB_CACHE_MAX, MAX_BLOB_ITEMS, setStaticCacheHeaders, CLIENT_DIST_DIR };
 
 /**
  * Resets the module-level campaigns cache.

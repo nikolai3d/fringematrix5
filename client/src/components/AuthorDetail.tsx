@@ -50,6 +50,11 @@ interface Props {
    * GalleryGrid so the windowing hook re-measures column geometry.
    */
   thumbnailSizeKey?: unknown;
+  /**
+   * Thumbnail rendered width in CSS px, forwarded to GalleryGrid → ImageCard
+   * for the responsive `srcset` `sizes` attribute. See App.tsx.
+   */
+  thumbnailCssPx?: number;
 }
 
 /**
@@ -60,7 +65,7 @@ interface Props {
  * Errors render an inline message rather than crashing the app — 404s from a
  * missing handle surface as "Failed to load author".
  */
-export default function AuthorDetail({ handle, onBack, onOpenImage, gridRef, forceMountIndex = -1, thumbnailSizeKey }: Props) {
+export default function AuthorDetail({ handle, onBack, onOpenImage, gridRef, forceMountIndex = -1, thumbnailSizeKey, thumbnailCssPx }: Props) {
   const { data, error } = useAuthorDetail(handle);
 
   // Whether we're viewing the synthetic "Unknown artist" page. Drives a few
@@ -237,6 +242,7 @@ export default function AuthorDetail({ handle, onBack, onOpenImage, gridRef, for
               testId="author-images-grid"
               forceMountIndex={forceMountIndex}
               thumbnailSizeKey={thumbnailSizeKey}
+              thumbnailCssPx={thumbnailCssPx}
             />
           )}
         </>

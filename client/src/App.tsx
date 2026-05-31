@@ -204,6 +204,20 @@ export default function App() {
     }
   }, [thumbnailSizeIndex]);
 
+  // CSS-pixel rendered width of a thumbnail at the current size step, mirroring
+  // the device-px → CSS-px conversion used for `--thumbnail-min-size` above.
+  // Passed to the GalleryGrid → ImageCard `sizes` attribute so the responsive
+  // `srcset` requests an appropriately-sized variant. devicePixelRatio is read
+  // once (same non-reactive limitation as the CSS-variable effect above).
+  const thumbnailCssPx = useMemo(() => {
+    const devicePx = GALLERY_THUMBNAIL_SIZES[thumbnailSizeIndex];
+    if (typeof devicePx !== 'number' || !Number.isFinite(devicePx)) return undefined;
+    const dpr = typeof window !== 'undefined' && window.devicePixelRatio > 0
+      ? window.devicePixelRatio
+      : 1;
+    return devicePx / dpr;
+  }, [thumbnailSizeIndex]);
+
   const activeCampaign = useMemo(
     () => campaigns.find((c) => c.id === activeCampaignId) || null,
     [campaigns, activeCampaignId]
@@ -880,6 +894,7 @@ export default function App() {
           gridRef={authorGridRef}
           forceMountIndex={authorForceMountIndex}
           thumbnailSizeKey={thumbnailSizeIndex}
+          thumbnailCssPx={thumbnailCssPx}
         />
       )}
 
@@ -931,6 +946,7 @@ export default function App() {
               onImageClick={openLightboxForCampaign}
               forceMountIndex={campaignForceMountIndex}
               thumbnailSizeKey={thumbnailSizeIndex}
+              thumbnailCssPx={thumbnailCssPx}
             />
           )}
         </main>
