@@ -47,6 +47,13 @@ test('findProblems: flags an invalid status and a missing blobPath', () => {
   assert.ok(problems.some((p) => /image id-2: missing blobPath/.test(p)));
 });
 
+test('findProblems: flags a non-object registry record', () => {
+  const images = { 'id-1': null, 'id-2': 'oops' };
+  const problems = findProblems(images, {});
+  assert.ok(problems.some((p) => /image id-1: not an object/.test(p)));
+  assert.ok(problems.some((p) => /image id-2: not an object/.test(p)));
+});
+
 test('findProblems: flags a still-blob-path-keyed attribution table', () => {
   const images = { 'id-1': { blobPath: 'avatars/a.jpg', status: 'active' } };
   // Pre-migration shape: keys are blob paths, not ids.
