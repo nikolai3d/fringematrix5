@@ -74,7 +74,7 @@ The video has seven scenes, joined by transitions (`promo-video/src/scenes.tsx`,
    #KeepLookingUp (the series finale, the largest campaign).
 6. **Product showcase**: screenshots of the site's gallery and lightbox in a tilted browser
    frame, with four feature callouts.
-7. **End card**: a glowing "FRINGE MATRIX" title inside a rotating ring of glyphs, and a
+7. **End card**: a glowing "FRINGE MATRIX, RESTORED" title inside a rotating ring of glyphs, and a
    **fringematrix.art** button.
 
 Design notes:

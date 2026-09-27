@@ -566,6 +566,7 @@ export const Outro: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const title = 'FRINGE MATRIX';
+  const restored = spring({ frame: frame - 30, fps, config: { damping: 16 } });
   const url = spring({ frame: frame - 50, fps, config: { damping: 14 } });
   const pulse = 0.7 + 0.3 * Math.sin(frame / 6);
   return (
@@ -592,7 +593,7 @@ export const Outro: React.FC = () => {
         })}
       </AbsoluteFill>
       <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', fontFamily: F.display, fontWeight: 900, fontSize: 140, letterSpacing: '0.08em', color: C.fg }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', fontFamily: F.display, fontWeight: 900, fontSize: 124, letterSpacing: '0.08em', color: C.fg }}>
           {title.split('').map((ch, i) => {
             const p = spring({ frame: frame - i * 2, fps, config: { damping: 12 } });
             return (
@@ -601,6 +602,21 @@ export const Outro: React.FC = () => {
               </span>
             );
           })}
+          <span
+            style={{
+              fontSize: 56,
+              fontWeight: 700,
+              letterSpacing: '0.12em',
+              color: C.cyan,
+              marginLeft: -4,
+              whiteSpace: 'pre',
+              opacity: restored,
+              transform: `translateX(${(1 - restored) * -24}px)`,
+              textShadow: glowText(C.glow, 0.5 * restored),
+            }}
+          >
+            , RESTORED
+          </span>
         </div>
         <Words
           text="The fan art of the Fringe campaigns, preserved."
