@@ -10,7 +10,7 @@ npm run studio           # live preview / scrub in the browser
 npm run render           # → out/fringe-matrix-promo.mp4
 ```
 
-- `src/scenes.tsx` — the seven scenes (glyph cold open, origin + hashtag rain, art wall,
+- `src/scenes.tsx`: the seven scenes (glyph cold open, origin + hashtag rain, art wall,
   stat counters, timeline chart, product showcase, end card)
-- `src/Promo.tsx` — scene order, durations, transitions, audio
-- `public/art` — ~80 avatars sampled from `downloads/all`; `public/site-*.png` — screenshots of the live site
+- `src/Promo.tsx`: scene order, durations, transitions, audio
+- `public/art`: ~80 avatars sampled from `downloads/all`; `public/site-*.png`: screenshots of the live site

@@ -65,7 +65,7 @@ The video has seven scenes, joined by transitions (`promo-video/src/scenes.tsx`,
 
 1. **Glyph cold open**: the Fringe glyphs flash in sequence while a terminal line types
    "DECRYPTING ARCHIVE :: FRINGE / 2012–2013".
-2. **Origin**: "2012. Fringe was fighting for renewal. So the fans fought back — one hashtag at a
+2. **Origin**: "2012. Fringe was facing cancellation. So the fans fought back, one hashtag at a
    time.", followed by a rain of the campaign hashtags and a glitchy **#CrossTheLine**.
 3. **Art wall**: a 14×8 grid of real campaign avatars flips in while the camera pulls back.
 4. **Stats**: animated counters for avatars, campaigns, episodes and credited artists.

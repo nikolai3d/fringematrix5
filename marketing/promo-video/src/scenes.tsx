@@ -140,12 +140,12 @@ export const Origin: React.FC = () => {
       <Backdrop />
       <AbsoluteFill style={{ justifyContent: 'center', padding: '0 160px', opacity: textOut }}>
         <Words
-          text="2012. Fringe was fighting for renewal."
+          text="2012. Fringe was facing cancellation."
           highlight={['Fringe']}
           style={{ fontFamily: F.body, fontWeight: 800, fontSize: 84, color: C.fg }}
         />
         <Words
-          text="So the fans fought back — one hashtag at a time."
+          text="So the fans fought back, one hashtag at a time."
           delay={22}
           stagger={3}
           style={{ fontFamily: F.body, fontWeight: 300, fontSize: 64, color: C.muted, marginTop: 24 }}
@@ -273,7 +273,7 @@ export const Stats: React.FC = () => (
     <AbsoluteFill style={{ padding: '150px 140px', flexDirection: 'column' }}>
       <Kicker>THE ARCHIVE, BY THE NUMBERS</Kicker>
       <Words
-        text="A whole year of fandom — preserved."
+        text="A whole year of fandom, preserved."
         delay={6}
         highlight={['preserved.']}
         style={{ fontFamily: F.body, fontWeight: 800, fontSize: 80, color: C.fg, marginTop: 20 }}
@@ -437,7 +437,7 @@ export const Timeline: React.FC = () => {
           opacity: interpolate(frame, [95, 108], [0, 1], clamp),
         }}
       >
-        ▼ #{data.campaigns[0].hashtag} — where it began
+        ▼ #{data.campaigns[0].hashtag}: where it began
       </div>
       <div
         style={{
