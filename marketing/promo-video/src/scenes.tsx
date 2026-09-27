@@ -460,12 +460,10 @@ export const Timeline: React.FC = () => {
 };
 
 /* ─────────────── 6. Product showcase ─────────────── */
-const FEATURES = [
-  { t: `Browse all ${data.campaigns.length} campaigns`, s: 'Episode by episode, with air dates & links' },
-  { t: 'Every artist credited', s: `${data.artists} artists, linked on every image` },
-  { t: 'Download & share', s: 'Grab your favourite avatar in one click' },
-  { t: 'Fast & installable', s: 'Responsive images, works offline' },
-];
+const FEATURE = {
+  t: `Browse all ${data.campaigns.length} campaigns`,
+  s: 'From January 2012 to January 2013, episode by episode.',
+};
 
 export const Product: React.FC = () => {
   const frame = useCurrentFrame();
@@ -474,6 +472,7 @@ export const Product: React.FC = () => {
   const rotY = interpolate(frame, [0, 210], [18, 6]);
   const scroll = interpolate(frame, [40, 90], [0, 1], { ...clamp, easing: Easing.inOut(Easing.cubic) });
   const lightbox = interpolate(frame, [115, 130], [0, 1], clamp);
+  const feature = spring({ frame: frame - 26, fps, config: { damping: 18 } });
   const W = 1120;
   const H = 700;
   const shot: React.CSSProperties = { position: 'absolute', inset: 0, width: W, height: H, objectFit: 'cover' };
@@ -525,35 +524,22 @@ export const Product: React.FC = () => {
           </div>
         </div>
       </AbsoluteFill>
-      <div style={{ position: 'absolute', left: 1320, top: 200, width: 520 }}>
+      <div style={{ position: 'absolute', left: 1320, top: 380, width: 520 }}>
         <Kicker delay={10}>THE GALLERY</Kicker>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 26, marginTop: 36 }}>
-          {FEATURES.map((f, i) => {
-            const p = spring({ frame: frame - 26 - i * 22, fps, config: { damping: 18 } });
-            return (
-              <div
-                key={f.t}
-                style={{
-                  display: 'flex',
-                  gap: 22,
-                  opacity: p,
-                  transform: `translateX(${(1 - p) * 60}px)`,
-                  padding: '22px 24px',
-                  borderRadius: 14,
-                  border: '1px solid rgba(0,212,255,0.25)',
-                  background: 'rgba(11,17,26,0.75)',
-                }}
-              >
-                <div style={{ fontFamily: F.display, fontWeight: 900, fontSize: 28, color: C.cyan, textShadow: glowText(C.glow, 0.4) }}>
-                  0{i + 1}
-                </div>
-                <div>
-                  <div style={{ fontFamily: F.body, fontWeight: 800, fontSize: 32, color: C.fg }}>{f.t}</div>
-                  <div style={{ fontFamily: F.body, fontSize: 22, color: C.muted, marginTop: 6 }}>{f.s}</div>
-                </div>
-              </div>
-            );
-          })}
+        <div
+          style={{
+            marginTop: 36,
+            opacity: feature,
+            transform: `translateX(${(1 - feature) * 60}px)`,
+            padding: '36px 36px',
+            borderRadius: 16,
+            border: '1px solid rgba(0,212,255,0.3)',
+            background: 'rgba(11,17,26,0.75)',
+            boxShadow: '0 0 40px rgba(0,212,255,0.08) inset',
+          }}
+        >
+          <div style={{ fontFamily: F.body, fontWeight: 800, fontSize: 50, lineHeight: 1.1, color: C.fg }}>{FEATURE.t}</div>
+          <div style={{ fontFamily: F.body, fontSize: 30, lineHeight: 1.35, color: C.muted, marginTop: 16 }}>{FEATURE.s}</div>
         </div>
       </div>
       <CrtOverlay />

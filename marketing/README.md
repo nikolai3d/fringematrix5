@@ -73,7 +73,7 @@ The video has seven scenes, joined by transitions (`promo-video/src/scenes.tsx`,
    avatar count. It shows the Season 4 and Season 5 brackets and the summer hiatus, and highlights
    #KeepLookingUp (the series finale, the largest campaign).
 6. **Product showcase**: screenshots of the site's gallery and lightbox in a tilted browser
-   frame, with four feature callouts.
+   frame, with one callout: "Browse all 27 campaigns, from January 2012 to January 2013, episode by episode."
 7. **End card**: a glowing "FRINGE MATRIX, RESTORED" title inside a rotating ring of glyphs, and a
    **fringematrix.art** button.
 
