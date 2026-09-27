@@ -209,11 +209,11 @@ export const ArtWall: React.FC = () => {
           })}
         </div>
       </AbsoluteFill>
-      <AbsoluteFill style={{ background: `linear-gradient(0deg, ${C.bg} 5%, ${C.bg}cc 30%, transparent 60%)` }} />
-      <div style={{ position: 'absolute', left: 140, bottom: 120, width: 1400 }}>
+      <AbsoluteFill style={{ background: `linear-gradient(0deg, ${C.bg} 5%, ${C.bg}dd 35%, transparent 68%)` }} />
+      <div style={{ position: 'absolute', left: 140, bottom: 120, width: 1700 }}>
         <Kicker delay={50}>EVERY FRIDAY · FAN-MADE</Kicker>
         <Words
-          text="Artists made avatars to rally every campaign."
+          text="Artists in the fandom made social media avatars to rally every campaign."
           delay={60}
           highlight={['avatars']}
           style={{ fontFamily: F.body, fontWeight: 800, fontSize: 78, color: C.fg, marginTop: 20 }}
