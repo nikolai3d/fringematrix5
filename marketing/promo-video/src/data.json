@@ -1,0 +1,196 @@
+{
+  "totalImages": 1741,
+  "artists": 18,
+  "episodes": 28,
+  "campaigns": [
+    {
+      "hashtag": "CrossTheLine",
+      "episode": "Back To Where You've Never Been",
+      "episodeId": "4.08",
+      "date": "January 13th, 2012",
+      "count": 38
+    },
+    {
+      "hashtag": "EnemyOfMyEnemy",
+      "episode": "Enemy Of My Enemy",
+      "episodeId": "4.09",
+      "date": "January 20th, 2012",
+      "count": 11
+    },
+    {
+      "hashtag": "ObserveItLive",
+      "episode": "Forced Perspective",
+      "episodeId": "4.10",
+      "date": "January 27th, 2012",
+      "count": 10
+    },
+    {
+      "hashtag": "TakeTheLead",
+      "episode": "Making Angels",
+      "episodeId": "4.11",
+      "date": "February 3rd, 2012",
+      "count": 21
+    },
+    {
+      "hashtag": "BreakingOut",
+      "episode": "Welcome To Westfield",
+      "episodeId": "4.12",
+      "date": "February 10th, 2012",
+      "count": 20
+    },
+    {
+      "hashtag": "BeABetterMan",
+      "episode": "A Better Human Being",
+      "episodeId": "4.13",
+      "date": "February 17th, 2012",
+      "count": 18
+    },
+    {
+      "hashtag": "LoveIsTheAnswer",
+      "episode": "The End Of All Things",
+      "episodeId": "4.14",
+      "date": "February 24th, 2012",
+      "count": 30
+    },
+    {
+      "hashtag": "WhereYouBelong",
+      "episode": "A Short Story About Love",
+      "episodeId": "4.15",
+      "date": "March 23rd, 2012",
+      "count": 37
+    },
+    {
+      "hashtag": "ChangeYourWorld",
+      "episode": "Nothing As It Seems",
+      "episodeId": "4.16",
+      "date": "March 30th, 2012",
+      "count": 86
+    },
+    {
+      "hashtag": "FaceYourself",
+      "episode": "Everything In Its Right Place",
+      "episodeId": "4.17",
+      "date": "April 6th, 2012",
+      "count": 157
+    },
+    {
+      "hashtag": "AcrossTheUniverse",
+      "episode": "The Consultant",
+      "episodeId": "4.18",
+      "date": "April 13th, 2012",
+      "count": 73
+    },
+    {
+      "hashtag": "FightTheFuture",
+      "episode": "Letters Of Transit",
+      "episodeId": "4.19",
+      "date": "April 20th, 2012",
+      "count": 71
+    },
+    {
+      "hashtag": "WorldsApart",
+      "episode": "Worlds Apart",
+      "episodeId": "4.20",
+      "date": "April 27th, 2012",
+      "count": 69
+    },
+    {
+      "hashtag": "DarkestBeforeDawn",
+      "episode": "Brave New World: Part 1",
+      "episodeId": "4.21",
+      "date": "May 4th, 2012",
+      "count": 73
+    },
+    {
+      "hashtag": "BuildABetterWorld",
+      "episode": "Brave New World: Part 2",
+      "episodeId": "4.22",
+      "date": "May 11th, 2012",
+      "count": 101
+    },
+    {
+      "hashtag": "TheyAreHere",
+      "episode": "Transilience Thought Unifier Model-11",
+      "episodeId": "5.01",
+      "date": "September 28th, 2012",
+      "count": 78
+    },
+    {
+      "hashtag": "AnotherWay",
+      "episode": "In Absentia",
+      "episodeId": "5.02",
+      "date": "October 5th, 2012",
+      "count": 49
+    },
+    {
+      "hashtag": "ForTheRecord",
+      "episode": "The Recordist",
+      "episodeId": "5.03",
+      "date": "October 12th, 2012",
+      "count": 73
+    },
+    {
+      "hashtag": "TurningPoint",
+      "episode": "The Bullet That Saved The World",
+      "episodeId": "5.04",
+      "date": "October 26th, 2012",
+      "count": 82
+    },
+    {
+      "hashtag": "ShowNoMercy",
+      "episode": "An Origin Story",
+      "episodeId": "5.05",
+      "date": "November 2nd, 2012",
+      "count": 55
+    },
+    {
+      "hashtag": "NothingIsImpossible",
+      "episode": "Through The Looking Glass and What Walter Found There",
+      "episodeId": "5.06",
+      "date": "November 9th, 2012",
+      "count": 77
+    },
+    {
+      "hashtag": "iPredict",
+      "episode": "5-20-10",
+      "episodeId": "5.07",
+      "date": "November 16th, 2012",
+      "count": 59
+    },
+    {
+      "hashtag": "HumanKind",
+      "episode": "The Human Kind",
+      "episodeId": "5.08",
+      "date": "December 7th, 2012",
+      "count": 51
+    },
+    {
+      "hashtag": "FreeYourMind",
+      "episode": "Black Blotter",
+      "episodeId": "5.09",
+      "date": "December 14th, 2012",
+      "count": 51
+    },
+    {
+      "hashtag": "FarFromNormal",
+      "episode": "Anomaly XB-6783746",
+      "episodeId": "5.10",
+      "date": "December 21st, 2012",
+      "count": 58
+    },
+    {
+      "hashtag": "NeverLetGo",
+      "episode": "The Boy Must Live",
+      "episodeId": "5.11",
+      "date": "January 11th, 2013",
+      "count": 66
+    },
+    {
+      "hashtag": "KeepLookingUp",
+      "episode": "Liberty / An Enemy Of Fate",
+      "episodeId": "5.12/5.13",
+      "date": "January 18th, 2013",
+      "count": 227
+    }
+  ]
+}
