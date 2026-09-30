@@ -321,3 +321,45 @@ test.describe('Lightbox animations', () => {
   });
 });
 
+
+test.describe('Lightbox navigation during the open animation', () => {
+  test('ArrowRight right after opening does not replay the zoom and shows the next image', async ({ page }) => {
+    const cards = page.locator('.gallery-grid .card img');
+    if ((await cards.count()) < 2) test.skip(true, 'Need at least 2 images');
+
+    // Record every display transition of the wireframe from here on.
+    await page.evaluate(() => {
+      const w = window as unknown as { __wfShows: number };
+      w.__wfShows = 0;
+      let last = 'none';
+      const tick = () => {
+        const el = document.querySelector('.wireframe-rect') as HTMLElement | null;
+        const d = el ? getComputedStyle(el).display : 'none';
+        if (d !== 'none' && last === 'none') w.__wfShows += 1;
+        last = d;
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+
+    await cards.nth(0).click();
+    await page.keyboard.press('ArrowRight');
+
+    await expect(page.locator('.lightbox-hud')).toContainText(/2 OF \d+/);
+    await waitForWireframeHidden(page);
+    // Let any (buggy) replay start.
+    await page.waitForTimeout(700);
+
+    const shows = await page.evaluate(() => (window as unknown as { __wfShows: number }).__wfShows);
+    expect(shows, 'wireframe zoom should play at most once').toBeLessThanOrEqual(1);
+    await expect.poll(() => page.evaluate(() => {
+      const el = document.getElementById('lightbox-image') as HTMLElement | null;
+      return el ? getComputedStyle(el).opacity : null;
+    })).toBe('1');
+    const display = await page.evaluate(() => {
+      const el = document.querySelector('.wireframe-rect') as HTMLElement | null;
+      return el ? getComputedStyle(el).display : 'none';
+    });
+    expect(display).toBe('none');
+  });
+});

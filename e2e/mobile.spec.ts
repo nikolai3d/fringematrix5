@@ -21,7 +21,9 @@ const TOOLBAR_BUTTONS = [
 // Minimum tap-target height. WCAG 2.5.8 (AA) requires 24px; Apple/Material
 // recommend 44/48px. 32px is a pragmatic floor for this dense UI — see the
 // report for controls that fall below the 44px recommendation.
-const MIN_TAP_PX = 32;
+// 44px: WCAG 2.5.5 / Apple HIG touch-target minimum, enforced for coarse
+// pointers in styles.css (@media (pointer: coarse)).
+const MIN_TAP_PX = 44;
 
 async function gotoGallery(page: Page) {
   await page.goto('/');
@@ -125,11 +127,9 @@ test.describe('Mobile interactions — iPhone 13', () => {
       return { label: e.getAttribute('aria-label'), w: r.width, h: r.height };
     }))) {
       expect(box.w, `${box.label} width`).toBeGreaterThanOrEqual(MIN_TAP_PX);
-      // Arrow height tracks the ◀/▶ glyph metrics of the fallback font, which
-      // differ per platform (▶ renders ~30px tall on macOS Chromium vs ~35px
-      // for ◀). Use a slightly lower floor so this does not flap per OS; see
-      // the mobile UX notes in the report.
-      expect(box.h, `${box.label} height`).toBeGreaterThanOrEqual(28);
+      // min-height on coarse pointers makes this independent of the ◀/▶
+      // glyph metrics, which differ per platform font.
+      expect(box.h, `${box.label} height`).toBeGreaterThanOrEqual(MIN_TAP_PX);
     }
 
     if (!(await openFirstThumbnailByTap(page))) return;
@@ -172,6 +172,16 @@ test.describe('Mobile interactions — iPhone 13', () => {
     await page.touchscreen.tap(viewport.width - 10, Math.round(viewport.height / 2));
     await expect(sidebar).not.toHaveClass(/open/);
     await expect(overlay).toHaveCount(0);
+
+    // The explicit close button (44px on touch) also closes it.
+    await page.getByRole('button', { name: 'Campaigns' }).tap();
+    await expect(sidebar).toHaveClass(/open/);
+    const close = sidebar.getByRole('button', { name: 'Close campaigns' });
+    const closeBox = await close.boundingBox();
+    expect(closeBox!.width).toBeGreaterThanOrEqual(MIN_TAP_PX);
+    expect(closeBox!.height).toBeGreaterThanOrEqual(MIN_TAP_PX);
+    await close.tap();
+    await expect(sidebar).not.toHaveClass(/open/);
 
     // Selecting a campaign from the sidebar closes it and switches campaign.
     await page.getByRole('button', { name: 'Campaigns' }).tap();
@@ -261,9 +271,9 @@ test.describe('Mobile interactions — iPhone 13', () => {
 
     const box = await modal.boundingBox();
     const vp = page.viewportSize()!;
-    // 1px tolerance for sub-pixel rounding (95vw on a 390px viewport is
-    // 370.5px). NOTE: the modal is currently off-centre on phones — see
-    // report (overlay padding 20px + width 95vw > available width).
+    // Centred with equal side margins (it used to overflow to the right:
+    // 95vw was wider than the overlay's padded box).
+    expect(Math.abs(box!.x - (vp.width - (box!.x + box!.width)))).toBeLessThanOrEqual(1);
     expect(box!.x).toBeGreaterThanOrEqual(-1);
     expect(box!.y).toBeGreaterThanOrEqual(-1);
     expect(box!.x + box!.width).toBeLessThanOrEqual(vp.width + 1);

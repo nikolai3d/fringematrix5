@@ -2,6 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import CampaignNavigation from '../../src/components/CampaignNavigation';
+
+// Campaign entries only (the header also has a "Close campaigns" button).
+const itemButtons = () =>
+  screen.getAllByRole('button').filter((b) => b.classList.contains('sidebar-item'));
 import type { Campaign } from '../../src/types/api';
 
 function makeCampaign(id: string, hashtag: string): Campaign {
@@ -29,7 +33,7 @@ function renderNav(overrides: Partial<Props> = {}) {
 describe('CampaignNavigation', () => {
   it('renders a button per campaign with the hashtag', () => {
     renderNav();
-    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
+    expect(itemButtons().map((b) => b.textContent)).toEqual([
       '#FringeOne',
       '#FringeTwo',
       '#FringeThree',
@@ -68,7 +72,7 @@ describe('CampaignNavigation', () => {
 
   it('disables all items while a campaign is loading', () => {
     const { props } = renderNav({ isCampaignLoading: true });
-    screen.getAllByRole('button').forEach((b) => expect(b).toBeDisabled());
+    itemButtons().forEach((b) => expect(b).toBeDisabled());
     fireEvent.click(screen.getByText('#FringeOne'));
     expect(props.onSelect).not.toHaveBeenCalled();
   });
@@ -107,7 +111,22 @@ describe('CampaignNavigation', () => {
 
   it('renders an empty list without crashing', () => {
     renderNav({ campaigns: [] });
-    expect(screen.queryAllByRole('button')).toHaveLength(0);
+    expect(screen.queryAllByRole('button').filter((b) => b.classList.contains('sidebar-item'))).toHaveLength(0);
     expect(screen.getByText('All Campaigns')).toBeInTheDocument();
+  });
+
+  it('the close button and Escape both close the open drawer', () => {
+    const { props } = renderNav();
+    fireEvent.click(screen.getByRole('button', { name: 'Close campaigns' }));
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(props.onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('ignores Escape and keeps the close button out of the tab order while closed', () => {
+    const { props } = renderNav({ isOpen: false });
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(props.onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Close campaigns', hidden: true })).toHaveAttribute('tabindex', '-1');
   });
 });

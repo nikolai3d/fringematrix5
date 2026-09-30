@@ -683,6 +683,19 @@ export function useLightboxAnimations({
     const imgSrc = pendingOpenImgSrcRef.current;
     const needBackdropIn = !backdropDimmedRef.current;
     if (!startRect) {
+      if (sidebarEnteredRef.current) {
+        // Re-run for a navigation (lightboxIndex changed) while the open zoom
+        // may still be in flight: the zoom already consumed the start rect
+        // (see the rAF below), so don't replay it. Cancel the in-flight
+        // wireframe (its catch path hides it) so it doesn't keep showing the
+        // previous image, and reveal the real lightbox image, which the
+        // aborted open run would otherwise have left hidden.
+        const wf = wireframeElRef.current;
+        try { wf?.getAnimations?.().forEach((a) => a.cancel()); } catch (_) { /* ignore */ }
+        const li = document.getElementById('lightbox-image');
+        if (li) li.style.opacity = '';
+        setHideLightboxImage(false);
+      }
       // Open the sidebar and toolbar even when there is no thumbnail rect to
       // animate from (e.g. lightbox opened via direct link / URL hash).
       // Only on the FIRST run of this effect per open session -- see
@@ -706,6 +719,12 @@ export function useLightboxAnimations({
     // effect cleans up (e.g. lightbox closed before animation finishes).
     const abortCtrl = new AbortController();
     const rAF = requestAnimationFrame(async () => {
+      // Consume the open's start rect now that its zoom is starting, so a
+      // re-run of this effect (the user pages next/prev mid-animation) takes
+      // the no-rect path instead of replaying the zoom from the originally
+      // clicked thumbnail onto a different image.
+      pendingOpenStartRectRef.current = null;
+      pendingOpenImgSrcRef.current = null;
       const lightboxImg = document.getElementById('lightbox-image');
       if (!lightboxImg) { setHideLightboxImage(false); pendingOpenStartRectRef.current = null; pendingOpenImgSrcRef.current = null; isAnimatingRef.current = false; return; }
       let endRect = lightboxImg.getBoundingClientRect();

@@ -90,9 +90,13 @@ test.describe('Author pages use direct CDN image URLs', () => {
       test.skip(true, 'Server has no Blob token, so it falls back to /avatars redirects');
     }
 
+    // Same-origin /avatars/* requests are the redirect route; the CDN URLs
+    // themselves also have an /avatars/ path, so filter by origin.
+    const appOrigin = new URL(detail.url()).origin;
     const avatarRequests: string[] = [];
     page.on('request', (r) => {
-      if (new URL(r.url()).pathname.startsWith('/avatars/')) avatarRequests.push(r.url());
+      const u = new URL(r.url());
+      if (u.origin === appOrigin && u.pathname.startsWith('/avatars/')) avatarRequests.push(r.url());
     });
 
     await page.goto(`/${ZORT_HASH}`);

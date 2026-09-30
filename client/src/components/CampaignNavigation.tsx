@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import type { Campaign } from '../types/api';
 
 interface Props {
@@ -18,6 +18,16 @@ function CampaignNavigation({
   onSelect,
   onClose,
 }: Props) {
+  // Escape closes the drawer (it has no other keyboard exit).
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
   return (
     <>
       <aside
@@ -25,7 +35,20 @@ function CampaignNavigation({
         className={`sidebar${isOpen ? ' open' : ''}`}
         aria-hidden={!isOpen}
       >
-        <div className="sidebar-header">All Campaigns</div>
+        <div className="sidebar-header">
+          <span>All Campaigns</span>
+          {/* On phones the drawer covers most of the screen, leaving only a
+              thin overlay strip to tap; give it an explicit close control. */}
+          <button
+            type="button"
+            className="sidebar-close"
+            aria-label="Close campaigns"
+            onClick={onClose}
+            tabIndex={isOpen ? 0 : -1}
+          >
+            ✕
+          </button>
+        </div>
         <div className="sidebar-list">
           {campaigns.map((c) => (
             <button

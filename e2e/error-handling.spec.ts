@@ -68,11 +68,10 @@ test.describe('Error handling', () => {
     await expect(page.locator('#campaign-info h1')).toContainText(campaigns[0].episode);
     await expect(page.getByTestId('current-campaign-top')).toHaveText(`#${campaigns[0].hashtag}`);
 
-    // Either the transient "Some images failed to load" notice or the empty
-    // gallery state is shown — never a grid of broken cards.
-    const errorText = page.getByText('Some images failed to load');
-    const emptyState = page.locator('.empty-state');
-    await expect(errorText.or(emptyState).first()).toBeVisible();
+    // A dedicated error state with Retry, not "No Images In Campaign" and
+    // never a grid of broken cards.
+    await expect(page.getByRole('alert').filter({ hasText: "Couldn't Load Images" })).toBeVisible();
+    await expect(page.getByText('No Images In Campaign')).toHaveCount(0);
     await expect(page.locator('.gallery-grid .card')).toHaveCount(0);
 
     // The UI is still interactive: the campaign sidebar opens and lists campaigns.
@@ -81,6 +80,31 @@ test.describe('Error handling', () => {
     await expect(page.locator('#campaign-sidebar .sidebar-item')).toHaveCount(campaigns.length);
 
     expect(pageErrors).toEqual([]);
+  });
+
+  test('Retry reloads the images once the endpoint recovers', async ({ page, request }) => {
+    const campaigns = await fetchCampaigns(request);
+    const id = campaigns[0].id;
+    let fail = true;
+    await page.route(`**/api/campaigns/${id}/images`, (route) =>
+      fail
+        ? route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"down"}' })
+        : route.continue(),
+    );
+    await page.goto(`/#${id}`);
+    await waitForLoaderToFinish(page);
+    await expect(page.getByRole('alert').filter({ hasText: "Couldn't Load Images" })).toBeVisible();
+
+    fail = false;
+    const imagesRes = await request.get(`/api/campaigns/${id}/images`);
+    const { images } = await imagesRes.json();
+    await page.getByRole('button', { name: 'Retry' }).click();
+    if (images.length === 0) {
+      await expect(page.getByText('No Images In Campaign')).toBeVisible();
+    } else {
+      await expect(page.locator('.gallery-grid .card').first()).toBeVisible();
+    }
+    await expect(page.getByRole('alert')).toHaveCount(0);
   });
 
   test('a failed campaign switch recovers when the next campaign loads successfully', async ({ page, request }) => {

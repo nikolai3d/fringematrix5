@@ -891,11 +891,6 @@ export default function App() {
             <div className="campaign-loading-text">
               Loading Images<span className="dots">{'.'.repeat(loadingDots)}</span>
             </div>
-            {campaignLoadError && (
-              <div className="campaign-error-text">
-                Some images failed to load
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -954,20 +949,40 @@ export default function App() {
             )}
           </section>
 
-          {activeCampaign && currentImages.length === 0 ? (
+          {activeCampaign && currentImages.length === 0 && !isCampaignLoading ? (
             // Caller-owned empty state, previously rendered inside GalleryGrid
             // behind a `hasCampaign` prop. Hoisted up here in fringematrix5-jq33
             // so GalleryGrid stays a pure list view reusable by AuthorDetail.
+            //
+            // A failed image-list request gets its own message + Retry rather
+            // than claiming the campaign is empty. (The old "Some images failed
+            // to load" notice lived inside the loading indicator and could
+            // never render: the error and loading-done flags flip together.)
             <section
               id="gallery"
               className="gallery-grid empty"
               aria-live="polite"
             >
-              <div className="empty-state" role="status" aria-live="polite">
-                <div className="empty-emoji" aria-hidden>🖼️</div>
-                <div className="empty-title">No Images In Campaign</div>
-                <div className="empty-desc">This campaign has no uploaded images yet.</div>
-              </div>
+              {campaignLoadError ? (
+                <div className="empty-state" role="alert">
+                  <div className="empty-emoji" aria-hidden>⚠️</div>
+                  <div className="empty-title">Couldn't Load Images</div>
+                  <div className="empty-desc">The image list for this campaign failed to load. Check your connection and try again.</div>
+                  <button
+                    type="button"
+                    className="toolbar-button empty-retry"
+                    onClick={() => { void selectCampaign(activeCampaign.id); }}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : (
+                <div className="empty-state" role="status" aria-live="polite">
+                  <div className="empty-emoji" aria-hidden>🖼️</div>
+                  <div className="empty-title">No Images In Campaign</div>
+                  <div className="empty-desc">This campaign has no uploaded images yet.</div>
+                </div>
+              )}
             </section>
           ) : (
             <GalleryGrid

@@ -69,7 +69,7 @@ test('Sidebar campaign switch updates hash and gallery heading with loading', as
   const sidebar = page.locator('#campaign-sidebar');
   await expect(sidebar).toHaveClass(/open/);
 
-  const sidebarButtons = sidebar.getByRole('button');
+  const sidebarButtons = sidebar.locator('.sidebar-item');
   const buttonCount = await sidebarButtons.count();
   
   if (buttonCount > 1) {
@@ -186,7 +186,7 @@ test('Campaign loading disables UI interactions', async ({ page }) => {
   const sidebar = page.locator('#campaign-sidebar');
   await expect(sidebar).toHaveClass(/open/);
 
-  const sidebarButtons = sidebar.getByRole('button');
+  const sidebarButtons = sidebar.locator('.sidebar-item');
   const buttonCount = await sidebarButtons.count();
   
   if (buttonCount > 1) {
@@ -244,7 +244,7 @@ test('Campaign images render progressively with real src (no blocking placeholde
   const sidebar = page.locator('#campaign-sidebar');
   await expect(sidebar).toHaveClass(/open/);
 
-  const sidebarButtons = sidebar.getByRole('button');
+  const sidebarButtons = sidebar.locator('.sidebar-item');
   const buttonCount = await sidebarButtons.count();
 
   if (buttonCount > 1) {
@@ -312,7 +312,7 @@ test('Home button clears hash and navigates to first campaign', async ({ page })
   const sidebar = page.locator('#campaign-sidebar');
   await expect(sidebar).toHaveClass(/open/);
 
-  const sidebarButtons = sidebar.getByRole('button');
+  const sidebarButtons = sidebar.locator('.sidebar-item');
   const buttonCount = await sidebarButtons.count();
 
   if (buttonCount < 2) {

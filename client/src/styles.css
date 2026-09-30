@@ -204,12 +204,6 @@ body {
   opacity: 0.9;
 }
 
-.campaign-error-text {
-  font-size: 9px;
-  color: #ff6b6b;
-  text-shadow: 0 0 1px rgba(255, 107, 107, 0.5);
-  margin-top: 2px;
-}
 
 /* Image placeholder for loading state */
 .image-placeholder {
@@ -391,6 +385,7 @@ footer.navbar {
 .empty-emoji { font-size: 42px; margin-bottom: 8px; }
 .empty-title { font-family: Orbitron, Inter, sans-serif; font-size: 18px; color: var(--fg); margin-bottom: 4px; letter-spacing: 0.04em; }
 .empty-desc { font-size: 13px; }
+.empty-retry { margin-top: 12px; }
 
 .card {
   position: relative;
@@ -764,7 +759,10 @@ footer.navbar {
 
 .sidebar {
   position: fixed;
-  top: 0;
+  /* Start below the sticky toolbar (z-index 30), which otherwise covered the
+     drawer's header and close button. The toolbar stays usable, so the
+     Campaigns button still toggles the drawer. */
+  top: var(--toolbar-height);
   left: 0;
   bottom: 0;
   width: min(78vw, 320px);
@@ -779,11 +777,30 @@ footer.navbar {
 .sidebar.open { transform: translateX(0); }
 
 .sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 16px;
   font-family: Orbitron, Inter, sans-serif;
   font-size: 16px;
   letter-spacing: 0.05em;
   border-bottom: 1px solid rgba(var(--theme-accent-rgb), 0.18);
+}
+
+.sidebar-close {
+  min-width: 36px;
+  min-height: 36px;
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid rgba(var(--theme-accent-rgb), 0.35);
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+}
+.sidebar-close:hover { border-color: var(--accent); }
+@media (pointer: coarse) {
+  .sidebar-close { min-width: 44px; min-height: 44px; }
 }
 
 .sidebar-list {
@@ -938,7 +955,10 @@ footer.navbar {
 }
 
 .content-modal {
-  width: min(95vw, 600px);
+  /* 100% of the overlay's padded box, not 95vw: on a 390px phone 95vw
+     (370px) overflowed the 350px available and pushed the modal off-centre
+     with its right border clipped. */
+  width: min(100%, 600px);
   max-height: 85vh;
   background: linear-gradient(180deg, rgba(11,17,26,0.98), rgba(11,17,26,0.92));
   border: 1px solid rgba(124,77,255,0.35);
