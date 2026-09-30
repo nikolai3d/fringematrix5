@@ -25,6 +25,7 @@ import GalleryGrid, { type GalleryGridHandle } from './components/GalleryGrid';
 import AuthorsIndex from './components/AuthorsIndex';
 import AuthorDetail from './components/AuthorDetail';
 import { parseHashRoute, type HashRoute } from './utils/parseHashRoute';
+import { findSharedImageIndex, readSharedImageParam, stripSharedImageParam } from './utils/shareLink';
 import type {
   Campaign,
   BuildInfo,
@@ -232,6 +233,9 @@ export default function App() {
       // back to the previous campaign. (Spotted in code review of bead lfn.)
       window.history.replaceState({}, '', `#${campaignId}`);
       setRoute({ type: 'gallery', campaignId });
+      // A new campaign starts at its top; keeping the old scroll offset would
+      // drop the user mid-grid (or past the end of a smaller campaign).
+      if (window.scrollY > 0) window.scrollTo({ top: 0 });
     });
   }, [selectCampaignFromHook]);
 
@@ -655,6 +659,32 @@ export default function App() {
     setLightboxImageSource({ kind: 'author', images, handle });
     openLightbox(index, thumbEl);
   }, [openLightbox]);
+
+  // Shared-image deep link (?img=<id|src>, produced by the lightbox Share
+  // button). Captured once at mount and consumed exactly once, after the
+  // initial campaign has loaded and the loading screen is gone, so the
+  // lightbox opens over the real gallery rather than under the loader.
+  const pendingSharedImageRef = useRef<string | null>(
+    typeof window === 'undefined' ? null : readSharedImageParam(window.location.search),
+  );
+  useEffect(() => {
+    const wanted = pendingSharedImageRef.current;
+    if (!wanted || showLoadingScreen || !isDataReady || isCampaignLoading) return;
+    pendingSharedImageRef.current = null;
+    // Drop the param so a reload or a later share doesn't reopen this image.
+    const { pathname, search, hash } = window.location;
+    window.history.replaceState({}, '', `${pathname}${stripSharedImageParam(search)}${hash}`);
+    if (route.type !== 'gallery') return;
+    const index = findSharedImageIndex(currentImages, wanted);
+    if (index === -1) return;
+    // Bring the card on screen first (it may be windowed out in a large
+    // campaign). When it is already mounted this scrolls synchronously, so we
+    // can hand its <img> to the opener for the usual zoom-in animation;
+    // otherwise the lightbox opens without a source rect.
+    galleryGridRef.current?.scrollIndexIntoView(index);
+    const thumb = galleryGridRef.current?.getThumbElement(index) ?? undefined;
+    openLightboxForCampaign(index, thumb);
+  }, [showLoadingScreen, isDataReady, isCampaignLoading, route.type, currentImages, openLightboxForCampaign]);
 
   // Clear the lightbox source once the lightbox has fully closed so we never
   // hand stale (e.g. a previous campaign's) images to the next open. Safe to

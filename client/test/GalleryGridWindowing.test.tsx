@@ -141,3 +141,95 @@ describe('GalleryGrid windowing — forceMountIndex keeps a target card mounted'
     expect(el?.src).toContain('/img480.png');
   });
 });
+
+describe('GalleryGrid.scrollIndexIntoView (fringematrix5-lvc9)', () => {
+  const total = 500;
+  const images = Array.from({ length: total }, (_, i) => makeImage(`img${i}.png`));
+
+  it('scrolls the window so a windowed-out row is centred in the viewport', () => {
+    const ref = createRef<GalleryGridHandle>();
+    const scrollTo = vi.fn();
+    const originalScrollTo = window.scrollTo;
+    window.scrollTo = scrollTo as unknown as typeof window.scrollTo;
+    try {
+      render(<GalleryGrid ref={ref} images={images} onImageClick={noop} />);
+      // Index 400 is far below the initial window, so it is not mounted.
+      expect(ref.current!.getThumbElement(400)).toBeNull();
+
+      act(() => { ref.current!.scrollIndexIntoView(400); });
+
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      // 5 columns, cell = (1000 - 4*10)/5 = 192, rowHeight = 202, row = 80.
+      // target = 0 + 80*202 - (800 - 202)/2 = 16160 - 299 = 15861
+      const { top } = scrollTo.mock.calls[0]![0] as { top: number };
+      expect(top).toBeCloseTo(15861, 5);
+    } finally {
+      window.scrollTo = originalScrollTo;
+    }
+  });
+
+  it('uses the live element when the card is already mounted', () => {
+    const ref = createRef<GalleryGridHandle>();
+    const scrollTo = vi.fn();
+    const originalScrollTo = window.scrollTo;
+    window.scrollTo = scrollTo as unknown as typeof window.scrollTo;
+    const scrollIntoView = vi.fn();
+    const originalSIV = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    try {
+      render(<GalleryGrid ref={ref} images={images} onImageClick={noop} />);
+      const el = ref.current!.getThumbElement(0);
+      expect(el).not.toBeNull();
+
+      act(() => { ref.current!.scrollIndexIntoView(0); });
+
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+      expect(scrollIntoView.mock.contexts[0]).toBe(el);
+      expect(scrollTo).not.toHaveBeenCalled();
+    } finally {
+      window.scrollTo = originalScrollTo;
+      HTMLElement.prototype.scrollIntoView = originalSIV;
+    }
+  });
+
+  it('ignores out-of-range indices', () => {
+    const ref = createRef<GalleryGridHandle>();
+    const scrollTo = vi.fn();
+    const originalScrollTo = window.scrollTo;
+    window.scrollTo = scrollTo as unknown as typeof window.scrollTo;
+    try {
+      render(<GalleryGrid ref={ref} images={images} onImageClick={noop} />);
+      act(() => {
+        ref.current!.scrollIndexIntoView(-1);
+        ref.current!.scrollIndexIntoView(total);
+      });
+      expect(scrollTo).not.toHaveBeenCalled();
+    } finally {
+      window.scrollTo = originalScrollTo;
+    }
+  });
+
+  it('never scrolls to a negative offset for the first rows', async () => {
+    const ref = createRef<GalleryGridHandle>();
+    const scrollTo = vi.fn();
+    const originalScrollTo = window.scrollTo;
+    window.scrollTo = scrollTo as unknown as typeof window.scrollTo;
+    try {
+      render(<GalleryGrid ref={ref} images={images} onImageClick={noop} />);
+      // Scroll far down so row 0 is windowed out, then ask for index 1.
+      window.scrollY = 20000;
+      // The hook coalesces scroll events into one rAF recompute.
+      await act(async () => {
+        window.dispatchEvent(new Event('scroll'));
+        await new Promise<void>((r) => requestAnimationFrame(() => r()));
+      });
+      expect(ref.current!.getThumbElement(1)).toBeNull();
+      act(() => { ref.current!.scrollIndexIntoView(1); });
+      const { top } = scrollTo.mock.calls[0]![0] as { top: number };
+      expect(top).toBe(0);
+    } finally {
+      window.scrollTo = originalScrollTo;
+      window.scrollY = 0;
+    }
+  });
+});

@@ -179,9 +179,9 @@ describe('useCampaignLoader — empty image response', () => {
     expect(result.current.isCampaignLoading).toBe(false);
   });
 
-  it('does NOT cache the campaign when image list is empty (early return before setImageCache)', async () => {
+  it('does NOT cache the campaign when image list is empty (early return before the cache write)', async () => {
     // The hook returns early when campaignImages.length === 0, before calling
-    // setImageCache.  Empty campaigns must not pollute the cache with [].
+    // writing the cache.  Empty campaigns must not pollute the cache with [].
     fetchSpy.mockResolvedValueOnce(makeImagesResponse([]));
 
     const { result } = renderHook(() => useCampaignLoader());
@@ -551,5 +551,37 @@ describe('useCampaignLoader — Blob CDN preconnect', () => {
 
     const after = document.head.querySelectorAll('link[rel="preconnect"]').length;
     expect(after).toBe(before);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Callback identity (fringematrix5-nzp2): the image cache lives in a ref, so
+// loading a campaign must not hand consumers a new selectCampaign function.
+// A changing identity re-rendered every memoized consumer on each load.
+// ---------------------------------------------------------------------------
+describe('useCampaignLoader — stable callbacks', () => {
+  it('keeps selectCampaign and loadCampaignImages identity across loads and cache hits', async () => {
+    fetchSpy.mockResolvedValue(makeImagesResponse([
+      { fileName: 'a.jpg', src: 'https://cdn.example.com/a.jpg' },
+    ]));
+
+    const { result } = renderHook(() => useCampaignLoader());
+    const initialSelect = result.current.selectCampaign;
+    const initialLoad = result.current.loadCampaignImages;
+
+    await act(async () => {
+      await result.current.selectCampaign('ep1', () => {});
+    });
+    await act(async () => {
+      await result.current.selectCampaign('ep2', () => {});
+    });
+    await act(async () => {
+      await result.current.selectCampaign('ep1', () => {}); // cache hit
+    });
+
+    expect(result.current.selectCampaign).toBe(initialSelect);
+    expect(result.current.loadCampaignImages).toBe(initialLoad);
+    // ep1 twice + ep2 once, but ep1's second visit came from cache.
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 });

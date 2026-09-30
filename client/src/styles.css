@@ -276,6 +276,8 @@ body {
   cursor: not-allowed;
 }
 
+:root { --toolbar-height: 52px; }
+
 .navbar {
   position: sticky;
   top: 0;
@@ -288,6 +290,10 @@ body {
   backdrop-filter: blur(6px);
   border-bottom: 1px solid rgba(var(--theme-accent-rgb), 0.15);
 }
+/* The top campaign switcher sticks just BELOW the sticky toolbar. With
+   top: 0 both bars pinned to the viewport top and the (higher z-index)
+   toolbar covered the switcher as soon as the page scrolled. */
+#top-navbar { top: var(--toolbar-height); }
 
 footer.navbar {
   top: auto;
@@ -814,7 +820,7 @@ footer.navbar {
   position: sticky;
   top: 0;
   z-index: 30;
-  height: 52px; /* Fixed height for consistent layout */
+  height: var(--toolbar-height); /* Fixed height for consistent layout */
   background: linear-gradient(180deg, rgba(11,17,26,0.98), rgba(11,17,26,0.85));
   backdrop-filter: blur(6px);
   border-bottom: 1px solid rgba(var(--theme-accent-rgb), 0.2);
@@ -1571,6 +1577,10 @@ body::before {
   z-index: 51;
   text-transform: uppercase;
   pointer-events: none;
+  /* Keep long filenames clear of the Close (and, on phones, info) button
+     instead of running underneath them. */
+  right: 64px;
+  overflow-wrap: anywhere;
 }
 
 /* Lightbox image wrapper — gives the picture a framed panel feel
@@ -1792,6 +1802,8 @@ body::before {
     letter-spacing: 0.1em;
   }
   .lightbox-info-btn { display: inline-flex; align-items: center; justify-content: center; }
+  /* Leave room for the info button beside Close. */
+  .lightbox-hud { right: 116px; }
 }
 
 /* Tablet refinements */
@@ -1815,6 +1827,28 @@ body::before {
   .nav-arrow:hover { background: transparent; text-shadow: none; box-shadow: none; }
   .nav-arrow:active { background: rgba(var(--theme-accent-rgb), 0.2); }
   .current-campaign:hover { animation: none; }
+}
+
+/* Touch screens: 44px minimum tap targets (WCAG 2.5.5 / Apple HIG). The
+   desktop sizes (34px toolbar buttons, 40x30 campaign arrows, 33px lightbox
+   close) were measured too small on phones in the nzp2 perf/UX audit. The
+   toolbar grows to fit the taller buttons; the sticky campaign switcher
+   follows it via --toolbar-height. */
+@media (pointer: coarse) {
+  :root { --toolbar-height: 60px; }
+  .toolbar-inner { padding-top: 8px; padding-bottom: 8px; }
+  .toolbar-button { min-height: 44px; }
+  .nav-arrow { min-width: 44px; min-height: 44px; }
+  .lightbox-close {
+    min-width: 44px;
+    min-height: 44px;
+    top: 10px;
+    right: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .lightbox-info-btn { width: 44px; height: 44px; top: 10px; right: 62px; }
 }
 
 /* =============================================================================

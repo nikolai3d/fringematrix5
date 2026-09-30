@@ -42,6 +42,9 @@ export interface ImageData {
   originalSrc?: string;
   isLoading?: boolean;
   loadedSrc?: string | null;
+  // Permanent registry id carried through from the API (see ApiImageData.id).
+  // Used for short, move-proof share links (?img=<id>).
+  id?: string | null;
   // Stable on-disk identifier carried from the server response so we can match
   // a specific image across views (e.g. opening the lightbox at the right
   // image after navigating from the authors page).

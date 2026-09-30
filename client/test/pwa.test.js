@@ -96,6 +96,23 @@ describe('Workbox runtime caching (pwa-config.js)', () => {
     expect(blob.handler).toBe('CacheFirst');
   });
 
+  it('caches optimized /_vercel/image thumbnails cache-first (same-origin only)', () => {
+    const rule = byCache('fm-thumbnails');
+    expect(rule).toBeTruthy();
+    expect(rule.handler).toBe('CacheFirst');
+    expect(rule.options.expiration.maxEntries).toBeGreaterThan(0);
+    const origin = 'https://fringematrix.art';
+    const saved = globalThis.self;
+    globalThis.self = { location: { origin } };
+    try {
+      expect(rule.urlPattern({ url: new URL(`${origin}/_vercel/image?url=x&w=320&q=75`) })).toBe(true);
+      expect(rule.urlPattern({ url: new URL('https://evil.example/_vercel/image?url=x') })).toBe(false);
+      expect(rule.urlPattern({ url: new URL(`${origin}/api/campaigns`) })).toBe(false);
+    } finally {
+      globalThis.self = saved;
+    }
+  });
+
   it('caches fonts with stale-while-revalidate', () => {
     const fonts = byCache('fm-fonts');
     expect(fonts).toBeTruthy();

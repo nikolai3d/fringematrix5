@@ -3,6 +3,8 @@ import type { MutableRefObject } from 'react';
 import type { Campaign, ImageData } from '../types/api';
 import LightboxDetails from './LightboxDetails';
 import { FOCUSABLE_SELECTOR } from '../utils/focusable';
+import { preloadNeighbors } from '../utils/preloadImage';
+import { buildImageShareUrl } from '../utils/shareLink';
 
 /** Minimum horizontal travel (px) required for a touch to count as a swipe. */
 const SWIPE_MIN_HORIZONTAL_PX = 50;
@@ -105,15 +107,16 @@ export default function LightboxContainer({
   const handleShare = useCallback(async () => {
     const img = images[lightboxIndex];
     if (!img || !img.src) return;
-    const shareUrl = new URL(window.location.href);
-    shareUrl.searchParams.set('img', img.src);
+    // ?img=<id> is read back on load by App to reopen this image.
+    const shareUrl = buildImageShareUrl(window.location.href, img);
+    if (!shareUrl) return;
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'Fringe Matrix', text: img.fileName, url: shareUrl.toString() });
+        await navigator.share({ title: 'Fringe Matrix', text: img.fileName, url: shareUrl });
       } catch { /* user cancelled or share rejected */ }
     } else if (navigator.clipboard) {
       try {
-        await navigator.clipboard.writeText(shareUrl.toString());
+        await navigator.clipboard.writeText(shareUrl);
         alert('Link copied to clipboard');
       } catch { /* clipboard permission denied or insecure context */ }
     }
@@ -170,7 +173,14 @@ export default function LightboxContainer({
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const onResize = () => {
-      if (window.innerWidth >= MOBILE_BREAKPOINT_PX) setIsDetailsDrawerOpen(false);
+      if (window.innerWidth < MOBILE_BREAKPOINT_PX) return;
+      // The drawer is about to unmount; if it held focus, hand focus to the
+      // lightbox's Close button (the info toggle is hidden at this width)
+      // instead of letting it fall to <body>.
+      if (drawerRef.current?.contains(document.activeElement)) {
+        requestAnimationFrame(() => { closeBtnRef.current?.focus(); });
+      }
+      setIsDetailsDrawerOpen(false);
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
@@ -239,6 +249,21 @@ export default function LightboxContainer({
     if (!isLightboxOpen) return;
     requestAnimationFrame(() => { closeBtnRef.current?.focus(); });
   }, [isLightboxOpen]);
+
+  // Warm the full-resolution neighbors so NEXT/PREVIOUS/swipe show the next
+  // image immediately. Waits for the current image to finish loading first so
+  // the neighbors never compete with it for bandwidth (matters on mobile).
+  useEffect(() => {
+    if (!isLightboxOpen) return;
+    const el = imageRef.current;
+    const warm = () => preloadNeighbors(images, lightboxIndex);
+    if (!el || el.complete) {
+      warm();
+      return;
+    }
+    el.addEventListener('load', warm, { once: true });
+    return () => el.removeEventListener('load', warm);
+  }, [isLightboxOpen, images, lightboxIndex]);
 
   if (!isLightboxOpen) return null;
 
