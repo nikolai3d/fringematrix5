@@ -8,6 +8,62 @@ A 37-second, 1920×1080 @ 30fps motion-graphics ad, written as React code and re
 with [Remotion](https://www.remotion.dev). See [`promo-video/README.md`](promo-video/README.md)
 for the commands to preview and render it.
 
+### 3D variant (`FringePromo3D`)
+
+The same script, timing and soundtrack, rebuilt with a 3D wireframe and futuristic-HUD look
+(`promo-video/src/wire/`, rendered with `npm run render:3d`). The seven scenes:
+
+1. **Decrypt**: the glyphs flash inside a spinning wireframe icosahedron, with a pink outer lattice
+   and a tick-mark reticle, which burst outward on the last glyph.
+2. **Origin**: the camera flies over a wireframe terrain toward a ringed horizon. The campaign
+   hashtags then stream past on the walls of a 3D tunnel, and **#CrossTheLine** glitches in over a
+   pair of gyroscope rings.
+3. **Archive scan**: about 120 avatars fly in from deep space and lock into a curved holo-wall,
+   while the camera pulls back and widens.
+4. **Telemetry**: the four stat counters in chamfered HUD panels, each with a spinning wireframe
+   solid, over a slowly rotating wireframe globe.
+5. **Timeline**: the campaign bar chart as translucent wireframe columns on a grid floor, with an
+   orbiting camera. The month, season, hiatus and finale labels are HTML, projected onto the 3D
+   positions every frame.
+6. **Interface**: the site screenshots as floating holographic panels. The lightbox layer lifts
+   out toward the camera while a scan bar sweeps the panel.
+7. **Restored**: the glyphs orbit on a tilted ring inside three gyroscope rings, and the title
+   decodes in with scrambled letters.
+
+A persistent HUD sits over every scene: viewfinder corners, a section label, a REC timecode and
+a small audio meter.
+
+**What was installed, and why:**
+
+| Package | Role |
+|---|---|
+| [`@remotion/three`](https://www.remotion.dev/docs/three) | `<ThreeCanvas>`: makes `useCurrentFrame()` work inside a react-three-fiber scene and holds each screenshot until the WebGL frame is drawn |
+| [`three`](https://threejs.org), `@types/three` | WebGL engine: geometry, edge lines, textured planes, fog |
+| [`@react-three/fiber`](https://r3f.docs.pmnd.rs) v9 | Declarative React renderer for Three.js |
+| [`@react-three/postprocessing`](https://github.com/pmndrs/react-postprocessing), [`postprocessing`](https://github.com/pmndrs/postprocessing) | Bloom (the neon glow on the lines), chromatic aberration and vignette |
+| `react` / `react-dom` 19 | Required by react-three-fiber v9 (the flat promo is unaffected) |
+
+All Remotion packages were pinned to the same version (4.0.530), because `@remotion/three` must
+match `remotion` exactly. `@react-three/drei` was considered but not needed. Its 3D text relies on
+async font workers, which can flicker in frame-by-frame renders, so all text stays in HTML.
+
+**Gotchas we hit:**
+
+- Three.js draws nothing in headless Chrome with the default GL backend. `remotion.config.ts` sets
+  `angle`, and the render script also passes `--gl=angle`.
+- `EffectComposer` attaches its passes after `<ThreeCanvas>` has already drawn its first frame, so
+  the first frame after each scene mounts (and every still) came out black. `RenderAfterMount` in
+  `three.tsx` draws once more after mount and holds the screenshot until it has.
+- A transparent plane at opacity 0 still writes depth and hides whatever is behind it. The
+  screenshot panels use `depthWrite={false}`.
+- All motion is computed from the frame number (no `useFrame`, no clocks), and random scatter uses
+  a seeded PRNG, so parallel render workers produce identical frames.
+
+Sources: [Remotion: @remotion/three](https://www.remotion.dev/docs/three),
+[Remotion React Three Fiber template](https://www.remotion.dev/templates/three),
+[react-postprocessing](https://github.com/pmndrs/react-postprocessing),
+[Remotion 3D with Three.js and React Three Fiber (devsvideo)](https://devsvideo.com/remotion/remotion-3d-threejs).
+
 ### Research: how "Claude makes motion graphics" videos are made
 
 The motion-infographic videos made with Claude that are circulating online almost all use
