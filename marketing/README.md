@@ -93,8 +93,9 @@ Design notes:
 
 ### Known issues / follow-ups
 
-- `https://fringematrix.art` failed TLS with `ERR_CERT_COMMON_NAME_INVALID` when this was built,
-  so the screenshots were taken from `https://fringematrix5.vercel.app`. The video still shows
-  fringematrix.art as the address, so fix the certificate before publishing the video.
+- The screenshots were taken from `https://fringematrix5.vercel.app` because fringematrix.art
+  still pointed at an old host at the time. As of 2026-09-27 fringematrix.art serves the same
+  Vercel deployment with a valid certificate, so the address shown in the video works and the
+  screenshots don't need to be retaken.
 - Swap the synthesized music bed for real licensed music before any public use.
 - Possible extras: a 9:16 vertical cut for Reels/Shorts/TikTok, and a voiceover.
