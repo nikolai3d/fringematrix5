@@ -3,6 +3,7 @@ import {
   waitForLoaderToFinish,
   waitForWireframeVisible,
   waitForWireframeHidden,
+  waitForLightboxOpenSettled,
 } from './helpers/wireframe';
 
 let escapeForAttributeSelectorFn: (value: string) => string;
@@ -217,6 +218,12 @@ test.describe('Lightbox animations', () => {
     // Wireframe should appear during zoom-in, then hide
     await waitForWireframeVisible(page);
     await waitForWireframeHidden(page);
+    // Let the panel enter animations finish too. The open effect re-runs on
+    // every lightboxIndex change until the whole open choreography resolves,
+    // so arrow-key navigation before this point replays the wireframe zoom
+    // (see waitForLightboxOpenSettled). Without this wait the final
+    // "wireframe hidden while sitting open" check below was flaky.
+    await waitForLightboxOpenSettled(page);
 
     // Lightbox should be visible
     const lightbox = page.locator('#lightbox');
@@ -249,12 +256,14 @@ test.describe('Lightbox animations', () => {
     }
 
     // Ensure wireframe is not displayed outside of animation while lightbox sits open.
-    // Use waitForWireframeHidden to handle any residual animation timing in CI before
-    // asserting the settled state; then snapshot to confirm the element exists.
-    await waitForWireframeHidden(page);
-    const wfMid = await getWireframeState(page);
-    expect(wfMid.present).toBeTruthy();
-    expect(wfMid.display).toBe('none');
+    // Poll (rather than snapshot once) so a residual animation frame scheduled
+    // by the navigation above can't turn a momentary 'none' into a stale read.
+    await expect
+      .poll(async () => {
+        const wf = await getWireframeState(page);
+        return `${wf.present}:${wf.display}`;
+      })
+      .toBe('true:none');
 
     // Close via Escape -> should play wireframe and hide
     await page.keyboard.press('Escape');
