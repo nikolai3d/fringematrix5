@@ -11,9 +11,14 @@ for the commands to preview and render it.
 ### 3D variant (`FringePromo3D`)
 
 The same script, timing and soundtrack, rebuilt with a 3D wireframe and futuristic-HUD look
-(`promo-video/src/wire/`, rendered with `npm run render:3d`). The seven scenes:
+(`promo-video/src/wire/`, rendered with `npm run render:3d`). The color palette and UI elements follow the
+menus of *Deus Ex: Human Revolution*: black and gold, an amber haze with a hot flare off one edge, lit
+gold-and-black triangle shards drifting through every scene, angled main-menu buttons, huge sweeping
+arcs, a metallic gold logo lockup and a scrolling ticker band (palette and fonts in `wire/dx.ts`).
+Avatars and screenshots get a partial gold color grade. The Fringe glyphs keep their original colors.
+The seven scenes:
 
-1. **Decrypt**: the glyphs flash inside a spinning wireframe icosahedron, with a pink outer lattice
+1. **Decrypt**: the glyphs flash inside a spinning wireframe icosahedron, with an amber outer lattice
    and a tick-mark reticle, which burst outward on the last glyph.
 2. **Origin**: the camera flies over a wireframe terrain toward a ringed horizon. The campaign
    hashtags then stream past on the walls of a 3D tunnel, and **#CrossTheLine** glitches in over a
@@ -21,17 +26,19 @@ The same script, timing and soundtrack, rebuilt with a 3D wireframe and futurist
 3. **Archive scan**: about 120 avatars fly in from deep space and lock into a curved holo-wall,
    while the camera pulls back and widens.
 4. **Telemetry**: the four stat counters in chamfered HUD panels, each with a spinning wireframe
-   solid, over a slowly rotating wireframe globe.
-5. **Timeline**: the campaign bar chart as translucent wireframe columns on a grid floor, with an
+   solid, over a slowly rotating triangulated globe.
+5. **Timeline**: the campaign bar chart as dark gold-edged columns (the finale bar lit solid gold) on a grid floor, with an
    orbiting camera. The month, season, hiatus and finale labels are HTML, projected onto the 3D
    positions every frame.
-6. **Interface**: the site screenshots as floating holographic panels. The lightbox layer lifts
-   out toward the camera while a scan bar sweeps the panel.
-7. **Restored**: the glyphs orbit on a tilted ring inside three gyroscope rings, and the title
-   decodes in with scrambled letters.
+6. **Interface**: the site screenshots as floating holographic panels, next to a game-style main
+   menu of the gallery's features whose highlight steps down as the screenshots change. The lightbox
+   layer lifts out toward the camera while a scan bar sweeps the panel.
+7. **Restored**: the glyphs orbit on a tilted ring inside three gyroscope rings. The title decodes
+   in with scrambled letters as a metallic gold logo over a spaced-out subtitle and a gold
+   RESTORED band, and the URL appears as a highlighted menu button.
 
-A persistent HUD sits over every scene: viewfinder corners, a section label, a REC timecode and
-a small audio meter.
+A persistent HUD sits over every scene: corner brackets, the logo and section label, a timecode, a
+scrolling ticker of archive stats along the bottom, a build number and a spinning emblem.
 
 **What was installed, and why:**
 
@@ -40,7 +47,7 @@ a small audio meter.
 | [`@remotion/three`](https://www.remotion.dev/docs/three) | `<ThreeCanvas>`: makes `useCurrentFrame()` work inside a react-three-fiber scene and holds each screenshot until the WebGL frame is drawn |
 | [`three`](https://threejs.org), `@types/three` | WebGL engine: geometry, edge lines, textured planes, fog |
 | [`@react-three/fiber`](https://r3f.docs.pmnd.rs) v9 | Declarative React renderer for Three.js |
-| [`@react-three/postprocessing`](https://github.com/pmndrs/react-postprocessing), [`postprocessing`](https://github.com/pmndrs/postprocessing) | Bloom (the neon glow on the lines), chromatic aberration and vignette |
+| [`@react-three/postprocessing`](https://github.com/pmndrs/react-postprocessing), [`postprocessing`](https://github.com/pmndrs/postprocessing) | Bloom (the glow on the lines and shards), chromatic aberration and vignette |
 | `react` / `react-dom` 19 | Required by react-three-fiber v9 (the flat promo is unaffected) |
 
 All Remotion packages were pinned to the same version (4.0.530), because `@remotion/three` must

@@ -8,7 +8,8 @@ export const Words: React.FC<{
   stagger?: number;
   style?: React.CSSProperties;
   highlight?: string[];
-}> = ({ text, delay = 0, stagger = 4, style, highlight = [] }) => {
+  accent?: string;
+}> = ({ text, delay = 0, stagger = 4, style, highlight = [], accent = C.cyan }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   return (
@@ -23,7 +24,7 @@ export const Words: React.FC<{
               opacity: p,
               transform: `translateY(${(1 - p) * 40}px)`,
               filter: `blur(${(1 - p) * 12}px)`,
-              color: highlight.includes(w) ? C.cyan : undefined,
+              color: highlight.includes(w) ? accent : undefined,
             }}
           >
             {w}
@@ -53,10 +54,12 @@ export const Typed: React.FC<{ text: string; start?: number; cps?: number; style
   );
 };
 
-export const Kicker: React.FC<{ children: React.ReactNode; delay?: number; style?: React.CSSProperties }> = ({
+export const Kicker: React.FC<{ children: React.ReactNode; delay?: number; style?: React.CSSProperties; accent?: string; glow?: string }> = ({
   children,
   delay = 0,
   style,
+  accent = C.cyan,
+  glow = C.glow,
 }) => {
   const frame = useCurrentFrame();
   const o = interpolate(frame - delay, [0, 12], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
@@ -70,12 +73,12 @@ export const Kicker: React.FC<{ children: React.ReactNode; delay?: number; style
         fontFamily: F.mono,
         fontSize: 24,
         letterSpacing: '0.25em',
-        color: C.cyan,
+        color: accent,
         opacity: o,
         ...style,
       }}
     >
-      <span style={{ width: w, height: 2, background: C.cyan, boxShadow: `0 0 10px ${C.glow}` }} />
+      <span style={{ width: w, height: 2, background: accent, boxShadow: `0 0 10px ${glow}` }} />
       {children}
     </div>
   );

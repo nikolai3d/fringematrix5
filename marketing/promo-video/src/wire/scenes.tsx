@@ -3,17 +3,22 @@ import { AbsoluteFill, Easing, Sequence, interpolate, spring, staticFile, useCur
 import { useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CrtOverlay } from '../Backdrop';
-import { C, F, glowText } from '../theme';
-import { Kicker, Typed, Words } from '../ui';
+import { Kicker as BaseKicker, Typed, Words as BaseWords } from '../ui';
 import data from '../data.json';
 import art from '../art.json';
-import { GlitchText, HudPanel } from './hud';
-import { Cam, Edges, FloorGrid, Particles, Stage, hot, mulberry, project, px, pxSize, type V3 } from './three';
+import { D, DF, goldGlow, metalText } from './dx';
+import { Arcs, GlitchText, HudPanel, MenuBar } from './hud';
+import { Cam, Edges, FloorGrid, Particles, Shards, Stage, TriNet, hot, makeGoldGrade, mulberry, project, px, pxSize, useGoldGrade, type V3 } from './three';
 
 const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const;
 const GLYPHS = ['Apple', 'Butterfly', 'Flower', 'Frog', 'Hand', 'Horn', 'Leaf', 'Smoke', 'Seahorse'];
 const GLYPH_URLS = GLYPHS.map((g) => staticFile(`glyphs/${g}Glyph.png`));
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
+
+const Kicker: React.FC<React.ComponentProps<typeof BaseKicker>> = (p) => (
+  <BaseKicker accent={D.gold} glow={D.glow} {...p} style={{ fontFamily: DF.ui, fontWeight: 600, fontSize: 26, letterSpacing: '0.22em', ...p.style }} />
+);
+const Words: React.FC<React.ComponentProps<typeof BaseWords>> = (p) => <BaseWords accent={D.gold} {...p} />;
 
 const useTextures = (urls: string[]) => {
   const tex = useLoader(THREE.TextureLoader, urls);
@@ -26,7 +31,7 @@ const TickRing: React.FC<{ r: number; n?: number; len?: number; color?: string; 
   r,
   n = 120,
   len = 0.18,
-  color = C.cyan,
+  color = D.gold,
   opacity = 0.8,
 }) => {
   const geo = useMemo(() => {
@@ -47,7 +52,7 @@ const TickRing: React.FC<{ r: number; n?: number; len?: number; color?: string; 
   );
 };
 
-const Circle: React.FC<{ r: number; color?: string; opacity?: number; k?: number }> = ({ r, color = C.cyan, opacity = 1, k = 1.5 }) => {
+const Circle: React.FC<{ r: number; color?: string; opacity?: number; k?: number }> = ({ r, color = D.gold, opacity = 1, k = 1.5 }) => {
   const geo = useMemo(() => {
     const pts: number[] = [];
     for (let i = 0; i <= 128; i++) pts.push(Math.cos((i / 128) * Math.PI * 2) * r, Math.sin((i / 128) * Math.PI * 2) * r, 0);
@@ -79,12 +84,13 @@ const IntroWorld: React.FC = () => {
   return (
     <>
       <Cam pos={[Math.sin(frame / 50) * 1.5, 0.6, camZ]} />
-      <Particles count={900} spread={[50, 30, 40]} seed={3} rotY={frame * 0.002} />
+      <Particles count={500} spread={[50, 30, 40]} seed={3} rotY={frame * 0.002} />
       <group rotation={[frame * 0.011, frame * 0.017, 0]} scale={burst}>
         <Edges geometry={ico} k={1.4} opacity={0.9} />
       </group>
+      <Shards frame={frame} count={70} seed={4} spread={[28, 16, 8]} center={[0, 0, -6]} size={0.42} burst={0.75 + burst * 0.25} spin={1.4} opacity={interpolate(frame, [0, 20], [0, 1], clamp)} />
       <group rotation={[-frame * 0.006, -frame * 0.009, frame * 0.004]} scale={1 + (burst - 1) * 1.6}>
-        <Edges geometry={outer} color={C.pink} k={1.2} opacity={interpolate(frame, [0, 30], [0, 0.55], clamp)} />
+        <Edges geometry={outer} color={D.amber} k={1.2} opacity={interpolate(frame, [0, 30], [0, 0.55], clamp)} />
       </group>
       <group rotation={[0, 0, -frame * 0.01]}>
         <TickRing r={3.4 * burst} opacity={interpolate(frame, [10, 30], [0, 0.7], clamp)} />
@@ -92,17 +98,10 @@ const IntroWorld: React.FC = () => {
       <group rotation={[0, 0, frame * 0.02]}>
         <Circle r={3.1 * burst} opacity={0.4} />
       </group>
+      {/* glyphs keep their own colors: normal blending, neutral (white) tint */}
       <mesh scale={isLast ? interpolate(frame, [64, 120], [1, 1.3], clamp) : 1.06 - local * 0.006}>
         <planeGeometry args={[3.6, 3.6]} />
-        <meshBasicMaterial
-          map={tex[idx]}
-          transparent
-          opacity={glyphO}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-          color={hot('#ffffff', 1.5)}
-          toneMapped={false}
-        />
+        <meshBasicMaterial map={tex[idx]} transparent opacity={glyphO} depthWrite={false} color={hot('#ffffff', 1.3)} toneMapped={false} />
       </mesh>
     </>
   );
@@ -113,12 +112,17 @@ export const Intro: React.FC = () => {
   const flash = interpolate(frame, [64, 67, 80], [0, 0.45, 0], clamp);
   return (
     <AbsoluteFill>
-      <Stage bloom={1.4}>
+      <Stage bloom={1.4} haze={{ k: 0.55 }}>
         <IntroWorld />
       </Stage>
-      <AbsoluteFill style={{ background: C.glow, opacity: flash, mixBlendMode: 'screen' }} />
+      <AbsoluteFill style={{ background: D.glow, opacity: flash, mixBlendMode: 'screen' }} />
       <div style={{ position: 'absolute', left: 120, bottom: 120, fontSize: 34 }}>
-        <Typed text="> DECRYPTING ARCHIVE :: FRINGE / 2012–2013" start={6} cps={1.1} />
+        <Typed
+          text="> DECRYPTING ARCHIVE :: FRINGE / 2012–2013"
+          start={6}
+          cps={1.1}
+          style={{ fontFamily: DF.ui, fontWeight: 600, letterSpacing: '0.08em', color: D.gold, textShadow: goldGlow(0.4) }}
+        />
       </div>
       <CrtOverlay />
     </AbsoluteFill>
@@ -143,7 +147,7 @@ const Terrain: React.FC<{ scroll: number }> = ({ scroll }) => {
   pos.needsUpdate = true;
   return (
     <mesh geometry={geo} position={[0, -2, -TERRAIN_D / 2 + 10]}>
-      <meshBasicMaterial color={hot(C.cyan, 1.1)} wireframe toneMapped={false} transparent opacity={0.55} />
+      <meshBasicMaterial color={hot(D.gold, 1.1)} wireframe toneMapped={false} transparent opacity={0.55} />
     </mesh>
   );
 };
@@ -160,13 +164,15 @@ const OriginWorld: React.FC = () => {
       {/* horizon sun: stacked pink rings sinking into the grid */}
       <group position={[0, 2.2, -45]}>
         {[0, 1, 2, 3, 4, 5].map((i) => (
-          <Circle key={i} r={7 - i * 1.1} color={i % 2 ? C.pink : C.cyan} opacity={0.35} k={1.3} />
+          <Circle key={i} r={7 - i * 1.1} color={i % 2 ? D.amber : D.gold} opacity={0.35} k={1.3} />
         ))}
       </group>
-      <Particles count={500} spread={[80, 20, 60]} seed={7} />
+      <Particles count={400} spread={[80, 20, 60]} seed={7} />
+      <Shards frame={frame} count={45} seed={8} center={[7.5, 2.5, -6]} spread={[9, 7, 10]} size={0.5} drift={[-0.01, 0.006, 0.02]} />
+      <Shards frame={frame} count={30} seed={9} center={[-9, 3.5, -12]} spread={[8, 6, 8]} size={0.6} drift={[0.01, -0.004, 0.02]} />
       {frame >= 74 && (
         <group position={[0, 0.6, 0]} rotation={[Math.PI / 2 - 0.3 + frame * 0.004, frame * 0.01, 0]} scale={0.3 + ring * 0.9}>
-          <Edges geometry={torus} color={C.pink} k={1.8} opacity={ring} />
+          <Edges geometry={torus} color={D.amber} k={1.8} opacity={ring} />
           <group rotation={[Math.PI / 2, 0, 0]} scale={1.15}>
             <Edges geometry={torus} k={1.6} opacity={ring * 0.6} />
           </group>
@@ -190,7 +196,7 @@ const HashtagTunnel: React.FC = () => {
   ];
   return (
     <AbsoluteFill style={{ perspective: 800, overflow: 'hidden', opacity: interpolate(frame, [0, 16], [0, 1], clamp) }}>
-      <AbsoluteFill style={{ background: 'rgba(6,9,15,0.55)' }} />
+      <AbsoluteFill style={{ background: 'rgba(10,7,2,0.55)' }} />
       <div style={{ position: 'absolute', left: '50%', top: '50%', transformStyle: 'preserve-3d' }}>
         {walls.flatMap((w, wi) =>
           Array.from({ length: per }).map((_, i) => {
@@ -203,11 +209,12 @@ const HashtagTunnel: React.FC = () => {
                 style={{
                   position: 'absolute',
                   transform: `${w.t(z, o)} translate(-50%, -50%)`,
-                  fontFamily: F.mono,
-                  fontSize: 64,
+                  fontFamily: DF.ui,
+                  fontSize: 70,
+                  fontWeight: 600,
                   whiteSpace: 'nowrap',
-                  color: (i + wi) % 5 === 0 ? C.pink : C.cyan,
-                  textShadow: glowText((i + wi) % 5 === 0 ? C.pink : C.glow, 0.5),
+                  color: (i + wi) % 5 === 0 ? D.amber : D.gold,
+                  textShadow: goldGlow(0.5, (i + wi) % 5 === 0 ? D.amber : D.glow),
                   opacity: near * 0.75,
                 }}
               >
@@ -217,7 +224,7 @@ const HashtagTunnel: React.FC = () => {
           }),
         )}
       </div>
-      <AbsoluteFill style={{ background: `radial-gradient(ellipse at center, ${C.bg}f0 18%, transparent 55%)` }} />
+      <AbsoluteFill style={{ background: `radial-gradient(ellipse at center, ${D.bg}f0 18%, transparent 55%)` }} />
     </AbsoluteFill>
   );
 };
@@ -232,15 +239,16 @@ const FirstHashtag: React.FC = () => {
         text="#CrossTheLine"
         start={3}
         dur={14}
-        style={{ fontFamily: F.display, fontWeight: 900, fontSize: 170, color: C.fg, textShadow: glowText() }}
+        style={{ fontFamily: DF.display, fontSize: 124, color: D.goldHi, textShadow: goldGlow() }}
       />
       <div
         style={{
           marginTop: 36,
-          fontFamily: F.mono,
-          fontSize: 32,
+          fontFamily: DF.ui,
+          fontSize: 34,
+          fontWeight: 600,
           letterSpacing: '0.2em',
-          color: C.cyan,
+          color: D.gold,
           opacity: interpolate(frame, [18, 30], [0, 1], clamp),
         }}
       >
@@ -255,7 +263,7 @@ export const Origin: React.FC = () => {
   const textOut = interpolate(frame, [62, 74], [1, 0], clamp);
   return (
     <AbsoluteFill>
-      <Stage bloom={1.2} fog={[10, 55]}>
+      <Stage bloom={1.2} fog={[10, 55]} haze={{ y: 0.4, k: 0.95 }}>
         <OriginWorld />
       </Stage>
       <AbsoluteFill style={{ justifyContent: 'center', padding: '0 160px', opacity: textOut, marginTop: -120 }}>
@@ -263,13 +271,13 @@ export const Origin: React.FC = () => {
         <Words
           text="2012. Fringe was facing cancellation."
           highlight={['Fringe']}
-          style={{ fontFamily: F.body, fontWeight: 800, fontSize: 84, color: C.fg, marginTop: 24, textShadow: '0 4px 30px #000' }}
+          style={{ fontFamily: DF.ui, fontWeight: 700, fontSize: 96, color: D.fg, marginTop: 24, textShadow: '0 4px 30px #000' }}
         />
         <Words
           text="So the fans fought back, one hashtag at a time."
           delay={22}
           stagger={3}
-          style={{ fontFamily: F.body, fontWeight: 300, fontSize: 64, color: C.muted, marginTop: 24, textShadow: '0 4px 30px #000' }}
+          style={{ fontFamily: DF.ui, fontWeight: 500, fontSize: 70, color: '#E3CFA6', marginTop: 24, textShadow: '0 4px 30px #000' }}
         />
       </AbsoluteFill>
       <Sequence from={66}>
@@ -295,6 +303,8 @@ const ArtWallWorld: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const tex = useTextures(ART_URLS);
+  // light grade so the avatars sit in the palette but stay recognisable
+  const mats = useMemo(() => Array.from({ length: WALL_COLS * WALL_ROWS }, (_, i) => makeGoldGrade(tex[(i * 7) % tex.length], 0.3)), [tex]);
   const plane = useMemo(() => new THREE.PlaneGeometry(TILE, TILE), []);
   const rnd = useMemo(() => mulberry(11), []);
   const scatter = useMemo(() => Array.from({ length: WALL_COLS * WALL_ROWS }, () => [rnd() - 0.5, rnd() - 0.5, rnd()] as V3), [rnd]);
@@ -306,8 +316,8 @@ const ArtWallWorld: React.FC = () => {
   return (
     <>
       <Cam pos={[Math.sin(yaw) * 2, 0.5 + (1 - t) * 0.4, camZ]} look={[Math.sin(yaw) * 8, 0.3, -WALL_R]} fov={interpolate(t, [0, 1], [28, 50])} />
-      <FloorGrid y={-5.8} size={80} step={2} opacity={0.18} offsetZ={frame * 0.02} />
-      <Particles count={500} spread={[60, 20, 50]} seed={21} />
+      <Particles count={400} spread={[60, 20, 50]} seed={21} />
+      <Shards frame={frame} count={60} seed={22} center={[0, 0, -4]} spread={[30, 14, 16]} size={0.45} drift={[0.012, 0.004, 0]} />
       <group position={[0, 0, 0]}>
         {scatter.map((s, i) => {
           const x = i % WALL_COLS;
@@ -326,7 +336,7 @@ const ArtWallWorld: React.FC = () => {
               rotation={[(1 - p) * s[0] * 3, -a + (1 - p) * 2.4, 0]}
             >
               <mesh geometry={plane}>
-                <meshBasicMaterial map={tex[(i * 7) % tex.length]} transparent opacity={p} side={THREE.DoubleSide} />
+                <primitive object={mats[i]} attach="material" uniforms-opacity-value={p} />
               </mesh>
               <Edges geometry={plane} k={1.3} opacity={0.45 + 0.4 * (1 - p)} />
             </group>
@@ -339,17 +349,18 @@ const ArtWallWorld: React.FC = () => {
 
 export const ArtWall: React.FC = () => (
   <AbsoluteFill>
-    <Stage bloom={0.9} fog={[12, 45]}>
+    <Stage bloom={0.9} fog={[14, 50]} haze={{ y: 0.3, k: 0.9 }}>
       <ArtWallWorld />
     </Stage>
-    <AbsoluteFill style={{ background: `linear-gradient(0deg, ${C.bg} 4%, ${C.bg}cc 30%, transparent 60%)` }} />
-    <div style={{ position: 'absolute', left: 140, bottom: 130, width: 1700 }}>
+    <Arcs cx={2300} cy={1700} r0={1000} opacity={0.4} />
+    <AbsoluteFill style={{ background: `linear-gradient(0deg, ${D.bg} 4%, ${D.bg}cc 30%, transparent 60%)` }} />
+    <div style={{ position: 'absolute', left: 140, bottom: 150, width: 1700 }}>
       <Kicker delay={50}>EVERY FRIDAY · FAN-MADE</Kicker>
       <Words
         text="Artists in the fandom made social media avatars to rally every campaign."
         delay={60}
         highlight={['avatars']}
-        style={{ fontFamily: F.body, fontWeight: 800, fontSize: 78, color: C.fg, marginTop: 20 }}
+        style={{ fontFamily: DF.ui, fontWeight: 700, fontSize: 86, lineHeight: 1.05, color: D.fg, marginTop: 20 }}
       />
     </div>
     <CrtOverlay />
@@ -379,21 +390,22 @@ const StatsWorld: React.FC = () => {
     ],
     [],
   );
-  const globe = useMemo(() => new THREE.SphereGeometry(9, 28, 18), []);
+  const globe = useMemo(() => new THREE.IcosahedronGeometry(9, 3), []);
   return (
     <>
       <group position={[9, -1, -14]} rotation={[0.3, frame * 0.006, 0]}>
         <mesh geometry={globe}>
-          <meshBasicMaterial color={C.cyan} wireframe transparent opacity={0.1} />
+          <meshBasicMaterial color={D.gold} wireframe transparent opacity={0.12} />
         </mesh>
       </group>
-      <Particles count={700} spread={[40, 24, 20]} seed={5} rotY={frame * 0.001} />
+      <Particles count={400} spread={[40, 24, 20]} seed={5} rotY={frame * 0.001} />
+      <Shards frame={frame} count={40} seed={6} center={[8, 3, -8]} spread={[12, 8, 6]} size={0.45} drift={[-0.008, 0.01, 0]} />
       {solids.map((g, i) => {
         const p = spring({ frame: frame - statDelay(i), fps, config: { damping: 14 } });
         const [x, y] = px(cardX(i) + CARD.w / 2, CARD.top + 110);
         return (
           <group key={i} position={[x, y, 0]} rotation={[frame * 0.02 + i, frame * 0.03 + i * 2, 0]} scale={pxSize(62) * p}>
-            <Edges geometry={g} color={i === 0 ? C.pink : C.cyan} k={1.8} />
+            <Edges geometry={g} color={i === 0 ? D.amber : D.gold} k={1.8} />
           </group>
         );
       })}
@@ -412,23 +424,23 @@ const StatCard: React.FC<{ i: number }> = ({ i }) => {
   const lit = Math.round(interpolate(frame - delay, [4, 50], [0, segs], clamp));
   return (
     <div style={{ position: 'absolute', left: cardX(i), top: CARD.top, opacity: Math.min(1, enter * 1.5), transform: `translateY(${(1 - enter) * 60}px)` }}>
-      <HudPanel w={CARD.w} h={CARD.h} progress={enter} color={i === 0 ? C.pink : C.cyan}>
-        <div style={{ position: 'absolute', top: 16, left: 40, fontFamily: F.mono, fontSize: 18, letterSpacing: '0.2em', color: C.muted }}>
+      <HudPanel w={CARD.w} h={CARD.h} progress={enter} color={i === 0 ? D.amber : D.gold}>
+        <div style={{ position: 'absolute', top: 14, left: 44, fontFamily: DF.ui, fontWeight: 600, fontSize: 20, letterSpacing: '0.2em', color: D.muted }}>
           DATA.{String(i + 1).padStart(2, '0')}
         </div>
         <div style={{ position: 'absolute', top: 220, left: 36, right: 36 }}>
-          <div style={{ fontFamily: F.display, fontWeight: 900, fontSize: 104, color: C.fg, textShadow: glowText(C.glow, 0.6), lineHeight: 1 }}>
-            {fmt(count)}
+          <div style={{ fontFamily: DF.display, fontSize: 70, lineHeight: 1, filter: `drop-shadow(0 0 10px rgba(255,170,30,0.55))` }}>
+            <span style={metalText}>{fmt(count)}</span>
           </div>
           <div style={{ display: 'flex', gap: 4, marginTop: 18 }}>
             {Array.from({ length: segs }).map((_, s) => (
-              <span key={s} style={{ flex: 1, height: 8, background: s < lit ? C.cyan : 'rgba(0,212,255,0.15)', boxShadow: s < lit ? `0 0 8px ${C.glow}` : undefined }} />
+              <span key={s} style={{ flex: 1, height: 8, background: s < lit ? D.gold : 'rgba(255,179,32,0.15)', boxShadow: s < lit ? `0 0 8px ${D.glow}` : undefined }} />
             ))}
           </div>
-          <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 30, color: i === 0 ? C.pink : C.cyan, letterSpacing: '0.12em', marginTop: 22 }}>
+          <div style={{ fontFamily: DF.ui, fontWeight: 700, fontSize: 36, color: i === 0 ? D.amber : D.gold, letterSpacing: '0.16em', marginTop: 22 }}>
             {stat.label}
           </div>
-          <div style={{ fontFamily: F.body, fontSize: 24, color: C.muted, marginTop: 8 }}>{stat.sub}</div>
+          <div style={{ fontFamily: DF.ui, fontWeight: 500, fontSize: 28, color: '#D9C49C', marginTop: 4 }}>{stat.sub}</div>
         </div>
       </HudPanel>
     </div>
@@ -437,7 +449,7 @@ const StatCard: React.FC<{ i: number }> = ({ i }) => {
 
 export const Stats: React.FC = () => (
   <AbsoluteFill>
-    <Stage bloom={1.2}>
+    <Stage bloom={1.2} haze={{ x: 0.7, y: 0.4, k: 0.85, flare: 0.55 }}>
       <StatsWorld />
     </Stage>
     <div style={{ position: 'absolute', left: 140, top: 150 }}>
@@ -446,7 +458,7 @@ export const Stats: React.FC = () => (
         text="A whole year of fandom, preserved."
         delay={6}
         highlight={['preserved.']}
-        style={{ fontFamily: F.body, fontWeight: 800, fontSize: 80, color: C.fg, marginTop: 20 }}
+        style={{ fontFamily: DF.ui, fontWeight: 700, fontSize: 92, color: D.fg, marginTop: 16 }}
       />
     </div>
     {STATS.map((s, i) => (
@@ -482,14 +494,13 @@ const timelineCam = (frame: number) => {
 
 const Bar: React.FC<{ x: number; h: number; hotBar: boolean }> = ({ x, h, hotBar }) => {
   const box = useMemo(() => new THREE.BoxGeometry(BAR, 1, BAR), []);
-  const color = hotBar ? C.pink : C.cyan;
   if (h <= 0.001) return null;
   return (
     <group position={[x, h / 2, 0]} scale={[1, h, 1]}>
       <mesh geometry={box}>
-        <meshBasicMaterial color={color} transparent opacity={hotBar ? 0.35 : 0.14} depthWrite={false} />
+        <meshBasicMaterial color={hotBar ? hot(D.gold, 1.3) : '#3a2608'} toneMapped={!hotBar} transparent opacity={hotBar ? 0.75 : 0.6} depthWrite={false} />
       </mesh>
-      <Edges geometry={box} color={color} k={hotBar ? 2.2 : 1.5} />
+      <Edges geometry={box} color={hotBar ? D.goldHi : D.gold} k={hotBar ? 2.4 : 1.4} />
     </group>
   );
 };
@@ -506,17 +517,18 @@ const TimelineWorld: React.FC = () => {
   return (
     <>
       <Cam {...cam} />
-      <FloorGrid y={0} size={80} step={1} opacity={0.12} />
-      <Particles count={500} spread={[70, 30, 50]} seed={9} />
+      <FloorGrid y={0} size={80} step={1} opacity={0.1} />
+      <Particles count={400} spread={[70, 30, 50]} seed={9} />
+      <Shards frame={frame} count={50} seed={10} center={[0, 9, -14]} spread={[50, 10, 12]} size={0.55} drift={[0.015, 0.003, 0]} />
       <mesh geometry={axisGeo} position={[X0 + ((X1 - X0) * axis) / 2, 0.02, 0.6]} scale={[Math.max(axis, 0.001), 1, 1]}>
-        <meshBasicMaterial color={hot(C.cyan, 2)} toneMapped={false} />
+        <meshBasicMaterial color={hot(D.gold, 2)} toneMapped={false} />
       </mesh>
       {data.campaigns.map((c, i) => {
         const p = spring({ frame: frame - 30 - i * 2.2, fps, config: { damping: 15 } });
         return <Bar key={c.hashtag} x={cxOf(i)} h={(c.count / MAX_COUNT) * MAX_H * p} hotBar={c === TOP} />;
       })}
       <group position={[(hiatusA + hiatusB) / 2, 1.5, 0]}>
-        <Edges geometry={hiatusBox} color={C.muted} k={0.9} opacity={interpolate(frame, [70, 85], [0, 0.6], clamp)} />
+        <Edges geometry={hiatusBox} color={D.muted} k={0.9} opacity={interpolate(frame, [70, 85], [0, 0.6], clamp)} />
       </group>
     </>
   );
@@ -541,19 +553,19 @@ export const Timeline: React.FC = () => {
   const topI = data.campaigns.indexOf(TOP);
   return (
     <AbsoluteFill>
-      <Stage bloom={1.1} fog={[18, 60]}>
+      <Stage bloom={1.1} fog={[18, 60]} haze={{ y: 0.35, k: 0.8 }}>
         <TimelineWorld />
       </Stage>
       <div style={{ position: 'absolute', left: 140, top: 120 }}>
         <Kicker>JAN 2012 → JAN 2013</Kicker>
-        <Words text="Every campaign. Every Friday night." delay={4} style={{ fontFamily: F.body, fontWeight: 800, fontSize: 72, color: C.fg, marginTop: 18 }} />
+        <Words text="Every campaign. Every Friday night." delay={4} style={{ fontFamily: DF.ui, fontWeight: 700, fontSize: 84, color: D.fg, marginTop: 14 }} />
       </div>
       {MONTHS.map((m, i) => (
         <Label
           key={i}
           at={[xOf(new Date(2012, i, 1).getTime()), 0, 1.6]}
           frame={frame}
-          style={{ fontFamily: F.mono, fontSize: 20, color: C.muted, opacity: interpolate(frame, [14 + i * 2, 24 + i * 2], [0, 1], clamp) }}
+          style={{ fontFamily: DF.ui, fontWeight: 600, fontSize: 22, color: D.muted, opacity: interpolate(frame, [14 + i * 2, 24 + i * 2], [0, 1], clamp) }}
         >
           {m}
         </Label>
@@ -567,14 +579,14 @@ export const Timeline: React.FC = () => {
           at={[(cxOf(s.a) + cxOf(s.b)) / 2, 0, 4]}
           frame={frame}
           style={{
-            fontFamily: F.display,
+            fontFamily: DF.ui,
             fontWeight: 700,
-            fontSize: 22,
+            fontSize: 26,
             letterSpacing: '0.15em',
-            color: C.cyan,
+            color: D.gold,
             padding: '6px 14px',
-            border: `1px solid ${C.cyan}`,
-            background: 'rgba(6,9,15,0.7)',
+            border: `1px solid ${D.gold}`,
+            background: 'rgba(10,7,2,0.7)',
             opacity: interpolate(frame, [80, 95], [0, 1], clamp),
           }}
         >
@@ -584,7 +596,7 @@ export const Timeline: React.FC = () => {
       <Label
         at={[(cxOf(LAST_S4) + cxOf(LAST_S4 + 1)) / 2, 3.4, 0]}
         frame={frame}
-        style={{ fontFamily: F.mono, fontSize: 22, letterSpacing: '0.2em', color: C.muted, opacity: interpolate(frame, [70, 85], [0, 1], clamp) }}
+        style={{ fontFamily: DF.ui, fontWeight: 600, fontSize: 24, letterSpacing: '0.2em', color: D.muted, opacity: interpolate(frame, [70, 85], [0, 1], clamp) }}
       >
         SUMMER HIATUS
       </Label>
@@ -592,13 +604,13 @@ export const Timeline: React.FC = () => {
         at={[cxOf(0) - 0.3, (data.campaigns[0].count / MAX_COUNT) * MAX_H + 0.8, 0]}
         anchor="left"
         frame={frame}
-        style={{ fontFamily: F.mono, fontSize: 24, color: C.fg, opacity: interpolate(frame, [95, 108], [0, 1], clamp) }}
+        style={{ fontFamily: DF.ui, fontWeight: 600, fontSize: 28, color: D.fg, opacity: interpolate(frame, [95, 108], [0, 1], clamp) }}
       >
         ▼ #{data.campaigns[0].hashtag}: where it began
       </Label>
       <Label at={[cxOf(topI) - 0.7, MAX_H * 0.72, 0]} anchor="right" frame={frame} style={{ textAlign: 'right', opacity: late }}>
-        <div style={{ fontFamily: F.display, fontWeight: 900, fontSize: 56, color: C.pink, textShadow: glowText(C.pink, 0.5) }}>{TOP.count}</div>
-        <div style={{ fontFamily: F.mono, fontSize: 24, color: C.fg }}>#{TOP.hashtag} · the series finale ▶</div>
+        <div style={{ fontFamily: DF.display, fontSize: 56, color: D.goldHi, textShadow: goldGlow(0.6) }}>{TOP.count}</div>
+        <div style={{ fontFamily: DF.ui, fontWeight: 600, fontSize: 28, color: D.fg }}>#{TOP.hashtag} · the series finale ▶</div>
       </Label>
       <CrtOverlay />
     </AbsoluteFill>
@@ -616,87 +628,125 @@ const productCam = (frame: number) => {
   return { pos: [interpolate(t, [0, 1], [4, 1.2]), interpolate(t, [0, 1], [1.6, 0.6]), interpolate(t, [0, 1], [17, 14.5])] as V3, look: [-0.8, 0.3, 0] as V3 };
 };
 
+const enterOf = (frame: number, fps: number) => spring({ frame, fps, config: { damping: 20 } });
+const scrollOf = (frame: number) => interpolate(frame, [40, 90], [0, 1], { ...clamp, easing: Easing.inOut(Easing.cubic) });
+const lbOf = (frame: number, fps: number) => spring({ frame: frame - 115, fps, config: { damping: 16 } });
+
 const ProductWorld: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const tex = useTextures(SHOTS);
+  const [g0, g1, g2] = [useGoldGrade(tex[0], 0.55), useGoldGrade(tex[1], 0.55), useGoldGrade(tex[2], 0.55)];
+  g0.uniforms.opacity.value = enterOf(frame, fps) * (1 - scrollOf(frame));
+  g1.uniforms.opacity.value = enterOf(frame, fps) * scrollOf(frame);
+  g2.uniforms.opacity.value = lbOf(frame, fps);
   const cam = productCam(frame);
-  const enter = spring({ frame, fps, config: { damping: 20 } });
-  const scroll = interpolate(frame, [40, 90], [0, 1], { ...clamp, easing: Easing.inOut(Easing.cubic) });
-  const lb = spring({ frame: frame - 115, fps, config: { damping: 16 } });
+  const enter = enterOf(frame, fps);
+  const scroll = scrollOf(frame);
+  const lb = lbOf(frame, fps);
   const plane = useMemo(() => new THREE.PlaneGeometry(PANEL_W, PANEL_H), []);
   const scanY = ((frame * 0.05) % 1.2) * PANEL_H - PANEL_H * 0.6;
   return (
     <>
       <Cam {...cam} />
-      <FloorGrid y={-5.2} size={60} step={1.5} opacity={0.15} />
-      <Particles count={400} spread={[50, 20, 30]} seed={13} />
+      <Particles count={300} spread={[50, 20, 30]} seed={13} />
+      <Shards frame={frame} count={55} seed={14} center={[8, 3.5, -5]} spread={[10, 8, 8]} size={0.5} drift={[-0.006, 0.012, 0.004]} />
+      <group position={[-6, -1, -9]} rotation={[0.2, 0.6, 0.3]}>
+        <TriNet w={16} h={9} nx={22} ny={12} bend={0.05} opacity={0.12} />
+      </group>
       <group position={[PANEL_POS[0] - (1 - enter) * 8, PANEL_POS[1], PANEL_POS[2]]} rotation={[0.04, interpolate(frame, [0, 220], [0.38, 0.16]), 0]}>
-        <mesh geometry={plane} position={[0, -scroll * 0.3, 0]}>
-          <meshBasicMaterial map={tex[0]} transparent opacity={enter * (1 - scroll)} toneMapped={false} depthWrite={false} />
-        </mesh>
-        <mesh geometry={plane} position={[0, (1 - scroll) * 0.3, 0.001]}>
-          <meshBasicMaterial map={tex[1]} transparent opacity={enter * scroll} toneMapped={false} depthWrite={false} />
-        </mesh>
+        <mesh geometry={plane} position={[0, -scroll * 0.3, 0]} material={g0} />
+        <mesh geometry={plane} position={[0, (1 - scroll) * 0.3, 0.001]} material={g1} />
         <Edges geometry={plane} k={1.8} opacity={enter} />
         {/* lightbox layer floats out toward the camera */}
         <group position={[0.6, -0.3, 0.02 + lb * 1.6]} scale={0.9 + 0.08 * lb} visible={lb > 0.01}>
-          <mesh geometry={plane}>
-            <meshBasicMaterial map={tex[2]} transparent opacity={lb} toneMapped={false} depthWrite={false} />
-          </mesh>
-          <Edges geometry={plane} color={C.pink} k={1.8} opacity={lb} />
+          <mesh geometry={plane} material={g2} />
+          <Edges geometry={plane} color={D.goldHi} k={1.8} opacity={lb} />
         </group>
         {/* scan bar sweeping the panel */}
         <mesh position={[0, scanY, 0.01]}>
           <planeGeometry args={[PANEL_W, 0.03]} />
-          <meshBasicMaterial color={hot(C.cyan, 2.5)} toneMapped={false} transparent opacity={0.8 * enter} />
+          <meshBasicMaterial color={hot(D.gold, 2.5)} toneMapped={false} transparent opacity={0.8 * enter} />
         </mesh>
       </group>
     </>
   );
 };
 
-const FEATURE = {
-  t: `Browse all ${data.campaigns.length} campaigns`,
-  s: 'From January 2012 to January 2013, episode by episode.',
-};
+// The gallery's features as a game main menu; the highlight steps down in time with the screenshots.
+const MENU = [
+  { t: `BROWSE ALL ${data.campaigns.length} CAMPAIGNS`, s: 'From January 2012 to January 2013, episode by episode.', at: 26 },
+  { t: 'EVERY ARTIST CREDITED', s: 'Each avatar links to the artist who made it.', at: 72 },
+  { t: 'OPEN ANY AVATAR FULL SIZE', s: 'With a share link for every image.', at: 118 },
+];
 
 export const Product: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const feature = spring({ frame: frame - 26, fps, config: { damping: 18 } });
   const url = interpolate(frame, [20, 34], [0, 1], clamp);
+  const sel = MENU.reduce((acc, m, i) => (frame >= m.at ? i : acc), 0);
+  const selIn = interpolate(frame - MENU[sel].at, [0, 8], [0, 1], clamp);
   return (
     <AbsoluteFill>
-      <Stage bloom={0.8}>
+      <Stage bloom={0.8} haze={{ x: 0.35, y: 0.45, k: 0.9, flare: 0.8 }}>
         <ProductWorld />
       </Stage>
       <div
         style={{
           position: 'absolute',
           left: 130,
-          top: 140,
-          fontFamily: F.mono,
-          fontSize: 24,
+          top: 132,
+          fontFamily: DF.ui,
+          fontWeight: 600,
+          fontSize: 26,
           letterSpacing: '0.1em',
-          color: C.cyan,
+          color: D.gold,
           opacity: url,
-          padding: '8px 18px',
-          border: `1px solid rgba(0,212,255,0.5)`,
-          background: 'rgba(6,9,15,0.6)',
+          padding: '6px 18px',
+          border: `1px solid rgba(255,179,32,0.5)`,
+          background: 'rgba(10,7,2,0.6)',
         }}
       >
         SOURCE ▸ https://fringematrix.art
       </div>
-      <div style={{ position: 'absolute', left: 1300, top: 360, width: 540 }}>
-        <Kicker delay={10}>THE GALLERY</Kicker>
-        <div style={{ marginTop: 36, opacity: Math.min(1, feature * 1.4), transform: `translateX(${(1 - feature) * 60}px)` }}>
-          <HudPanel w={540} h={300} progress={feature}>
-            <div style={{ padding: '40px 40px' }}>
-              <div style={{ fontFamily: F.body, fontWeight: 800, fontSize: 50, lineHeight: 1.1, color: C.fg }}>{FEATURE.t}</div>
-              <div style={{ fontFamily: F.body, fontSize: 30, lineHeight: 1.35, color: C.muted, marginTop: 16 }}>{FEATURE.s}</div>
-            </div>
-          </HudPanel>
+      <div style={{ position: 'absolute', left: 1240, top: 270, width: 600 }}>
+        <div
+          style={{
+            fontFamily: DF.ui,
+            fontWeight: 600,
+            fontSize: 76,
+            color: D.gold,
+            textShadow: goldGlow(0.5),
+            opacity: interpolate(frame, [10, 22], [0, 1], clamp),
+          }}
+        >
+          The Gallery
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginTop: 22 }}>
+          {MENU.map((m, i) => (
+            <MenuBar
+              key={m.t}
+              w={i === sel ? 600 : 560}
+              label={m.t}
+              active={i === sel ? selIn : i === sel - 1 ? 1 - selIn : 0}
+              progress={spring({ frame: frame - 18 - i * 5, fps, config: { damping: 18 } })}
+            />
+          ))}
+        </div>
+        <div
+          key={sel}
+          style={{
+            marginTop: 30,
+            fontFamily: DF.ui,
+            fontWeight: 500,
+            fontSize: 32,
+            lineHeight: 1.3,
+            color: D.fg,
+            opacity: frame >= MENU[0].at ? selIn : 0,
+            transform: `translateY(${(1 - selIn) * 10}px)`,
+          }}
+        >
+          {MENU[sel].s}
         </div>
       </div>
       <CrtOverlay />
@@ -714,11 +764,12 @@ const OutroWorld: React.FC = () => {
   return (
     <>
       <Cam pos={[0, 0.4, 14]} />
-      <Particles count={900} spread={[50, 30, 40]} seed={17} rotY={frame * 0.002} />
+      <Particles count={500} spread={[50, 30, 40]} seed={17} rotY={frame * 0.002} />
+      <Shards frame={frame} count={80} seed={18} center={[0, 0, -4]} spread={[30, 18, 12]} size={0.45} drift={[0.006, 0.008, 0]} opacity={interpolate(frame, [0, 20], [0, 1], clamp)} />
       {[
-        { r: 5.6, rot: [1.25, 0, frame * 0.004] as V3, c: C.cyan },
-        { r: 6.2, rot: [1.1 + frame * 0.003, frame * 0.006, 0] as V3, c: C.pink },
-        { r: 6.8, rot: [1.4, frame * -0.005, 0.3] as V3, c: C.cyan },
+        { r: 5.6, rot: [1.25, 0, frame * 0.004] as V3, c: D.gold },
+        { r: 6.2, rot: [1.1 + frame * 0.003, frame * 0.006, 0] as V3, c: D.amber },
+        { r: 6.8, rot: [1.4, frame * -0.005, 0.3] as V3, c: D.gold },
       ].map((g, i) => (
         <group key={i} rotation={g.rot} scale={g.r * inR(i)}>
           <Edges geometry={torus} color={g.c} k={1.5} opacity={0.6} />
@@ -733,8 +784,7 @@ const OutroWorld: React.FC = () => {
                 <meshBasicMaterial
                   map={tex[i]}
                   transparent
-                  opacity={0.55 * interpolate(frame, [i * 3, i * 3 + 15], [0, 1], clamp)}
-                  blending={THREE.AdditiveBlending}
+                  opacity={0.8 * interpolate(frame, [i * 3, i * 3 + 15], [0, 1], clamp)}
                   depthWrite={false}
                   side={THREE.DoubleSide}
                 />
@@ -751,64 +801,87 @@ export const Outro: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const title = 'FRINGE MATRIX';
+  const sub = 'FAN ART ARCHIVE';
   const restored = spring({ frame: frame - 30, fps, config: { damping: 16 } });
   const url = spring({ frame: frame - 50, fps, config: { damping: 14 } });
-  const pulse = 0.7 + 0.3 * Math.sin(frame / 6);
   return (
     <AbsoluteFill>
-      <Stage bloom={1.3}>
+      <Stage bloom={1.3} haze={{ k: 0.85, flare: 0.5 }}>
         <OutroWorld />
       </Stage>
+      <Arcs cx={-400} cy={1600} r0={1100} opacity={0.35} />
       <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', fontFamily: F.display, fontWeight: 900, fontSize: 124, letterSpacing: '0.08em', color: C.fg }}>
-          {title.split('').map((ch, i) => {
-            const p = spring({ frame: frame - i * 2, fps, config: { damping: 12 } });
-            const scramble = p < 0.9 && ch !== ' ' ? String.fromCharCode(65 + ((frame * 7 + i * 13) % 26)) : ch;
-            return (
-              <span key={i} style={{ opacity: p, transform: `translateZ(0) translateY(${(1 - p) * -30}px)`, textShadow: glowText(C.glow, p), whiteSpace: 'pre' }}>
-                {scramble}
-              </span>
-            );
-          })}
-          <span
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', fontFamily: DF.display, fontSize: 132, lineHeight: 1, filter: 'drop-shadow(0 0 14px rgba(255,160,20,0.5)) drop-shadow(0 4px 8px #000)' }}>
+            {title.split('').map((ch, i) => {
+              const p = spring({ frame: frame - i * 2, fps, config: { damping: 12 } });
+              const scramble = p < 0.9 && ch !== ' ' ? String.fromCharCode(65 + ((frame * 7 + i * 13) % 26)) : ch;
+              return (
+                <span key={i} style={{ ...metalText, opacity: p, transform: `translateY(${(1 - p) * -30}px)`, whiteSpace: 'pre', display: 'inline-block' }}>
+                  {scramble}
+                </span>
+              );
+            })}
+          </div>
+          <div
             style={{
-              fontSize: 56,
-              fontWeight: 700,
-              letterSpacing: '0.12em',
-              color: C.cyan,
-              marginLeft: -4,
-              whiteSpace: 'pre',
-              opacity: restored,
-              transform: `translateX(${(1 - restored) * -24}px)`,
-              textShadow: glowText(C.glow, 0.5 * restored),
+              alignSelf: 'stretch',
+              display: 'flex',
+              justifyContent: 'space-between',
+              marginTop: 18,
+              padding: '0 6px',
+              fontFamily: DF.ui,
+              fontWeight: 600,
+              fontSize: 40,
+              color: D.fg,
+              opacity: interpolate(frame, [16, 30], [0, 1], clamp),
             }}
           >
-            , RESTORED
-          </span>
+            {/* spread across the logo's width, like HUMAN REVOLUTION under DEUS EX; a space becomes one empty slot */}
+            {sub.split('').map((ch, i) => (
+              <span key={i}>{ch === ' ' ? '' : ch}</span>
+            ))}
+          </div>
+          {/* the Director's Cut bar: gold band with a triangle notch, dark lettering */}
+          <div style={{ alignSelf: 'stretch', position: 'relative', height: 50, marginTop: 14, clipPath: `inset(0 ${(1 - restored) * 100}% 0 0)` }}>
+            <svg width="100%" height="50" viewBox="0 0 1000 50" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0 }}>
+              <defs>
+                <linearGradient id="dcbar" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor="#FFE39A" />
+                  <stop offset="0.5" stopColor="#F2A72A" />
+                  <stop offset="1" stopColor="#B8730C" />
+                </linearGradient>
+              </defs>
+              <polygon points="0,50 60,0 1000,0 970,50" fill="url(#dcbar)" />
+              <polygon points="110,0 175,50 200,50 135,0" fill={D.bg} opacity={0.85} />
+            </svg>
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                paddingRight: 60,
+                fontFamily: DF.ui,
+                fontWeight: 700,
+                fontSize: 36,
+                letterSpacing: '0.3em',
+                color: '#1a1004',
+              }}
+            >
+              RESTORED
+            </div>
+          </div>
         </div>
         <Words
           text="The fan art of the Fringe campaigns, preserved."
           delay={26}
           stagger={2}
-          style={{ fontFamily: F.body, fontWeight: 300, fontSize: 40, color: C.muted, marginTop: 20, justifyContent: 'center' }}
+          style={{ fontFamily: DF.ui, fontWeight: 500, fontSize: 40, color: '#E3CFA6', marginTop: 34, justifyContent: 'center' }}
         />
-        <div style={{ marginTop: 60, opacity: url, transform: `scale(${0.8 + 0.2 * url})` }}>
-          <HudPanel w={520} h={96} cut={22} progress={url} style={{ filter: `drop-shadow(0 0 ${24 * pulse}px rgba(0,212,255,${0.45 * pulse}))` }}>
-            <div
-              style={{
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontFamily: F.mono,
-                fontSize: 48,
-                color: C.cyan,
-                textShadow: glowText(C.glow, 0.5),
-              }}
-            >
-              fringematrix.art
-            </div>
-          </HudPanel>
+        <div style={{ marginTop: 44 }}>
+          <MenuBar w={520} h={84} fontSize={48} label="fringematrix.art" active={interpolate(frame, [62, 72], [0, 1], clamp)} progress={url} />
         </div>
       </AbsoluteFill>
       <CrtOverlay />

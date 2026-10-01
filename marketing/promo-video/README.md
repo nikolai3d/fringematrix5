@@ -16,6 +16,7 @@ npm run render:3d        # → out/fringe-matrix-promo-3d.mp4 (3D wireframe / HU
 - `src/Promo.tsx`: scene order, durations, transitions, audio
 - `src/wire/`: the 3D variant (`FringePromo3D`), same script and timing, rebuilt with
   react-three-fiber: `three.tsx` (WebGL stage, bloom, camera and projection helpers),
-  `hud.tsx` (HUD frame, chamfered panels, glitch text), `scenes.tsx` (the seven 3D scenes)
+  `hud.tsx` (HUD frame, chamfered panels, menu buttons, arcs, glitch text), `scenes.tsx` (the seven 3D scenes),
+  `dx.ts` (the Deus Ex: Human Revolution-style black-and-gold palette and fonts)
 - `remotion.config.ts`: sets the `angle` GL renderer, which Three.js needs when rendering headless
 - `public/art`: ~80 avatars sampled from `downloads/all`; `public/site-*.png`: screenshots of the live site
