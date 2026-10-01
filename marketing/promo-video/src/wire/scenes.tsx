@@ -472,7 +472,7 @@ export const Stats: React.FC = () => (
 const parseDate = (d: string) => new Date(d.replace(/(\d+)(st|nd|rd|th)/, '$1')).getTime();
 const T0 = new Date('January 1, 2012').getTime();
 const T1 = new Date('February 1, 2013').getTime();
-const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN'];
+const MONTHS = ['JAN 2012', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN 2013'];
 const X0 = -13;
 const X1 = 13;
 const MAX_H = 6.5;
