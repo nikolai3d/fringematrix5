@@ -15,7 +15,7 @@ const CA_OFFSET = new THREE.Vector2(0.0009, 0.0006);
 
 export type Haze = { x?: number; y?: number; k?: number; flare?: number };
 
-// Screen-space background: a warm amber glow fading to black, plus an optional hot flare off the right edge.
+// Screen-space background: a glyph-blue glow fading to black, plus an optional hot flare off the right edge.
 const useHazeTexture = ({ x = 0.5, y = 0.45, k = 1, flare = 0 }: Haze) =>
   useMemo(() => {
     const W = 960;
@@ -34,16 +34,16 @@ const useHazeTexture = ({ x = 0.5, y = 0.45, k = 1, flare = 0 }: Haze) =>
     };
     g.globalCompositeOperation = 'lighter';
     blob(x * W, y * H, W * 0.62, [
-      [0, `rgba(150,96,12,${0.95 * k})`],
-      [0.35, `rgba(92,56,6,${0.7 * k})`],
-      [0.7, `rgba(34,20,3,${0.5 * k})`],
+      [0, `rgba(28,96,140,${0.95 * k})`],
+      [0.35, `rgba(12,54,84,${0.7 * k})`],
+      [0.7, `rgba(4,20,32,${0.5 * k})`],
       [1, 'rgba(0,0,0,0)'],
     ]);
     if (flare > 0) {
       blob(W * 1.02, H * 0.55, W * 0.4, [
-        [0, `rgba(255,236,190,${flare})`],
-        [0.18, `rgba(255,190,70,${0.75 * flare})`],
-        [0.55, `rgba(150,82,8,${0.35 * flare})`],
+        [0, `rgba(225,248,255,${flare})`],
+        [0.18, `rgba(120,205,245,${0.75 * flare})`],
+        [0.55, `rgba(24,88,140,${0.35 * flare})`],
         [1, 'rgba(0,0,0,0)'],
       ]);
     }
@@ -52,7 +52,7 @@ const useHazeTexture = ({ x = 0.5, y = 0.45, k = 1, flare = 0 }: Haze) =>
     return t;
   }, [x, y, k, flare]);
 
-// Full-frame WebGL canvas with the shared look: amber haze, warm fog and key light, bloom, slight fringing, vignette.
+// Full-frame WebGL canvas with the shared look: blue haze, fog and key light, bloom, slight fringing, vignette.
 export const Stage: React.FC<{ children: React.ReactNode; bloom?: number; fog?: [number, number]; haze?: Haze }> = ({
   children,
   bloom = 1.1,
@@ -72,9 +72,9 @@ export const Stage: React.FC<{ children: React.ReactNode; bloom?: number; fog?: 
       <primitive attach="background" object={bg} />
       <fog attach="fog" args={[D.fog, fog[0], fog[1]]} />
       {/* only the lit shards use these; everything else is unlit line work */}
-      <ambientLight intensity={0.08} color="#ffb85c" />
-      <directionalLight position={[6, 8, 5]} intensity={6} color="#ffc964" />
-      <directionalLight position={[-8, -3, 2]} intensity={0.5} color="#ff8a1c" />
+      <ambientLight intensity={0.08} color="#a8dcf2" />
+      <directionalLight position={[6, 8, 5]} intensity={6} color="#c8eefc" />
+      <directionalLight position={[-8, -3, 2]} intensity={0.5} color="#3789af" />
       {children}
       <EffectComposer multisampling={4}>
         <Bloom intensity={bloom} luminanceThreshold={0.55} luminanceSmoothing={0.25} mipmapBlur />
@@ -137,7 +137,7 @@ export const pxSize = (n: number) => n * UNIT;
 // Crisp outline of any geometry (box edges, polyhedron edges) rather than the triangle soup of `wireframe`.
 export const Edges: React.FC<{ geometry: THREE.BufferGeometry; color?: string; k?: number; opacity?: number }> = ({
   geometry,
-  color = D.gold,
+  color = D.main,
   k = 1.6,
   opacity = 1,
 }) => {
@@ -169,7 +169,7 @@ export const FloorGrid: React.FC<{ size?: number; step?: number; y?: number; opa
   }, [size, step]);
   return (
     <lineSegments geometry={geo} position={[0, y, offsetZ % step]}>
-      <lineBasicMaterial color={D.gold} transparent opacity={opacity} />
+      <lineBasicMaterial color={D.main} transparent opacity={opacity} />
     </lineSegments>
   );
 };
@@ -179,7 +179,7 @@ export const Particles: React.FC<{ count?: number; spread?: V3; size?: number; c
   count = 600,
   spread = [60, 30, 60],
   size = 0.06,
-  color = D.goldHi,
+  color = D.hi,
   seed = 1,
   rotY = 0,
 }) => {
@@ -210,7 +210,7 @@ export const mulberry = (a: number) => () => {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
 
-// Drifting slivers of gold-and-black glass, lit by the stage's key light: the shattered-triangle motif of the
+// Drifting slivers of blue-and-black glass, lit by the stage's key light: the shattered-triangle motif of the
 // Deus Ex: Human Revolution menus. Positions wrap inside `spread` around `center`; `burst` pushes them outward.
 export const Shards: React.FC<{
   count?: number;
@@ -227,8 +227,8 @@ export const Shards: React.FC<{
   const mesh = useMemo(() => {
     const geo = new THREE.TetrahedronGeometry(1, 0);
     const mat = new THREE.MeshStandardMaterial({
-      color: '#c07a12',
-      emissive: '#0a0500',
+      color: '#4a9cc4',
+      emissive: '#00060a',
       metalness: 0.55,
       roughness: 0.28,
       flatShading: true,
@@ -281,7 +281,7 @@ export const TriNet: React.FC<{ w: number; h: number; nx?: number; ny?: number; 
   ny = 14,
   bend = 0.15,
   opacity = 0.2,
-  color = D.gold,
+  color = D.main,
 }) => {
   const geo = useMemo(() => {
     const g = new THREE.PlaneGeometry(w, h, nx, ny);
@@ -296,9 +296,9 @@ export const TriNet: React.FC<{ w: number; h: number; nx?: number; ny?: number; 
   );
 };
 
-// Textured material that maps the image's luminance onto a black-amber-gold ramp, blended with the original by
+// Textured material that maps the image's luminance onto a black-to-glyph-blue ramp, blended with the original by
 // `amount`. Used for avatars and screenshots so they sit in the palette; the glyphs deliberately skip it.
-export const makeGoldGrade = (map: THREE.Texture, amount: number) =>
+export const makeGlyphGrade = (map: THREE.Texture, amount: number) =>
   new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
@@ -310,11 +310,11 @@ export const makeGoldGrade = (map: THREE.Texture, amount: number) =>
       void main() {
         vec4 c = texture2D(map, vUv);
         float l = dot(c.rgb, vec3(0.299, 0.587, 0.114));
-        vec3 ramp = mix(vec3(0.03, 0.02, 0.005), vec3(0.72, 0.42, 0.05), smoothstep(0.0, 0.55, l));
-        ramp = mix(ramp, vec3(1.0, 0.93, 0.74), smoothstep(0.55, 1.0, l));
+        vec3 ramp = mix(vec3(0.004, 0.018, 0.03), vec3(0.06, 0.36, 0.62), smoothstep(0.0, 0.55, l));
+        ramp = mix(ramp, vec3(0.78, 0.94, 1.0), smoothstep(0.55, 1.0, l));
         gl_FragColor = vec4(mix(c.rgb, ramp, amount), c.a * opacity);
         #include <colorspace_fragment>
       }`,
   });
 
-export const useGoldGrade = (map: THREE.Texture, amount: number) => useMemo(() => makeGoldGrade(map, amount), [map, amount]);
+export const useGlyphGrade = (map: THREE.Texture, amount: number) => useMemo(() => makeGlyphGrade(map, amount), [map, amount]);

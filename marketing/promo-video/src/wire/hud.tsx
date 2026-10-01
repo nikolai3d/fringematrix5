@@ -1,6 +1,6 @@
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 import data from '../data.json';
-import { D, DF, goldGlow } from './dx';
+import { D, DF, iceGlow } from './dx';
 
 const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const;
 
@@ -10,8 +10,8 @@ const toClip = (shape: string) =>
     .map((p) => p.split(',').map((n) => `${n}px`).join(' '))
     .join(', ')})`;
 
-// Chamfered panel in the Deus Ex style: dark amber glass, gold outline (drawn in as `progress` rises) with an inset
-// hairline, and a short gold tab on the bottom edge.
+// Chamfered panel in the Deus Ex style: dark blue glass, glyph-blue outline (drawn in as `progress` rises) with an inset
+// hairline, and a short bright tab on the bottom edge.
 export const HudPanel: React.FC<{
   w: number;
   h: number;
@@ -20,7 +20,7 @@ export const HudPanel: React.FC<{
   progress?: number;
   style?: React.CSSProperties;
   children?: React.ReactNode;
-}> = ({ w, h, cut = 28, color = D.gold, progress = 1, style, children }) => {
+}> = ({ w, h, cut = 28, color = D.main, progress = 1, style, children }) => {
   const shape = `${cut},0 ${w},0 ${w},${h - cut} ${w - cut},${h} 0,${h} 0,${cut}`;
   const i = 7;
   const inner = `${cut + i * 0.4},${i} ${w - i},${i} ${w - i},${h - cut - i * 0.4} ${w - cut - i * 0.4},${h - i} ${i},${h - i} ${i},${cut + i * 0.4}`;
@@ -32,7 +32,7 @@ export const HudPanel: React.FC<{
           position: 'absolute',
           inset: 0,
           clipPath: toClip(shape),
-          background: 'linear-gradient(160deg, rgba(255,179,32,0.16), rgba(20,13,4,0.72) 40%, rgba(10,7,2,0.86))',
+          background: 'linear-gradient(160deg, rgba(108,200,238,0.16), rgba(4,13,20,0.72) 40%, rgba(2,7,11,0.86))',
           opacity: progress,
         }}
       />
@@ -47,7 +47,7 @@ export const HudPanel: React.FC<{
           style={{ filter: `drop-shadow(0 0 6px ${color})` }}
         />
         <polygon points={inner} fill="none" stroke={color} strokeWidth={1} opacity={0.35 * progress} />
-        <line x1={w - cut - 90} y1={h - 3} x2={w - cut - 8} y2={h - 3} stroke={D.goldHi} strokeWidth={5} opacity={progress} />
+        <line x1={w - cut - 90} y1={h - 3} x2={w - cut - 8} y2={h - 3} stroke={D.hi} strokeWidth={5} opacity={progress} />
       </svg>
       <div style={{ position: 'relative', width: '100%', height: '100%' }}>{children}</div>
     </div>
@@ -55,7 +55,7 @@ export const HudPanel: React.FC<{
 };
 
 // A main-menu button: slanted left end, chamfered right corner, label right-aligned. `active` is the highlighted
-// option (gold outline and amber fill); 0..1 so the highlight can glide between options.
+// option (bright outline and blue fill); 0..1 so the highlight can glide between options.
 export const MenuBar: React.FC<{ w: number; h?: number; label: string; active?: number; progress?: number; fontSize?: number }> = ({
   w,
   h = 58,
@@ -74,7 +74,7 @@ export const MenuBar: React.FC<{ w: number; h?: number; label: string; active?: 
           position: 'absolute',
           inset: 0,
           clipPath: toClip(shape),
-          background: `linear-gradient(180deg, rgba(58,40,12,0.92), rgba(24,16,5,0.94))`,
+          background: `linear-gradient(180deg, rgba(12,40,58,0.92), rgba(5,16,24,0.94))`,
         }}
       />
       <div
@@ -82,17 +82,17 @@ export const MenuBar: React.FC<{ w: number; h?: number; label: string; active?: 
           position: 'absolute',
           inset: 0,
           clipPath: toClip(shape),
-          background: 'linear-gradient(90deg, rgba(255,170,30,0.05), rgba(255,170,30,0.55) 70%, rgba(255,214,120,0.75))',
+          background: 'linear-gradient(90deg, rgba(80,185,235,0.05), rgba(80,185,235,0.55) 70%, rgba(200,240,255,0.75))',
           opacity: active,
         }}
       />
       <svg width={w} height={h} style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
-        <polygon points={shape} fill="none" stroke={D.gold} strokeWidth={2} opacity={0.25 + 0.75 * active} style={{ filter: active > 0.5 ? `drop-shadow(0 0 8px ${D.gold})` : undefined }} />
+        <polygon points={shape} fill="none" stroke={D.main} strokeWidth={2} opacity={0.25 + 0.75 * active} style={{ filter: active > 0.5 ? `drop-shadow(0 0 8px ${D.main})` : undefined }} />
         <polygon
           transform={`translate(${-5 * active} ${-5 * active})`}
           points={shape}
           fill="none"
-          stroke={D.goldHi}
+          stroke={D.hi}
           strokeWidth={1.5}
           opacity={0.7 * active}
         />
@@ -109,8 +109,8 @@ export const MenuBar: React.FC<{ w: number; h?: number; label: string; active?: 
           fontWeight: 600,
           fontSize,
           letterSpacing: '0.04em',
-          color: active > 0.5 ? '#FFF8E6' : '#F3E6CC',
-          textShadow: active > 0.5 ? goldGlow(0.6) : '0 1px 2px #000',
+          color: active > 0.5 ? '#F2FBFF' : '#DCEEF6',
+          textShadow: active > 0.5 ? iceGlow(0.6) : '0 1px 2px #000',
         }}
       >
         {label}
@@ -134,8 +134,8 @@ export const GlitchText: React.FC<{ text: string; start?: number; dur?: number; 
   return (
     <div style={{ position: 'relative', whiteSpace: 'pre', ...style }}>
       <span style={{ visibility: 'hidden' }}>{text}</span>
-      <span style={{ ...layer, color: D.amber, transform: `translateX(${g}px)`, opacity: on ? 0.85 : 0, mixBlendMode: 'screen' }}>{text}</span>
-      <span style={{ ...layer, color: D.goldHi, transform: `translateX(${-g}px)`, opacity: on ? 0.8 : 0, mixBlendMode: 'screen' }}>{text}</span>
+      <span style={{ ...layer, color: D.deep, transform: `translateX(${g}px)`, opacity: on ? 0.85 : 0, mixBlendMode: 'screen' }}>{text}</span>
+      <span style={{ ...layer, color: D.hi, transform: `translateX(${-g}px)`, opacity: on ? 0.8 : 0, mixBlendMode: 'screen' }}>{text}</span>
       <span
         style={{
           ...layer,
@@ -166,9 +166,9 @@ export const Arcs: React.FC<{ cx?: number; cy?: number; r0?: number; n?: number;
     <svg width={1920} height={1080} style={{ position: 'absolute', inset: 0, mixBlendMode: 'screen', opacity }}>
       <defs>
         <linearGradient id="arcfade" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor={D.gold} stopOpacity="0" />
-          <stop offset="0.45" stopColor={D.goldHi} stopOpacity="1" />
-          <stop offset="1" stopColor={D.gold} stopOpacity="0.1" />
+          <stop offset="0" stopColor={D.main} stopOpacity="0" />
+          <stop offset="0.45" stopColor={D.hi} stopOpacity="1" />
+          <stop offset="1" stopColor={D.main} stopOpacity="0.1" />
         </linearGradient>
       </defs>
       {Array.from({ length: n }).map((_, i) => {
@@ -199,10 +199,10 @@ const Reticle: React.FC<{ size?: number }> = ({ size = 70 }) => {
   const frame = useCurrentFrame();
   const r = size / 2;
   return (
-    <svg width={size} height={size} viewBox={`${-r} ${-r} ${size} ${size}`} style={{ overflow: 'visible', filter: `drop-shadow(0 0 6px ${D.gold})` }}>
-      <circle r={r - 2} fill="none" stroke={D.gold} strokeWidth={3} strokeDasharray={`${r * 1.6} ${r * 0.5}`} transform={`rotate(${frame * 3})`} />
-      <circle r={r * 0.62} fill="none" stroke={D.goldHi} strokeWidth={1.5} strokeDasharray={`${r * 0.5} ${r * 0.3}`} transform={`rotate(${-frame * 5})`} />
-      <circle r={r * 0.22} fill={D.goldHi} />
+    <svg width={size} height={size} viewBox={`${-r} ${-r} ${size} ${size}`} style={{ overflow: 'visible', filter: `drop-shadow(0 0 6px ${D.main})` }}>
+      <circle r={r - 2} fill="none" stroke={D.main} strokeWidth={3} strokeDasharray={`${r * 1.6} ${r * 0.5}`} transform={`rotate(${frame * 3})`} />
+      <circle r={r * 0.62} fill="none" stroke={D.hi} strokeWidth={1.5} strokeDasharray={`${r * 0.5} ${r * 0.3}`} transform={`rotate(${-frame * 5})`} />
+      <circle r={r * 0.22} fill={D.hi} />
     </svg>
   );
 };
@@ -217,8 +217,8 @@ const Bracket: React.FC<{ x: 'left' | 'right' }> = ({ x }) => (
       top: 40,
       width: 30,
       height: 64,
-      borderTop: `2px solid ${D.gold}`,
-      [`border${x === 'left' ? 'Left' : 'Right'}`]: `2px solid ${D.gold}`,
+      borderTop: `2px solid ${D.main}`,
+      [`border${x === 'left' ? 'Left' : 'Right'}`]: `2px solid ${D.main}`,
       opacity: 0.7,
     }}
   />
@@ -236,7 +236,7 @@ export const HudFrame: React.FC<{ sections: { from: number; label: string }[] }>
   const tc = `00:${String(s).padStart(2, '0')}:${String(frame % fps).padStart(2, '0')}`;
   const fadeOut = interpolate(frame, [durationInFrames - 30, durationInFrames - 6], [1, 0], clamp);
   const fadeIn = interpolate(frame, [4, 20], [0, 1], clamp);
-  const text: React.CSSProperties = { position: 'absolute', fontFamily: DF.ui, fontWeight: 600, fontSize: 22, letterSpacing: '0.14em', color: D.gold };
+  const text: React.CSSProperties = { position: 'absolute', fontFamily: DF.ui, fontWeight: 600, fontSize: 22, letterSpacing: '0.14em', color: D.main };
   // Two identical halves, so sliding by -50% of the strip lands exactly on the start again.
   const tickerT = ((frame * 2.2) / (TICKER.length * 2 * 12)) % 1;
   return (
@@ -244,14 +244,14 @@ export const HudFrame: React.FC<{ sections: { from: number; label: string }[] }>
       <Bracket x="left" />
       <Bracket x="right" />
       <div style={{ ...text, left: 88, top: 44, display: 'flex', alignItems: 'baseline', gap: 18 }}>
-        <span style={{ fontFamily: DF.display, fontSize: 22, letterSpacing: '0.08em', color: D.goldHi, textShadow: goldGlow(0.4) }}>FRINGE MATRIX</span>
+        <span style={{ fontFamily: DF.display, fontSize: 22, letterSpacing: '0.08em', color: D.hi, textShadow: iceGlow(0.4) }}>FRINGE MATRIX</span>
         <span style={{ color: D.muted }}>▸</span>
         <span style={{ opacity: labelIn, color: D.fg }}>
           {String(idx + 1).padStart(2, '0')} {label}
         </span>
       </div>
       <div style={{ ...text, right: 88, top: 44, fontWeight: 500, color: D.muted }}>
-        ARCHIVE <span style={{ color: D.gold }}>{tc}</span>
+        ARCHIVE <span style={{ color: D.main }}>{tc}</span>
       </div>
       {/* ticker band */}
       <div
@@ -277,7 +277,7 @@ export const HudFrame: React.FC<{ sections: { from: number; label: string }[] }>
             fontWeight: 500,
             fontSize: 24,
             letterSpacing: '0.06em',
-            color: '#E9DCC2',
+            color: '#CFE6F0',
           }}
         >
           {TICKER.repeat(4)}
