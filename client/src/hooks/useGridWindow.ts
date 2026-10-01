@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 /**
  * Windowing (virtual scrolling) for the CSS auto-fill gallery grid.
@@ -160,6 +160,14 @@ export function useGridWindow(
     const relTop = viewportTop - gridTopPx;
     let firstVisibleRow = Math.floor(relTop / rowHeightPx) - OVERSCAN_ROWS;
     let lastVisibleRow = Math.ceil((relTop + viewportHeight) / rowHeightPx) + OVERSCAN_ROWS;
+    // If the viewport sits below the end of the grid (e.g. the user was deep
+    // in a large campaign and switched to a smaller one, so the old scroll
+    // offset no longer exists), render the grid's last screenful rather than
+    // an inverted, empty window with a spacer taller than the grid itself.
+    if (firstVisibleRow > totalRows - 1) {
+      const visibleRows = Math.ceil(viewportHeight / rowHeightPx);
+      firstVisibleRow = Math.max(0, totalRows - visibleRows - OVERSCAN_ROWS);
+    }
     if (firstVisibleRow < 0) firstVisibleRow = 0;
     if (lastVisibleRow > totalRows - 1) lastVisibleRow = totalRows - 1;
     if (lastVisibleRow < firstVisibleRow) lastVisibleRow = firstVisibleRow;
@@ -202,7 +210,14 @@ export function useGridWindow(
 
   // Recompute on mount, item-count change, thumbnail-size change, and when the
   // forced (lightbox) index changes.
-  useEffect(() => {
+  //
+  // useLayoutEffect, not useEffect: the first render mounts EVERY card (the
+  // window can't be measured before the grid is in the DOM). Narrowing it
+  // before the browser paints means the lazy <img>s outside the window are
+  // removed before the browser ever evaluates them for loading. With a
+  // passive effect a 227-image campaign briefly painted all cards and fired
+  // ~80 thumbnail requests for ~35 visible cards (perf audit, nzp2).
+  useLayoutEffect(() => {
     recompute();
   }, [recompute, thumbnailSizeKey, forceIndex]);
 

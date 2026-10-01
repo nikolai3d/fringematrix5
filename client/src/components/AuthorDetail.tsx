@@ -87,6 +87,7 @@ export default function AuthorDetail({ handle, onBack, onOpenImage, gridRef, for
   const lightboxImages = useMemo<ImageData[]>(() => {
     if (!data) return [];
     return data.images.map((image) => ({
+      id: image.id ?? null,
       fileName: image.fileName,
       src: image.src,
       blobPath: image.blobPath,

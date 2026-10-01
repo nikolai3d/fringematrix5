@@ -14,7 +14,11 @@ describe('Toolbar Layout CSS', () => {
 
   it('toolbar should have a fixed height', () => {
     // Toolbar must have explicit height for consistent layout
-    expect(cssContent).toMatch(/\.toolbar\s*\{[^}]*height:\s*\d+px/);
+    // (via the --toolbar-height variable, which the sticky top navbar also
+    // uses as its offset so it isn't hidden under the toolbar).
+    expect(cssContent).toMatch(/--toolbar-height:\s*\d+px/);
+    expect(cssContent).toMatch(/\.toolbar\s*\{[^}]*height:\s*var\(--toolbar-height\)/);
+    expect(cssContent).toMatch(/#top-navbar\s*\{[^}]*top:\s*var\(--toolbar-height\)/);
   });
 
   it('toolbar-inner should use flexbox for single-row layout', () => {

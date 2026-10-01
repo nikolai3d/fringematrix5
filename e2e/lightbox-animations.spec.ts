@@ -3,6 +3,7 @@ import {
   waitForLoaderToFinish,
   waitForWireframeVisible,
   waitForWireframeHidden,
+  waitForLightboxOpenSettled,
 } from './helpers/wireframe';
 
 let escapeForAttributeSelectorFn: (value: string) => string;
@@ -217,6 +218,12 @@ test.describe('Lightbox animations', () => {
     // Wireframe should appear during zoom-in, then hide
     await waitForWireframeVisible(page);
     await waitForWireframeHidden(page);
+    // Let the panel enter animations finish too. The open effect re-runs on
+    // every lightboxIndex change until the whole open choreography resolves,
+    // so arrow-key navigation before this point replays the wireframe zoom
+    // (see waitForLightboxOpenSettled). Without this wait the final
+    // "wireframe hidden while sitting open" check below was flaky.
+    await waitForLightboxOpenSettled(page);
 
     // Lightbox should be visible
     const lightbox = page.locator('#lightbox');
@@ -249,12 +256,14 @@ test.describe('Lightbox animations', () => {
     }
 
     // Ensure wireframe is not displayed outside of animation while lightbox sits open.
-    // Use waitForWireframeHidden to handle any residual animation timing in CI before
-    // asserting the settled state; then snapshot to confirm the element exists.
-    await waitForWireframeHidden(page);
-    const wfMid = await getWireframeState(page);
-    expect(wfMid.present).toBeTruthy();
-    expect(wfMid.display).toBe('none');
+    // Poll (rather than snapshot once) so a residual animation frame scheduled
+    // by the navigation above can't turn a momentary 'none' into a stale read.
+    await expect
+      .poll(async () => {
+        const wf = await getWireframeState(page);
+        return `${wf.present}:${wf.display}`;
+      })
+      .toBe('true:none');
 
     // Close via Escape -> should play wireframe and hide
     await page.keyboard.press('Escape');
@@ -312,3 +321,52 @@ test.describe('Lightbox animations', () => {
   });
 });
 
+
+test.describe('Lightbox navigation during the open animation', () => {
+  test('ArrowRight right after opening does not replay the zoom and shows the next image', async ({ page }) => {
+    const cards = page.locator('.gallery-grid .card img');
+    if ((await cards.count()) < 2) test.skip(true, 'Need at least 2 images');
+
+    // Record every display transition of the wireframe from here on.
+    await page.evaluate(() => {
+      const w = window as unknown as { __wfShows: number; __wfStop: boolean };
+      w.__wfShows = 0;
+      w.__wfStop = false;
+      let last = 'none';
+      const tick = () => {
+        if (w.__wfStop) return;
+        const el = document.querySelector('.wireframe-rect') as HTMLElement | null;
+        const d = el ? getComputedStyle(el).display : 'none';
+        if (d !== 'none' && last === 'none') w.__wfShows += 1;
+        last = d;
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+
+    await cards.nth(0).click();
+    await page.keyboard.press('ArrowRight');
+
+    await expect(page.locator('.lightbox-hud')).toContainText(/2 OF \d+/);
+    await waitForWireframeHidden(page);
+    // Let any (buggy) replay start.
+    await page.waitForTimeout(700);
+
+    // Stop the rAF recorder before the final assertions.
+    const shows = await page.evaluate(() => {
+      const w = window as unknown as { __wfShows: number; __wfStop: boolean };
+      w.__wfStop = true;
+      return w.__wfShows;
+    });
+    expect(shows, 'wireframe zoom should play at most once').toBeLessThanOrEqual(1);
+    await expect.poll(() => page.evaluate(() => {
+      const el = document.getElementById('lightbox-image') as HTMLElement | null;
+      return el ? getComputedStyle(el).opacity : null;
+    })).toBe('1');
+    const display = await page.evaluate(() => {
+      const el = document.querySelector('.wireframe-rect') as HTMLElement | null;
+      return el ? getComputedStyle(el).display : 'none';
+    });
+    expect(display).toBe('none');
+  });
+});

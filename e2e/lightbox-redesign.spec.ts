@@ -111,9 +111,12 @@ test.describe('Lightbox redesign — accessibility', () => {
     await expect(lightbox).toHaveAttribute('role', 'dialog');
     await expect(lightbox).toHaveAttribute('aria-modal', 'true');
 
-    // Close button should hold initial focus.
-    const focusId = await page.evaluate(() => document.activeElement?.id);
-    expect(focusId).toBe('lightbox-close');
+    // Close button should hold initial focus. Focus is moved inside a
+    // requestAnimationFrame after the lightbox mounts (LightboxContainer), so
+    // it can land a frame after #lightbox first becomes visible — use the
+    // auto-retrying assertion instead of a one-shot activeElement read. This
+    // still fails if focus never reaches Close.
+    await expect(page.locator('#lightbox-close')).toBeFocused();
   });
 
   test('Escape closes the lightbox', async ({ page }) => {

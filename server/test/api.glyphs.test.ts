@@ -47,6 +47,8 @@ describe('GET /api/glyphs with mocked blob API', () => {
     
     // Should filter out non-image files (not-an-image.txt)
     expect(res.body.glyphs.length).toBe(3);
+    // Cacheable: every loading screen requests this list.
+    expect(res.headers['cache-control']).toBe('public, max-age=3600, stale-while-revalidate=86400');
     
     // All returned URLs should be valid and have image extensions
     const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.bmp', '.svg'];

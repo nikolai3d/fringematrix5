@@ -91,6 +91,19 @@ data/
 - Server caches blob listings (30s TTL) to reduce API calls
 - Implements retry with exponential backoff for rate limits
 - Falls back to empty lists if `BLOB_READ_WRITE_TOKEN` is missing
+- Author endpoints build direct CDN URLs from registry blob paths
+  (`server/blobUrl.ts`; store origin derived from the token), so author pages
+  never go through the per-image `/avatars/*` redirect. Without a token they
+  fall back to `/avatars/<path>`.
+- Production thumbnails use `/_vercel/image` (Vercel's optimizer). Under
+  `npm start`/self-host an Express shim 302s those to the original Blob URL
+  (validated against the vercel.json remotePatterns whitelist).
+
+**Share links:** the lightbox Share button produces `?img=<imageId>#<campaign>`;
+on load App reopens that image in the lightbox and strips the param
+(`client/src/utils/shareLink.ts`). Links shared from author mode use the
+image's source campaign as the hash, so they open in that campaign's gallery.
+Legacy src-based links still resolve.
 
 **Environment Variables:**
 - `BLOB_READ_WRITE_TOKEN` - Required for production, optional for development

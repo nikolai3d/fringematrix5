@@ -46,7 +46,11 @@ export interface CampaignLoaderState {
 
 export function useCampaignLoader(): CampaignLoaderState {
   const [currentImages, setCurrentImages] = useState<ImageData[]>([]);
-  const [imageCache, setImageCache] = useState<Record<string, ImageData[]>>({});
+  // Per-campaign image lists already fetched this session. Kept in a ref, not
+  // state: nothing renders from it, and as state it made `selectCampaign`
+  // change identity after every load, re-rendering memoized consumers
+  // (CampaignNavigation, the navbar switchers) for no reason.
+  const imageCacheRef = useRef<Record<string, ImageData[]>>({});
   const [isCampaignLoading, setIsCampaignLoading] = useState<boolean>(false);
   const [campaignLoadError, setCampaignLoadError] = useState<boolean>(false);
   const campaignLoadAbortRef = useRef<AbortController | null>(null);
@@ -95,7 +99,7 @@ export function useCampaignLoader(): CampaignLoaderState {
       }));
 
       setCurrentImages(images);
-      setImageCache(prev => ({ ...prev, [id]: images }));
+      imageCacheRef.current[id] = images;
     } catch (error) {
       if (signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) return;
       console.error('Failed to load campaign images:', error);
@@ -126,15 +130,16 @@ export function useCampaignLoader(): CampaignLoaderState {
 
     onNavigate(id);
 
-    if (id in imageCache) {
-      setCurrentImages(imageCache[id]);
+    const cached = imageCacheRef.current[id];
+    if (cached) {
+      setCurrentImages(cached);
       setCampaignLoadError(false);
       setIsCampaignLoading(false);
       return;
     }
 
     await loadCampaignImages(id, signal);
-  }, [imageCache, loadCampaignImages]);
+  }, [loadCampaignImages]);
 
   return {
     currentImages,

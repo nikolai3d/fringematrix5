@@ -18,6 +18,7 @@ import {
   type AttributionRecord,
 } from './attribution.js';
 import { getImageById, getImageByBlobPath } from './images.js';
+import { blobPublicOriginFromToken, publicBlobUrl, validateOptimizerTarget } from './blobUrl.js';
 
 interface Campaign {
   id: string;
@@ -119,6 +120,10 @@ const blobCache = new Map<string, BlobCacheEntry>();
 const CACHE_TTL = 30000; // 30 seconds cache during development/testing
 const BLOB_CACHE_MAX = 100; // Maximum number of unique cache entries (LRU eviction)
 const HAS_BLOB_TOKEN = !!process.env['BLOB_READ_WRITE_TOKEN'];
+// Public CDN origin of the Blob store, derived from the token. Lets the authors
+// endpoints emit direct image URLs (see server/blobUrl.ts). Null without a
+// token, in which case they fall back to `/avatars/<path>` redirects.
+const BLOB_PUBLIC_ORIGIN = blobPublicOriginFromToken(process.env['BLOB_READ_WRITE_TOKEN']);
 
 /**
  * Stores a blob list result in the cache under the given key, applying LRU
@@ -672,6 +677,9 @@ app.get('/api/glyphs', async (_req: Request, res: Response): Promise<void> => {
       .filter(blob => isImageFile(blob.pathname))
       .map(blob => blob.url);
 
+    // Every loading screen hits this; without a policy each visit cost a
+    // serverless invocation plus a Blob listing. Glyphs change ~never.
+    res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
     res.json({ glyphs });
   } catch (err: unknown) {
     if (err instanceof BlobUnavailableError) {
@@ -830,6 +838,7 @@ app.get('/api/authors/:handle', (req: Request, res: Response): void => {
     if (handleParam.toLowerCase() === UNKNOWN_ARTIST_HANDLE.toLowerCase()) {
       const attribution = getAllAttributions();
       const unknownImages: Array<{
+        id: string;
         src: string;
         fileName: string;
         blobPath: string;
@@ -852,8 +861,9 @@ app.get('/api/authors/:handle', (req: Request, res: Response): void => {
         if (!campaignId) continue;
 
         const fileName = blobPath.split('/').pop() || '';
-        const src = `/${blobPath}`;
+        const src = publicBlobUrl(BLOB_PUBLIC_ORIGIN, blobPath);
         unknownImages.push({
+          id: imageId,
           src,
           fileName,
           blobPath,
@@ -877,6 +887,7 @@ app.get('/api/authors/:handle', (req: Request, res: Response): void => {
     const attribution = getAllAttributions();
     const canonicalHandleLower = author.handle.toLowerCase();
     const images: Array<{
+      id: string;
       src: string;
       fileName: string;
       blobPath: string;
@@ -901,12 +912,14 @@ app.get('/api/authors/:handle', (req: Request, res: Response): void => {
       if (!campaignId) continue;
 
       const fileName = blobPath.split('/').pop() || '';
-      // blobPath already starts with "avatars/" (it's the on-disk key), so
-      // prefixing a leading "/" yields "/avatars/<rest>", which the existing
-      // /avatars/* redirect route resolves to the Vercel Blob CDN URL on
-      // request. No need to hit the blob API from this handler.
-      const src = `/${blobPath}`;
+      // Direct Blob CDN URL built from the registry path, so the client never
+      // pays a per-image /avatars redirect (serverless invocation + Blob list
+      // call) and thumbnails stay eligible for /_vercel/image optimization.
+      // Without a token this is "/avatars/<rest>", resolved by the redirect
+      // route above.
+      const src = publicBlobUrl(BLOB_PUBLIC_ORIGIN, blobPath);
       images.push({
+        id: imageId,
         src,
         fileName,
         blobPath,
@@ -922,6 +935,25 @@ app.get('/api/authors/:handle', (req: Request, res: Response): void => {
     console.error('Author detail error:', err);
     res.status(500).json({ error: 'Failed to load author' });
   }
+});
+
+// Self-host shim for Vercel's image optimizer. Production builds point
+// thumbnail `srcset` candidates at `/_vercel/image?url=<blob>&w=<n>` (see
+// client/src/utils/responsiveImage.ts). On Vercel the edge serves that path
+// before any rewrite reaches this app, so this route only runs under
+// `npm start` / self-hosting, where it would otherwise fall through to the SPA
+// fallback and hand the browser index.html for every thumbnail. We don't
+// resize here; we redirect to the original Blob URL, validated against the
+// same whitelist as vercel.json's remotePatterns (and, when the token tells
+// us our store, that exact origin) so it can't be used as an open redirect.
+app.get('/_vercel/image', (req: Request, res: Response): void => {
+  const target = validateOptimizerTarget(req.query['url'], BLOB_PUBLIC_ORIGIN);
+  if (!target) {
+    res.status(400).json({ error: 'Invalid image url' });
+    return;
+  }
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.redirect(302, target);
 });
 
 // Ensure unknown /api/* paths return JSON (not SPA HTML)
