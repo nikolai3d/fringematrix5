@@ -692,10 +692,15 @@ export function useLightboxAnimations({
         // aborted open run would otherwise have left hidden.
         const wf = wireframeElRef.current;
         try { wf?.getAnimations?.().forEach((a) => a.cancel()); } catch (_) { /* ignore */ }
-        const li = document.getElementById('lightbox-image');
-        if (li) li.style.opacity = '';
-        setHideLightboxImage(false);
       }
+      // Always reveal the real lightbox image on this path. Besides the
+      // mid-zoom case above, the user may page while the aborted open run was
+      // still in waitForValidRect (before it set sidebarEnteredRef), which
+      // would otherwise leave the image hidden. On a plain no-rect open
+      // nothing hid it, so this is a no-op.
+      const li = document.getElementById('lightbox-image');
+      if (li) li.style.opacity = '';
+      setHideLightboxImage(false);
       // Open the sidebar and toolbar even when there is no thumbnail rect to
       // animate from (e.g. lightbox opened via direct link / URL hash).
       // Only on the FIRST run of this effect per open session -- see

@@ -17,10 +17,12 @@ test.use({ serviceWorkers: 'block' });
 const EAGER_IMAGE_COUNT = 12;
 
 /**
- * `/_vercel/image` only exists on a Vercel deployment. The production client
- * build rewrites thumbnails to it (client/src/utils/responsiveImage.ts), so
- * under the local `npm start` server those thumbnail requests 404. That is a
- * known environment gap, not a console error this guardrail should flag.
+ * The production client build points thumbnails at `/_vercel/image`
+ * (client/src/utils/responsiveImage.ts). Under the local `npm start` server an
+ * Express shim 302s those to the original Blob URL, so they normally load.
+ * Any failure of that hop (e.g. the Blob CDN being unreachable from CI) is
+ * still reported against the `/_vercel/image` URL and is environment noise,
+ * not a console error this guardrail should flag.
  */
 function isKnownEnvironmentNoise(msg: ConsoleMessage): boolean {
   const url = msg.location()?.url ?? '';
@@ -55,6 +57,13 @@ test.describe('Performance guardrails', () => {
   test('revisiting a campaign reuses the client cache (no second images request)', async ({ page, request }) => {
     const campaigns = await fetchCampaigns(request);
     test.skip(campaigns.length < 2, 'Need at least 2 campaigns');
+    // Empty image lists (no Blob token, Blob error) are not cached by the
+    // client, so the revisit would refetch. Only run when both have images.
+    for (const c of campaigns.slice(0, 2)) {
+      const res = await request.get(`/api/campaigns/${encodeURIComponent(c.id)}/images`);
+      const images = res.ok() ? ((await res.json()) as { images?: unknown[] }).images : undefined;
+      test.skip(!images || images.length === 0, `Campaign ${c.id} has no images`);
+    }
 
     const imagesRequests: string[] = [];
     page.on('request', (r) => {

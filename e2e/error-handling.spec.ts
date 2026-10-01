@@ -84,6 +84,7 @@ test.describe('Error handling', () => {
 
   test('Retry reloads the images once the endpoint recovers', async ({ page, request }) => {
     const campaigns = await fetchCampaigns(request);
+    test.skip(campaigns.length === 0, 'No campaigns configured');
     const id = campaigns[0].id;
     let fail = true;
     await page.route(`**/api/campaigns/${id}/images`, (route) =>

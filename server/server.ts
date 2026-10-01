@@ -838,6 +838,7 @@ app.get('/api/authors/:handle', (req: Request, res: Response): void => {
     if (handleParam.toLowerCase() === UNKNOWN_ARTIST_HANDLE.toLowerCase()) {
       const attribution = getAllAttributions();
       const unknownImages: Array<{
+        id: string;
         src: string;
         fileName: string;
         blobPath: string;
@@ -862,6 +863,7 @@ app.get('/api/authors/:handle', (req: Request, res: Response): void => {
         const fileName = blobPath.split('/').pop() || '';
         const src = publicBlobUrl(BLOB_PUBLIC_ORIGIN, blobPath);
         unknownImages.push({
+          id: imageId,
           src,
           fileName,
           blobPath,
@@ -885,6 +887,7 @@ app.get('/api/authors/:handle', (req: Request, res: Response): void => {
     const attribution = getAllAttributions();
     const canonicalHandleLower = author.handle.toLowerCase();
     const images: Array<{
+      id: string;
       src: string;
       fileName: string;
       blobPath: string;
@@ -916,6 +919,7 @@ app.get('/api/authors/:handle', (req: Request, res: Response): void => {
       // route above.
       const src = publicBlobUrl(BLOB_PUBLIC_ORIGIN, blobPath);
       images.push({
+        id: imageId,
         src,
         fileName,
         blobPath,
@@ -940,10 +944,10 @@ app.get('/api/authors/:handle', (req: Request, res: Response): void => {
 // `npm start` / self-hosting, where it would otherwise fall through to the SPA
 // fallback and hand the browser index.html for every thumbnail. We don't
 // resize here; we redirect to the original Blob URL, validated against the
-// same whitelist as vercel.json's remotePatterns so it can't be used as an
-// open redirect.
+// same whitelist as vercel.json's remotePatterns (and, when the token tells
+// us our store, that exact origin) so it can't be used as an open redirect.
 app.get('/_vercel/image', (req: Request, res: Response): void => {
-  const target = validateOptimizerTarget(req.query['url']);
+  const target = validateOptimizerTarget(req.query['url'], BLOB_PUBLIC_ORIGIN);
   if (!target) {
     res.status(400).json({ error: 'Invalid image url' });
     return;

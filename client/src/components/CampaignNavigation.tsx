@@ -18,14 +18,17 @@ function CampaignNavigation({
   onSelect,
   onClose,
 }: Props) {
-  // Escape closes the drawer (it has no other keyboard exit).
+  // Escape closes the drawer (it has no other keyboard exit). Listens on
+  // window so document-level handlers (the lightbox, which can be open over
+  // the drawer on desktop) run first; an Escape they already handled
+  // (defaultPrevented) is left alone.
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !e.defaultPrevented) onClose();
     };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [isOpen, onClose]);
 
   return (

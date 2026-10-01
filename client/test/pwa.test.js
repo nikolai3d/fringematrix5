@@ -101,6 +101,8 @@ describe('Workbox runtime caching (pwa-config.js)', () => {
     expect(rule).toBeTruthy();
     expect(rule.handler).toBe('CacheFirst');
     expect(rule.options.expiration.maxEntries).toBeGreaterThan(0);
+    // Opaque (status 0) responses are never cached here.
+    expect(rule.options.cacheableResponse.statuses).toEqual([200]);
     const origin = 'https://fringematrix.art';
     const saved = globalThis.self;
     globalThis.self = { location: { origin } };

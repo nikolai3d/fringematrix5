@@ -5,15 +5,22 @@ export const SHARE_IMAGE_PARAM = 'img';
 
 /**
  * Builds the URL the lightbox Share button hands out for `image`, preserving
- * the current path and hash (which selects the campaign). Prefers the image's
- * permanent registry id (short, and survives blob moves/renames); falls back
- * to its src for images without one.
+ * the current path. Prefers the image's permanent registry id (short, and
+ * survives blob moves/renames); falls back to its src for images without one.
+ * When the image knows its source campaign, the hash is set to that campaign
+ * so links shared from author mode (hash `#authors/...`, where deep links are
+ * not resolved) open in the campaign gallery. Otherwise the current hash is
+ * kept.
  */
-export function buildImageShareUrl(currentHref: string, image: Pick<ImageData, 'id' | 'src'>): string | null {
+export function buildImageShareUrl(
+  currentHref: string,
+  image: Pick<ImageData, 'id' | 'src' | 'campaignId'>,
+): string | null {
   const value = image.id || image.src;
   if (!value) return null;
   const url = new URL(currentHref);
   url.searchParams.set(SHARE_IMAGE_PARAM, value);
+  if (image.campaignId) url.hash = `#${image.campaignId}`;
   return url.toString();
 }
 

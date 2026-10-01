@@ -1,4 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
+import fs from 'node:fs';
+import path from 'node:path';
 import { blobPublicOriginFromToken, encodeBlobPathname, publicBlobUrl, validateOptimizerTarget } from '../blobUrl.ts';
 
 describe('blobPublicOriginFromToken', () => {
@@ -88,6 +90,60 @@ describe('validateOptimizerTarget', () => {
     ['path outside /avatars/', 'https://store1.public.blob.vercel-storage.com/private/a.jpg'],
     ['protocol-relative', '//store1.public.blob.vercel-storage.com/avatars/a.jpg'],
   ])('rejects %s', (_label, raw) => {
+    expect(validateOptimizerTarget(raw)).toBeNull();
+  });
+});
+
+describe('validateOptimizerTarget with a known store origin', () => {
+  const origin = 'https://store1.public.blob.vercel-storage.com';
+
+  it('accepts URLs on that exact origin', () => {
+    const ok = `${origin}/avatars/S4/a.jpg`;
+    expect(validateOptimizerTarget(ok, origin)).toBe(ok);
+  });
+
+  it('rejects other Blob stores even though they match remotePatterns', () => {
+    expect(validateOptimizerTarget('https://store2.public.blob.vercel-storage.com/avatars/a.jpg', origin)).toBeNull();
+  });
+
+  it('keeps the pattern-only behaviour when the origin is unknown', () => {
+    const other = 'https://store2.public.blob.vercel-storage.com/avatars/a.jpg';
+    expect(validateOptimizerTarget(other, null)).toBe(other);
+    expect(validateOptimizerTarget(other)).toBe(other);
+  });
+});
+
+describe('validateOptimizerTarget stays in sync with vercel.json remotePatterns', () => {
+  const vercel = JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), 'vercel.json'), 'utf8'),
+  ) as { images: { remotePatterns: Array<{ protocol: string; hostname: string; pathname: string }> } };
+  const patterns = vercel.images.remotePatterns;
+
+  // What the Vercel optimizer itself would accept for a URL.
+  const vercelAccepts = (raw: string) => {
+    const u = new URL(raw);
+    return patterns.some((p) =>
+      u.protocol === `${p.protocol}:` &&
+      new RegExp(p.hostname).test(u.hostname) &&
+      new RegExp(p.pathname).test(u.pathname));
+  };
+
+  it('has exactly the one Blob pattern this shim mirrors', () => {
+    expect(patterns).toHaveLength(1);
+  });
+
+  it('accepts a sample URL that remotePatterns accepts', () => {
+    const sample = 'https://abc123.public.blob.vercel-storage.com/avatars/Season4/x.jpg';
+    expect(vercelAccepts(sample)).toBe(true);
+    expect(validateOptimizerTarget(sample)).toBe(sample);
+  });
+
+  it.each([
+    ['wrong host', 'https://abc123.example.com/avatars/x.jpg'],
+    ['wrong path prefix', 'https://abc123.public.blob.vercel-storage.com/private/x.jpg'],
+    ['http', 'http://abc123.public.blob.vercel-storage.com/avatars/x.jpg'],
+  ])('rejects the %s near-miss, as remotePatterns does', (_label, raw) => {
+    expect(vercelAccepts(raw)).toBe(false);
     expect(validateOptimizerTarget(raw)).toBeNull();
   });
 });

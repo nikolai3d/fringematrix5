@@ -180,8 +180,8 @@ describe('useCampaignLoader — empty image response', () => {
   });
 
   it('does NOT cache the campaign when image list is empty (early return before the cache write)', async () => {
-    // The hook returns early when campaignImages.length === 0, before calling
-    // writing the cache.  Empty campaigns must not pollute the cache with [].
+    // The hook returns early when campaignImages.length === 0, before writing
+    // the cache. Empty campaigns must not pollute the cache with [].
     fetchSpy.mockResolvedValueOnce(makeImagesResponse([]));
 
     const { result } = renderHook(() => useCampaignLoader());

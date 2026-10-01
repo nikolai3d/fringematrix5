@@ -58,10 +58,13 @@ export function publicBlobUrl(origin: string | null, blobPath: string): string {
 /**
  * Validates a `/_vercel/image?url=` target the same way vercel.json's
  * `images.remotePatterns` does: https, a `*.public.blob.vercel-storage.com`
- * host, and an `/avatars/` path. Returns the normalized URL string, or null
- * when the target must be rejected (prevents an open redirect).
+ * host, and an `/avatars/` path. When `expectedOrigin` (this deployment's own
+ * store, derived from the token) is known, the target must also be on exactly
+ * that origin, so the shim can't bounce to someone else's Blob store. Returns
+ * the normalized URL string, or null when the target must be rejected
+ * (prevents an open redirect).
  */
-export function validateOptimizerTarget(raw: unknown): string | null {
+export function validateOptimizerTarget(raw: unknown, expectedOrigin?: string | null): string | null {
   if (typeof raw !== 'string' || raw.length === 0) return null;
   let url: URL;
   try {
@@ -73,5 +76,6 @@ export function validateOptimizerTarget(raw: unknown): string | null {
   if (url.username || url.password || url.port) return null;
   if (!/^[a-z0-9]+\.public\.blob\.vercel-storage\.com$/.test(url.hostname)) return null;
   if (!url.pathname.startsWith('/avatars/')) return null;
+  if (expectedOrigin && url.origin !== expectedOrigin) return null;
   return url.toString();
 }

@@ -664,9 +664,11 @@ export default function App() {
   // button). Captured once at mount and consumed exactly once, after the
   // initial campaign has loaded and the loading screen is gone, so the
   // lightbox opens over the real gallery rather than under the loader.
-  const pendingSharedImageRef = useRef<string | null>(
-    typeof window === 'undefined' ? null : readSharedImageParam(window.location.search),
+  // useState's lazy initializer parses the URL once; the ref is consumed below.
+  const [initialSharedImage] = useState<string | null>(
+    () => (typeof window === 'undefined' ? null : readSharedImageParam(window.location.search)),
   );
+  const pendingSharedImageRef = useRef<string | null>(initialSharedImage);
   useEffect(() => {
     const wanted = pendingSharedImageRef.current;
     if (!wanted || showLoadingScreen || !isDataReady || isCampaignLoading) return;

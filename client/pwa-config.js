@@ -98,7 +98,9 @@ export const pwaWorkbox = {
           maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
           purgeOnQuotaError: true,
         },
-        cacheableResponse: { statuses: [0, 200] },
+        // 200 only: under self-host the shim 302s to the Blob CDN, and an
+        // opaque (status 0) result there could be an error we'd pin for 30 days.
+        cacheableResponse: { statuses: [200] },
       },
     },
     {

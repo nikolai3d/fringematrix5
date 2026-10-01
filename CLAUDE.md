@@ -101,7 +101,9 @@ data/
 
 **Share links:** the lightbox Share button produces `?img=<imageId>#<campaign>`;
 on load App reopens that image in the lightbox and strips the param
-(`client/src/utils/shareLink.ts`). Legacy src-based links still resolve.
+(`client/src/utils/shareLink.ts`). Links shared from author mode use the
+image's source campaign as the hash, so they open in that campaign's gallery.
+Legacy src-based links still resolve.
 
 **Environment Variables:**
 - `BLOB_READ_WRITE_TOKEN` - Required for production, optional for development

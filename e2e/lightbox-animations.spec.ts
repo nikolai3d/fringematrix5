@@ -329,10 +329,12 @@ test.describe('Lightbox navigation during the open animation', () => {
 
     // Record every display transition of the wireframe from here on.
     await page.evaluate(() => {
-      const w = window as unknown as { __wfShows: number };
+      const w = window as unknown as { __wfShows: number; __wfStop: boolean };
       w.__wfShows = 0;
+      w.__wfStop = false;
       let last = 'none';
       const tick = () => {
+        if (w.__wfStop) return;
         const el = document.querySelector('.wireframe-rect') as HTMLElement | null;
         const d = el ? getComputedStyle(el).display : 'none';
         if (d !== 'none' && last === 'none') w.__wfShows += 1;
@@ -350,7 +352,12 @@ test.describe('Lightbox navigation during the open animation', () => {
     // Let any (buggy) replay start.
     await page.waitForTimeout(700);
 
-    const shows = await page.evaluate(() => (window as unknown as { __wfShows: number }).__wfShows);
+    // Stop the rAF recorder before the final assertions.
+    const shows = await page.evaluate(() => {
+      const w = window as unknown as { __wfShows: number; __wfStop: boolean };
+      w.__wfStop = true;
+      return w.__wfShows;
+    });
     expect(shows, 'wireframe zoom should play at most once').toBeLessThanOrEqual(1);
     await expect.poll(() => page.evaluate(() => {
       const el = document.getElementById('lightbox-image') as HTMLElement | null;

@@ -203,7 +203,9 @@ export default function LightboxContainer({
       if (e.key === 'Escape') {
         // Escape closes the drawer first if it is open; otherwise the
         // whole lightbox. This matches the layered-modal pattern used
-        // in the content modal.
+        // in the content modal. preventDefault marks the Escape as handled
+        // so the campaign drawer's listener ignores it.
+        e.preventDefault();
         if (isDetailsDrawerOpen) {
           e.stopPropagation();
           closeDrawer();
@@ -261,8 +263,14 @@ export default function LightboxContainer({
       warm();
       return;
     }
+    // Also warm on error: a broken current image shouldn't stop paging from
+    // being instant.
     el.addEventListener('load', warm, { once: true });
-    return () => el.removeEventListener('load', warm);
+    el.addEventListener('error', warm, { once: true });
+    return () => {
+      el.removeEventListener('load', warm);
+      el.removeEventListener('error', warm);
+    };
   }, [isLightboxOpen, images, lightboxIndex]);
 
   if (!isLightboxOpen) return null;

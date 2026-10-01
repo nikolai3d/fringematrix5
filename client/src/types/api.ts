@@ -111,6 +111,9 @@ export interface AuthorsResponse {
 export interface AuthorDetailResponse {
   author: Author;
   images: Array<{
+    // Permanent registry id (see ApiImageData.id). Optional for defensive
+    // compatibility with older responses.
+    id?: string | null;
     src: string;
     fileName: string;
     blobPath: string;

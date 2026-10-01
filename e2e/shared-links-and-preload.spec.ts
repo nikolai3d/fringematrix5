@@ -62,22 +62,32 @@ test.describe('Shared-image links (?img=)', () => {
 });
 
 test.describe('Lightbox neighbor preloading', () => {
-  test('the next full-resolution image is requested before NEXT is pressed', async ({ page, request }) => {
-    const found = await firstCampaignWithImages(request, 3);
-    if (!found) test.skip(true, 'No campaign with >= 3 images');
+  test('the previous full-resolution image is requested before PREVIOUS is pressed', async ({ page, request }) => {
+    // Enough images that the last card (the PREVIOUS neighbor of image 0) sits
+    // far below the fold, so its lazy grid thumbnail is not already loaded.
+    const found = await firstCampaignWithImages(request, 10);
+    if (!found) test.skip(true, 'No campaign with >= 10 images');
     const { campaignId, images } = found!;
+    const neighborSrc = images[images.length - 1]!.src;
 
+    // Only direct requests made once the lightbox is opening count (the
+    // preload itself waits for the current image to load, so it can't be
+    // missed). Grid thumbnails go through /_vercel/image, whose 302 hop to the
+    // original URL would otherwise look like a preload; those hops have a
+    // non-null redirectedFrom() and are ignored.
+    let recording = false;
     const requested = new Set<string>();
-    page.on('request', (r) => requested.add(r.url()));
+    page.on('request', (r) => {
+      if (recording && r.redirectedFrom() === null) requested.add(r.url());
+    });
 
     await page.goto(`/#${campaignId}`);
     await waitForLoaderToFinish(page);
+    recording = true;
     await page.locator('.gallery-grid .card img').first().click();
     await expect(page.locator('#lightbox')).toBeVisible();
 
-    // Original (non-optimized) URLs of the neighbors: index 1 and the last one.
-    await expect.poll(() => requested.has(images[1]!.src), { timeout: 15_000 }).toBe(true);
-    await expect.poll(() => requested.has(images[images.length - 1]!.src), { timeout: 15_000 }).toBe(true);
+    await expect.poll(() => requested.has(neighborSrc), { timeout: 15_000 }).toBe(true);
   });
 });
 

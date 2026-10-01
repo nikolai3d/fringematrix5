@@ -1,6 +1,8 @@
 import request from 'supertest';
 import { jest, describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { UNKNOWN_ARTIST_HANDLE } from '../../shared/types.ts';
+import fs from 'node:fs';
+import path from 'node:path';
 
 // ---------------------------------------------------------------------------
 // /api/authors/:handle image URLs when a Blob token IS configured.
@@ -84,5 +86,22 @@ describe('GET /api/authors/:handle with a Blob token', () => {
       }
     }
     expect(checked).toBeGreaterThan(0);
+  });
+
+  it('includes the registry id on every image (real author and unknown artist)', async () => {
+    // Share links from author mode carry the permanent id, so each image must
+    // expose it, and it must be the registry entry for that blob path.
+    const entries = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), 'data', 'images.json'), 'utf8'),
+    ) as Record<string, { blobPath: string }>;
+    for (const handle of ['@Zort70', UNKNOWN_ARTIST_HANDLE]) {
+      const res = await request(app).get(`/api/authors/${handle}`);
+      expect(res.status).toBe(200);
+      expect(res.body.images.length).toBeGreaterThan(0);
+      for (const img of res.body.images as Array<{ id: string; blobPath: string }>) {
+        expect(typeof img.id).toBe('string');
+        expect(entries[img.id]?.blobPath).toBe(img.blobPath);
+      }
+    }
   });
 });

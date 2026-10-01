@@ -22,14 +22,18 @@ afterEach(() => {
   window.scrollY = 0;
 });
 
+function mockFetch() {
+  globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url === '/api/campaigns') return jsonResponse({ campaigns });
+    if (url.endsWith('/images')) return jsonResponse({ images: [] });
+    return jsonResponse({ glyphs: [] });
+  }) as unknown as typeof fetch;
+}
+
 describe('App: campaign switch scroll reset', () => {
   it('scrolls to the top when moving to the next campaign from a scrolled page', async () => {
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url === '/api/campaigns') return jsonResponse({ campaigns });
-      if (url.endsWith('/images')) return jsonResponse({ images: [] });
-      return jsonResponse({ glyphs: [] });
-    }) as unknown as typeof fetch;
+    mockFetch();
     const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
 
     await act(async () => { render(<App />); });
@@ -42,5 +46,22 @@ describe('App: campaign switch scroll reset', () => {
 
     await waitFor(() => expect(window.location.hash).toBe('#two'));
     expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
+  });
+
+  it('does not call scrollTo when the page is already at the top', async () => {
+    mockFetch();
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+
+    await act(async () => { render(<App />); });
+    await waitFor(() => expect(screen.getByTestId('current-campaign-top').textContent).toContain('#one'));
+
+    window.scrollY = 0;
+    scrollTo.mockClear();
+    await act(async () => {
+      fireEvent.click(screen.getAllByRole('button', { name: 'Next campaign' })[0]!);
+    });
+
+    await waitFor(() => expect(window.location.hash).toBe('#two'));
+    expect(scrollTo).not.toHaveBeenCalled();
   });
 });

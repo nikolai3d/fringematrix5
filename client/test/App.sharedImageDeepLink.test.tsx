@@ -53,6 +53,15 @@ function makeFetchMock() {
 }
 
 const originalFetch = globalThis.fetch;
+// Some tests stub navigator.share / navigator.clipboard; restore the original
+// descriptors so the stubs don't leak into other tests.
+const originalShareDescriptor = Object.getOwnPropertyDescriptor(navigator, 'share');
+const originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+
+function restoreNavigatorProp(name: 'share' | 'clipboard', descriptor: PropertyDescriptor | undefined) {
+  if (descriptor) Object.defineProperty(navigator, name, descriptor);
+  else delete (navigator as unknown as Record<string, unknown>)[name];
+}
 
 beforeEach(() => {
   // reduceMotion makes openLightbox synchronous (no zoom animation).
@@ -65,6 +74,8 @@ beforeEach(() => {
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
+  restoreNavigatorProp('share', originalShareDescriptor);
+  restoreNavigatorProp('clipboard', originalClipboardDescriptor);
   vi.restoreAllMocks();
   window.localStorage.clear();
   window.history.replaceState({}, '', '/');

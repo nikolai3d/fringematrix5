@@ -123,6 +123,22 @@ describe('CampaignNavigation', () => {
     expect(props.onClose).toHaveBeenCalledTimes(2);
   });
 
+  it('ignores an Escape another handler already consumed (e.g. the lightbox)', () => {
+    const { props } = renderNav();
+    // Registered AFTER the drawer's listener, like a lightbox opened over an
+    // already-open drawer; it must still win.
+    const lightboxLike = (e: KeyboardEvent) => { if (e.key === 'Escape') e.preventDefault(); };
+    document.addEventListener('keydown', lightboxLike);
+    try {
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(props.onClose).not.toHaveBeenCalled();
+    } finally {
+      document.removeEventListener('keydown', lightboxLike);
+    }
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('ignores Escape and keeps the close button out of the tab order while closed', () => {
     const { props } = renderNav({ isOpen: false });
     fireEvent.keyDown(document, { key: 'Escape' });

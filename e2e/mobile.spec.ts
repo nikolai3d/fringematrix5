@@ -18,9 +18,6 @@ const TOOLBAR_BUTTONS = [
   'Home', 'Campaigns', 'Share', 'Build Info', 'History', 'Credits', 'Artists', 'Legal', 'Settings',
 ];
 
-// Minimum tap-target height. WCAG 2.5.8 (AA) requires 24px; Apple/Material
-// recommend 44/48px. 32px is a pragmatic floor for this dense UI — see the
-// report for controls that fall below the 44px recommendation.
 // 44px: WCAG 2.5.5 / Apple HIG touch-target minimum, enforced for coarse
 // pointers in styles.css (@media (pointer: coarse)).
 const MIN_TAP_PX = 44;

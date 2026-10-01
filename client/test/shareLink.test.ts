@@ -27,6 +27,26 @@ describe('buildImageShareUrl', () => {
     expect(parsed.searchParams.get('x')).toBe('1');
   });
 
+  it('points author-mode links at the image\'s source campaign gallery', () => {
+    const url = buildImageShareUrl('https://fm.art/#authors/%40artist', {
+      id: 'img-1',
+      src: 'https://cdn/x.jpg',
+      campaignId: 'crosstheline',
+    });
+    expect(url).toBe('https://fm.art/?img=img-1#crosstheline');
+  });
+
+  it('falls back to src in author mode when the image has no id', () => {
+    const url = buildImageShareUrl('https://fm.art/#authors/%40artist', {
+      id: null,
+      src: 'https://cdn/x.jpg',
+      campaignId: 'crosstheline',
+    });
+    const parsed = new URL(url!);
+    expect(parsed.searchParams.get(SHARE_IMAGE_PARAM)).toBe('https://cdn/x.jpg');
+    expect(parsed.hash).toBe('#crosstheline');
+  });
+
   it('returns null when there is nothing to identify the image by', () => {
     expect(buildImageShareUrl('https://fm.art/', { id: null, src: null })).toBeNull();
   });

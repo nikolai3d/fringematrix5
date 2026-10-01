@@ -57,6 +57,22 @@ describe('LightboxContainer neighbor preloading', () => {
     expect(requested).toEqual(['https://cdn/c.jpg', 'https://cdn/a.jpg']);
   });
 
+  it('still warms the neighbors when the current image fails to load', () => {
+    const { container } = renderLightbox(1);
+    const img = container.querySelector('#lightbox-image')!;
+    act(() => { fireEvent.error(img); });
+    expect(requested).toEqual(['https://cdn/c.jpg', 'https://cdn/a.jpg']);
+  });
+
+  it('removes both listeners on cleanup', () => {
+    const { container, unmount } = renderLightbox(1);
+    const img = container.querySelector('#lightbox-image')!;
+    unmount();
+    fireEvent.load(img);
+    fireEvent.error(img);
+    expect(requested).toEqual([]);
+  });
+
   it('warms the new neighbors after navigating', () => {
     const { container, rerenderAt } = renderLightbox(1);
     act(() => { fireEvent.load(container.querySelector('#lightbox-image')!); });
