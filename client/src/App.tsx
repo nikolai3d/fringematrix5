@@ -25,6 +25,7 @@ import GalleryGrid, { type GalleryGridHandle } from './components/GalleryGrid';
 import AuthorsIndex from './components/AuthorsIndex';
 import AuthorDetail from './components/AuthorDetail';
 import { parseHashRoute, type HashRoute } from './utils/parseHashRoute';
+import { findSharedImageIndex, readSharedImageParam, stripSharedImageParam } from './utils/shareLink';
 import type {
   Campaign,
   BuildInfo,
@@ -232,6 +233,9 @@ export default function App() {
       // back to the previous campaign. (Spotted in code review of bead lfn.)
       window.history.replaceState({}, '', `#${campaignId}`);
       setRoute({ type: 'gallery', campaignId });
+      // A new campaign starts at its top; keeping the old scroll offset would
+      // drop the user mid-grid (or past the end of a smaller campaign).
+      if (window.scrollY > 0) window.scrollTo({ top: 0 });
     });
   }, [selectCampaignFromHook]);
 
@@ -656,6 +660,34 @@ export default function App() {
     openLightbox(index, thumbEl);
   }, [openLightbox]);
 
+  // Shared-image deep link (?img=<id|src>, produced by the lightbox Share
+  // button). Captured once at mount and consumed exactly once, after the
+  // initial campaign has loaded and the loading screen is gone, so the
+  // lightbox opens over the real gallery rather than under the loader.
+  // useState's lazy initializer parses the URL once; the ref is consumed below.
+  const [initialSharedImage] = useState<string | null>(
+    () => (typeof window === 'undefined' ? null : readSharedImageParam(window.location.search)),
+  );
+  const pendingSharedImageRef = useRef<string | null>(initialSharedImage);
+  useEffect(() => {
+    const wanted = pendingSharedImageRef.current;
+    if (!wanted || showLoadingScreen || !isDataReady || isCampaignLoading) return;
+    pendingSharedImageRef.current = null;
+    // Drop the param so a reload or a later share doesn't reopen this image.
+    const { pathname, search, hash } = window.location;
+    window.history.replaceState({}, '', `${pathname}${stripSharedImageParam(search)}${hash}`);
+    if (route.type !== 'gallery') return;
+    const index = findSharedImageIndex(currentImages, wanted);
+    if (index === -1) return;
+    // Bring the card on screen first (it may be windowed out in a large
+    // campaign). When it is already mounted this scrolls synchronously, so we
+    // can hand its <img> to the opener for the usual zoom-in animation;
+    // otherwise the lightbox opens without a source rect.
+    galleryGridRef.current?.scrollIndexIntoView(index);
+    const thumb = galleryGridRef.current?.getThumbElement(index) ?? undefined;
+    openLightboxForCampaign(index, thumb);
+  }, [showLoadingScreen, isDataReady, isCampaignLoading, route.type, currentImages, openLightboxForCampaign]);
+
   // Clear the lightbox source once the lightbox has fully closed so we never
   // hand stale (e.g. a previous campaign's) images to the next open. Safe to
   // run here: closeLightbox only flips `isLightboxOpen` to false from its
@@ -861,11 +893,6 @@ export default function App() {
             <div className="campaign-loading-text">
               Loading Images<span className="dots">{'.'.repeat(loadingDots)}</span>
             </div>
-            {campaignLoadError && (
-              <div className="campaign-error-text">
-                Some images failed to load
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -924,20 +951,40 @@ export default function App() {
             )}
           </section>
 
-          {activeCampaign && currentImages.length === 0 ? (
+          {activeCampaign && currentImages.length === 0 && !isCampaignLoading ? (
             // Caller-owned empty state, previously rendered inside GalleryGrid
             // behind a `hasCampaign` prop. Hoisted up here in fringematrix5-jq33
             // so GalleryGrid stays a pure list view reusable by AuthorDetail.
+            //
+            // A failed image-list request gets its own message + Retry rather
+            // than claiming the campaign is empty. (The old "Some images failed
+            // to load" notice lived inside the loading indicator and could
+            // never render: the error and loading-done flags flip together.)
             <section
               id="gallery"
               className="gallery-grid empty"
               aria-live="polite"
             >
-              <div className="empty-state" role="status" aria-live="polite">
-                <div className="empty-emoji" aria-hidden>🖼️</div>
-                <div className="empty-title">No Images In Campaign</div>
-                <div className="empty-desc">This campaign has no uploaded images yet.</div>
-              </div>
+              {campaignLoadError ? (
+                <div className="empty-state" role="alert">
+                  <div className="empty-emoji" aria-hidden>⚠️</div>
+                  <div className="empty-title">Couldn't Load Images</div>
+                  <div className="empty-desc">The image list for this campaign failed to load. Check your connection and try again.</div>
+                  <button
+                    type="button"
+                    className="toolbar-button empty-retry"
+                    onClick={() => { void selectCampaign(activeCampaign.id); }}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : (
+                <div className="empty-state" role="status" aria-live="polite">
+                  <div className="empty-emoji" aria-hidden>🖼️</div>
+                  <div className="empty-title">No Images In Campaign</div>
+                  <div className="empty-desc">This campaign has no uploaded images yet.</div>
+                </div>
+              )}
             </section>
           ) : (
             <GalleryGrid

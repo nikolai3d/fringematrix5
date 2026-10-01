@@ -13,6 +13,11 @@ import {
   buildBlobPathIndex,
   hashBytes,
   makeImageRecord,
+  generateId,
+  isImageFile,
+  loadCampaigns,
+  loadImages,
+  loadAttribution,
 } from './lib/image-db.mjs';
 
 const CAMPAIGNS = [
@@ -153,4 +158,117 @@ test('makeImageRecord stamps the expected shape', () => {
   assert.equal(sparse.contentHash, null);
   assert.equal(sparse.size, null);
   assert.equal(sparse.campaignId, null);
+});
+
+test('generateId returns distinct RFC 4122 v4 UUIDs', () => {
+  const a = generateId();
+  const b = generateId();
+  assert.match(a, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.notEqual(a, b);
+});
+
+test('isImageFile accepts supported extensions case-insensitively', () => {
+  for (const p of ['a.png', 'a.JPG', 'dir/a.jpeg', 'a.GIF', 'a.webp', 'a.avif', 'a.bmp', 'a.svg']) {
+    assert.equal(isImageFile(p), true, p);
+  }
+  for (const p of ['a.txt', 'a', 'a.png.bak', 'png', 'dir.png/readme.md']) {
+    assert.equal(isImageFile(p), false, p);
+  }
+});
+
+test('campaignSlug falls through empty / non-alphanumeric candidates and returns null when none usable', () => {
+  assert.equal(campaignSlug({ id: '   ', hashtag: '@@@', icon_path: 'Season4/Foo Bar' }), 'season4-foo-bar');
+  assert.equal(campaignSlug({ id: 42, hashtag: 'Real' }), 'real');
+  assert.equal(campaignSlug({ id: '!!!', hashtag: '', icon_path: '***' }), null);
+  assert.equal(campaignSlug({}), null);
+});
+
+test('deriveCampaignId: trailing-slash icon_path, exact match, sibling-prefix and missing icon_path', () => {
+  const campaigns = [
+    { hashtag: 'Slash', icon_path: 'Season1/Slash/' },
+    { hashtag: 'Pilot', icon_path: 'Season1/Pilot' },
+    { hashtag: 'NoIcon' },
+  ];
+  assert.equal(deriveCampaignId('avatars/Season1/Slash/a.png', campaigns), 'slash');
+  assert.equal(deriveCampaignId('avatars/Season1/Pilot', campaigns), 'pilot');
+  // "Season1/PilotExtra" must not match the "Season1/Pilot" campaign.
+  assert.equal(deriveCampaignId('avatars/Season1/PilotExtra/a.png', campaigns), null);
+  // Paths without the avatars/ prefix are matched as-is.
+  assert.equal(deriveCampaignId('Season1/Pilot/a.png', campaigns), 'pilot');
+  assert.equal(deriveCampaignId('avatars/x.png', []), null);
+});
+
+test('splitBlobPath with no matching campaign puts the whole directory into artistFolder', () => {
+  assert.deepEqual(splitBlobPath('avatars/Unknown/Deep/Dir/f.png', CAMPAIGNS), {
+    iconPath: '',
+    artistFolder: 'Unknown/Deep/Dir',
+    fileName: 'f.png',
+  });
+  assert.deepEqual(splitBlobPath('avatars/f.png', CAMPAIGNS), {
+    iconPath: '',
+    artistFolder: '',
+    fileName: 'f.png',
+  });
+});
+
+test('splitBlobPath prefers the longest (nested) icon_path', () => {
+  assert.deepEqual(splitBlobPath('avatars/Season4/AcrossTheUniverse/Special/A/f.png', CAMPAIGNS), {
+    iconPath: 'Season4/AcrossTheUniverse/Special',
+    artistFolder: 'A',
+    fileName: 'f.png',
+  });
+});
+
+test('resolveIconPath returns "" for a campaign matched by id that has no icon_path', () => {
+  assert.equal(resolveIconPath('noicon', [{ id: 'NoIcon' }]), '');
+});
+
+test('buildBlobPathIndex skips null / malformed records and indexes the rest', () => {
+  const index = buildBlobPathIndex({
+    'id-null': null,
+    'id-nopath': { size: 1 },
+    'id-num': { blobPath: 42 },
+    'id-ok': { blobPath: 'avatars/ok.png' },
+  });
+  assert.deepEqual([...index.entries()], [['avatars/ok.png', 'id-ok']]);
+});
+
+test('buildBlobPath ignores non-string segments', () => {
+  assert.equal(
+    buildBlobPath({ iconPath: 'S/X', artistFolder: undefined, fileName: 'a.png' }),
+    'avatars/S/X/a.png'
+  );
+  assert.equal(buildBlobPath({ iconPath: null, artistFolder: '  ', fileName: 'a.png' }), 'avatars/a.png');
+});
+
+test('makeImageRecord normalizes missing optional fields to null', () => {
+  const rec = makeImageRecord({ blobPath: 'avatars/a.png', size: '12' });
+  assert.equal(rec.contentHash, null);
+  assert.equal(rec.size, null);
+  assert.equal(rec.campaignId, null);
+  assert.equal(rec.status, 'active');
+  assert.match(rec.addedAt, /^\d{4}-\d{2}-\d{2}T/);
+  assert.equal(rec.addedAt, rec.updatedAt);
+});
+
+// Read-only smoke tests against the committed data files: the loaders must
+// return plain objects/arrays and the registry must be internally consistent
+// with the attribution table's keying.
+test('loadCampaigns returns the campaigns array from data/campaigns.yaml', () => {
+  const campaigns = loadCampaigns();
+  assert.ok(Array.isArray(campaigns));
+  assert.ok(campaigns.length > 0);
+  for (const c of campaigns) assert.notEqual(campaignSlug(c), null);
+});
+
+test('loadImages / loadAttribution return objects and attribution is id-keyed', () => {
+  const images = loadImages();
+  const attribution = loadAttribution();
+  assert.equal(typeof images, 'object');
+  assert.equal(Array.isArray(images), false);
+  assert.equal(typeof attribution, 'object');
+  assert.equal(isBlobPathKeyed(attribution), false);
+  // Building the index over the committed registry must not throw.
+  const index = buildBlobPathIndex(images);
+  assert.equal(index.size, Object.keys(images).length);
 });

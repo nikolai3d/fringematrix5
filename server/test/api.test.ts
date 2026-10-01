@@ -349,7 +349,9 @@ describe('API contract', () => {
 
       const img = res.body.images[0];
       expect(typeof img.src).toBe('string');
-      expect(img.src.startsWith('/avatars/')).toBe(true);
+      // Direct Blob CDN URL when a token is configured (e.g. .env.local),
+      // otherwise the legacy /avatars redirect path. See server/blobUrl.ts.
+      expect(img.src).toMatch(/^(\/avatars\/|https:\/\/[a-z0-9]+\.public\.blob\.vercel-storage\.com\/avatars\/)/);
       expect(typeof img.fileName).toBe('string');
       expect(img.fileName.length).toBeGreaterThan(0);
       expect(typeof img.blobPath).toBe('string');
@@ -432,7 +434,9 @@ describe('API contract', () => {
       // the loop below verifies the shape for every entry that exists.
       for (const img of res.body.images) {
         expect(typeof img.src).toBe('string');
-        expect(img.src.startsWith('/avatars/')).toBe(true);
+        // Direct Blob CDN URL when a token is configured (e.g. .env.local),
+      // otherwise the legacy /avatars redirect path. See server/blobUrl.ts.
+      expect(img.src).toMatch(/^(\/avatars\/|https:\/\/[a-z0-9]+\.public\.blob\.vercel-storage\.com\/avatars\/)/);
         expect(typeof img.fileName).toBe('string');
         expect(img.fileName.length).toBeGreaterThan(0);
         expect(typeof img.blobPath).toBe('string');

@@ -71,7 +71,7 @@ async function findCampaignWithCards(page: Page): Promise<boolean> {
   await page.getByRole('button', { name: 'Campaigns' }).click();
   const sidebar = page.locator('#campaign-sidebar');
   await expect(sidebar).toHaveClass(/open/);
-  const sidebarButtons = sidebar.getByRole('button');
+  const sidebarButtons = sidebar.locator('.sidebar-item');
   const buttonCount = await sidebarButtons.count();
 
   for (let i = 0; i < buttonCount; i++) {

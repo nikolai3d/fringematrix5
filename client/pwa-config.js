@@ -81,6 +81,29 @@ export const pwaWorkbox = {
       },
     },
     {
+      // Optimized grid thumbnails from Vercel's image optimizer
+      // (/_vercel/image?url=<blob>&w=<n>&q=<q>, see responsiveImage.ts). In
+      // production these, not the originals above, are what the grid loads,
+      // so without this rule repeat visits re-fetched every thumbnail. The
+      // query string pins the source URL + width + quality, and the source
+      // blobs are immutable per URL, so CacheFirst is safe for the same
+      // reason as above.
+      urlPattern: ({ url }) =>
+        url.origin === self.location.origin && url.pathname === '/_vercel/image',
+      handler: 'CacheFirst',
+      options: {
+        cacheName: 'fm-thumbnails',
+        expiration: {
+          maxEntries: 500,
+          maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+          purgeOnQuotaError: true,
+        },
+        // 200 only: under self-host the shim 302s to the Blob CDN, and an
+        // opaque (status 0) result there could be an error we'd pin for 30 days.
+        cacheableResponse: { statuses: [200] },
+      },
+    },
+    {
       // Google Fonts stylesheet + font files (loaded from index.html).
       urlPattern: ({ url }) =>
         url.origin === 'https://fonts.googleapis.com' ||
